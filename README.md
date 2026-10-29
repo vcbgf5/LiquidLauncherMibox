@@ -113,9 +113,9 @@ Domyślne ulubione i zawsze pierwsze w siatce: YouTube, Netflix, YouTube Music, 
 
 ## Podgląd
 
-![Ekran główny](docs/preview-home.jpg)
+![Ekran główny (minimalny pasek u góry, duży zegar, dok)](docs/preview-home.jpg)
 ![Wszystkie aplikacje](docs/preview-apps.jpg)
-![Data i dalej oglądaj (strona nad ekranem głównym)](docs/preview-info.jpg)
+![Widżety: data, kalendarz, pogoda, teraz gra (strona nad ekranem głównym)](docs/preview-info.jpg)
 ![Wygaszacz](docs/preview-screensaver.jpg)
 
 **Klikalny podgląd w przeglądarce: https://vcbgf5.github.io/LiquidLauncherMibox/preview.html**
@@ -124,7 +124,7 @@ Możesz w nim klikać kafelki (pierwsze kliknięcie zaznacza, drugie „otwiera�
 albo strzałek, Enter i Esc na klawiaturze. Prawy przycisk myszy lub „Przytrzymaj OK (menu)” pokazuje menu aplikacji.
 Działa też na telefonie.
 
-To makieta z przykładowymi ikonami — prawdziwa aplikacja pokazuje ikony zainstalowanych aplikacji.
+Zdjęcia powyżej to prawdziwe zrzuty ekranu z Mi Box S. Klikalny podgląd to makieta z przykładowymi ikonami — prawdziwa aplikacja pokazuje ikony zainstalowanych aplikacji.
 Plik źródłowy: [`preview/preview.html`](preview/preview.html).
 
 ## Aktualizacje w aplikacji
@@ -161,7 +161,8 @@ tym samym kluczem i trzeba zaczynać od nowa (z odinstalowaniem).
 [`tools/tv_adb.py`](tools/tv_adb.py) łączy się z Boxem przez sieć (domyślnie port 5555) i ma menu najczęstszych czynności:
 instalacja i aktualizacja Liquid TV z GitHuba (większość tego umie już sam launcher: Ustawienia → Narzędzia), włączenie usługi dostępności (pasek głośności, okno zasilania),
 ustawienie domyślnego ekranu głównego, wpisanie linku w zaznaczone pole, zrzut ekranu (zapisuje w Obrazach lub na Pulpicie),
-uśpienie i obudzenie Boxa, **własna komenda** (dowolna komenda `adb shell`, a zaczynając od `adb ` zwykłe polecenie adb; albo
+uśpienie i obudzenie Boxa, **podgląd ekranu Boxa na żywo** (`--live`: scrcpy, który skrypt potrafi pobrać na Windowsie, a gdy go nie
+ma, okno odświeżane około raz na sekundę, sterowane strzałkami, Enterem, Esc, H oraz + i −), **własna komenda** (dowolna komenda `adb shell`, a zaczynając od `adb ` zwykłe polecenie adb; albo
 jednorazowo `--shell "komenda"`) oraz **„Nadaj WSZYSTKIE uprawnienia”** (`--grant-all`): każde uprawnienie zadeklarowane w aplikacji
 (także te, których launcher nie używa; są wpisane w manifeście tylko po to, żeby dało się je nadać), operacje appops, praca w tle,
 dostęp do powiadomień i usługa dostępności, z podsumowaniem tego, czego Android nie pozwala nadać zwykłej aplikacji.

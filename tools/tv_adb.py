@@ -18,6 +18,8 @@ Użycie:
     python tv_adb.py --help
 """
 import argparse
+import base64
+import json
 import os
 import platform
 import shlex
@@ -26,6 +28,8 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -450,6 +454,131 @@ def grant_everything(tv):
             "niedostępne w tej wersji Androida):\n  " + "\n  ".join(missing))
 
 
+# ---- Podgląd ekranu na żywo -------------------------------------------------------------------------------
+
+SCRCPY_FALLBACK = "https://github.com/Genymobile/scrcpy/releases/download/v2.7/scrcpy-win64-v2.7.zip"
+
+
+def find_scrcpy():
+    """`scrcpy` z PATH albo z folderu scrcpy obok skryptu; None, jeśli go nie ma."""
+    found = shutil.which("scrcpy")
+    if found:
+        return found
+    exe = "scrcpy.exe" if platform.system() == "Windows" else "scrcpy"
+    for candidate in sorted(HERE.glob(f"scrcpy*/{exe}")):
+        return str(candidate)
+    return None
+
+
+def download_scrcpy():
+    """Pobiera scrcpy (płynny podgląd i sterowanie myszą) z oficjalnego GitHuba; tylko dla Windows (gdzie to najwygodniejsze)."""
+    if platform.system() != "Windows":
+        say("Na tym systemie zainstaluj scrcpy menedżerem pakietów (np. `brew install scrcpy`, `sudo apt install scrcpy`).")
+        return None
+    url = SCRCPY_FALLBACK
+    try:
+        with urllib.request.urlopen("https://api.github.com/repos/Genymobile/scrcpy/releases/latest", timeout=20) as response:
+            assets = json.load(response).get("assets", [])
+        url = next((a["browser_download_url"] for a in assets if "win64" in a["name"] and a["name"].endswith(".zip")), url)
+    except Exception:
+        pass
+    say(f"Pobieram scrcpy (ok. 20 MB):\n  {url}")
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "scrcpy.zip"
+        urllib.request.urlretrieve(url, target)
+        with zipfile.ZipFile(target) as archive:
+            archive.extractall(HERE)
+    return find_scrcpy()
+
+
+KEYS = {
+    "Up": 19, "Down": 20, "Left": 21, "Right": 22, "Return": 23, "KP_Enter": 23, "space": 23,
+    "Escape": 4, "BackSpace": 4, "h": 3, "H": 3, "plus": 24, "equal": 24, "KP_Add": 24, "minus": 25, "KP_Subtract": 25,
+    "m": 164, "p": 85, "Prior": 92, "Next": 93,
+}
+
+
+def tk_live_view(tv):
+    """Okno z odświeżanym zrzutem ekranu (wystarcza zwykły Python z tkinter) i sterowaniem klawiaturą."""
+    try:
+        import tkinter as tk
+    except ImportError:
+        say("Ten Python nie ma tkinter, więc nie ma okna podglądu. Zainstaluj scrcpy (pozycja ponownie) albo Pythona z tkinter.")
+        return
+    root = tk.Tk()
+    root.title("Liquid TV: podgląd na żywo | strzałki, Enter, Esc = wstecz, H = home, + / - = głośność, Q = zamknij")
+    label = tk.Label(root, bg="black")
+    label.pack()
+    state = {"png": None, "run": True, "fps": 0.0}
+
+    def grab():
+        command = [tv.adb, "-s", tv.serial, "exec-out", "screencap", "-p"]
+        while state["run"]:
+            started = time.time()
+            try:
+                data = subprocess.run(command, capture_output=True, timeout=20).stdout
+            except Exception:
+                data = b""
+            if data.startswith(b"\x89PNG"):
+                state["png"] = data
+                state["fps"] = 1.0 / max(time.time() - started, 0.01)
+            else:
+                time.sleep(1)
+
+    def refresh():
+        data = state["png"]
+        if data is not None:
+            state["png"] = None
+            image = tk.PhotoImage(data=base64.b64encode(data).decode("ascii"))
+            # Połowa rozmiaru, żeby okno mieściło się na ekranie; pełna jakość jest w zrzucie z menu.
+            factor = max(1, round(image.width() / 960))
+            image = image.subsample(factor, factor)
+            label.configure(image=image)
+            label.image = image
+            root.title(f"Liquid TV: podgląd na żywo ({state['fps']:.1f} kl./s) | strzałki, Enter, Esc, H, + / -, Q = zamknij")
+        if state["run"]:
+            root.after(120, refresh)
+
+    def press(event):
+        if event.keysym in ("q", "Q"):
+            close()
+            return
+        code = KEYS.get(event.keysym)
+        if code is not None:
+            threading.Thread(target=lambda: tv.shell("input", "keyevent", str(code)), daemon=True).start()
+
+    def close():
+        state["run"] = False
+        root.destroy()
+
+    root.bind("<Key>", press)
+    root.protocol("WM_DELETE_WINDOW", close)
+    threading.Thread(target=grab, daemon=True).start()
+    refresh()
+    root.mainloop()
+
+
+def live_view(tv):
+    """Ekran Boxa na żywo: scrcpy (płynnie, z myszą), a gdy go nie ma, okno z odświeżanym zrzutem."""
+    scrcpy = find_scrcpy()
+    if not scrcpy:
+        say("Płynny podgląd robi program scrcpy (darmowy, oficjalny). Bez niego pokażę okno odświeżane około raz na sekundę.")
+        if input("Pobrać scrcpy teraz? [T/n] ").strip().lower() in ("", "t", "tak", "y", "yes"):
+            try:
+                scrcpy = download_scrcpy()
+            except Exception as error:
+                say(f"Nie udało się pobrać scrcpy ({error}).")
+    if scrcpy:
+        say("Otwieram podgląd (scrcpy). Zamknięcie okna wraca do menu.")
+        environment = dict(os.environ, ADB=tv.adb)
+        command = [scrcpy, "-s", tv.serial, "--window-title", "Liquid TV: podgląd na żywo", "--no-audio"]
+        code = subprocess.run(command, env=environment).returncode
+        if code == 0:
+            return
+        say("scrcpy się nie uruchomił; pokazuję prostszy podgląd.")
+    tk_live_view(tv)
+
+
 MENU = [
     ("Pokaż stan (wersja, usługa dostępności, domyślny launcher)", status),
     ("Zainstaluj / zaktualizuj Liquid TV (najnowsza wersja z GitHuba)", install),
@@ -458,6 +587,7 @@ MENU = [
     ("Wpisz link do pobrania w zaznaczone pole na Boxie", type_link),
     ("Otwórz Liquid TV na Boxie", open_launcher),
     ("Zrzut ekranu Boxa (zapisze plik w Obrazach lub na Pulpicie)", screenshot),
+    ("Podgląd ekranu Boxa NA ŻYWO (scrcpy albo okno z odświeżaniem)", live_view),
     ("Uśpij Boxa", sleep_tv),
     ("Obudź Boxa", wake_tv),
     ("Podłącz kalendarz Google (link iCal) do widżetu wydarzeń", connect_calendar),
@@ -501,6 +631,7 @@ def main():
     parser.add_argument("--screenshot", action="store_true", help="zrób zrzut ekranu Boxa")
     parser.add_argument("--sleep", action="store_true", help="uśpij Boxa")
     parser.add_argument("--wake", action="store_true", help="obudź Boxa")
+    parser.add_argument("--live", action="store_true", help="pokaż ekran Boxa na żywo")
     parser.add_argument("--shell", metavar="KOMENDA", help="wykonaj jedną komendę na Boxie (adb shell) i zakończ")
     parser.add_argument("--grant-all", action="store_true", help="nadaj wszystkie uprawnienia i zakończ")
     args = parser.parse_args()
@@ -523,6 +654,8 @@ def main():
         sys.exit(0 if code == 0 else 1)
     if args.grant_all:
         actions.append((True, grant_everything))
+    if args.live:
+        actions.append((True, live_view))
     chosen = [function for flag, function in actions if flag]
     if chosen:
         for function in chosen:
