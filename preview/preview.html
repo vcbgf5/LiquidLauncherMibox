@@ -10,17 +10,18 @@ body { display:flex; flex-direction:column; }
 #stage { position:absolute; left:50%; top:50%; margin:-270px 0 0 -480px; width:960px; height:540px; overflow:hidden; background:var(--shelf); border-radius:6px; transform-origin:50% 50%; }
 .tile, .btn { cursor:pointer; }
 .screen { position:absolute; left:0; top:0; width:960px; height:540px; transition:transform .7s cubic-bezier(.22,1,.36,1), opacity .5s ease; }
-#stage.show #home { opacity:0; }
+#stage.show #home, #stage.pinfo #home { opacity:0; }
 .zoom { position:absolute; inset:0; animation:breathe 26s linear infinite alternate, heroIn .9s ease both; }
 .zoom .bg { transition:transform .7s cubic-bezier(.22,1,.36,1); }
-#stage.show .zoom .bg { transform:translateY(243px); }
+#stage.show .zoom .bg { transform:translateY(-243px); }
+#stage.pinfo .zoom .bg { transform:translateY(243px); }
 @keyframes breathe { from { transform:scale(1); } to { transform:scale(1.06); } }
 @keyframes heroIn { from { opacity:0; } to { opacity:1; } }
 @keyframes tileIn { from { opacity:0; transform:translateY(28px) scale(.85); } to { opacity:1; transform:none; } }
 @keyframes tileUp { from { opacity:0; transform:translateY(36px); } to { opacity:1; transform:none; } }
 @keyframes dockIn { from { opacity:0; transform:translateX(-50%) translateY(40px) scale(.96); } to { opacity:1; transform:translateX(-50%); } }
 @keyframes sheen { from { transform:translateX(-130%); } to { transform:translateX(130%); } }
-#home { transform:translateY(0); }  #apps { transform:translateY(540px); }  #info { transform:translateY(1080px); }
+#home { transform:translateY(0); }  #apps { transform:translateY(540px); }  #info { transform:translateY(-540px); }
 #info .bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .iw { position:absolute; inset:0; padding:36px 48px 24px; display:flex; flex-direction:column; }
 .itop { flex:1; display:flex; justify-content:space-between; align-items:flex-start; min-height:0; }
@@ -32,13 +33,13 @@ body { display:flex; flex-direction:column; }
 .cal .g i { font-style:normal; height:25px; display:grid; place-items:center; font-size:13px; font-weight:500; color:rgba(255,255,255,.9); }
 .cal .g i.h { font-size:11px; color:rgba(255,255,255,.5); }
 .cal .g i.t span { width:24px; height:24px; border-radius:50%; background:#fff; color:#111; font-weight:700; display:grid; place-items:center; }
-.irow h5 { margin:6px 0 6px 2px; font-size:12px; font-weight:600; letter-spacing:1.4px; color:rgba(255,255,255,.55); }
+.irow h5 { margin:6px 0 16px 2px; font-size:12px; font-weight:600; letter-spacing:1.4px; color:rgba(255,255,255,.55); }
 .irow .tiles { display:flex; gap:14px; margin-bottom:4px; }
 .irow .tile { width:104px; flex:none; }
 .gtile { width:100%; height:100%; background:linear-gradient(135deg,#35508f,#141a33); display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; text-align:center; }
 .gtile b { font-size:12px; } .gtile span { font-size:9.5px; opacity:.75; }
-#stage.p2 #info .tile { animation:tileUp .6s cubic-bezier(.2,.9,.25,1.1) backwards; animation-delay:calc(.25s + var(--i)*.05s); }
-#stage.p2 .itop { animation:tileUp .6s cubic-bezier(.2,.9,.25,1.1) backwards; animation-delay:.12s; }
+#stage.pinfo #info .tile { animation:tileUp .6s cubic-bezier(.2,.9,.25,1.1) backwards; animation-delay:calc(.25s + var(--i)*.05s); }
+#stage.pinfo .itop { animation:tileUp .6s cubic-bezier(.2,.9,.25,1.1) backwards; animation-delay:.12s; }
 .bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
 .dim { position:absolute; inset:0; background:rgba(0,0,0,.6); }
 
@@ -159,7 +160,10 @@ body { display:flex; flex-direction:column; }
     <div class="srow" id="srow1"><span>Tapeta</span><span class="ctl"><span class="arr" data-d="-1" data-r="1">‹</span><b id="scat">Wszystkie kategorie</b><span class="arr" data-d="1" data-r="1">›</span></span></div>
     <div class="srow" id="srow2"><span>Zmiana tapety co</span><span class="ctl"><span class="arr" data-d="-1" data-r="2">‹</span><b id="sint">10 min</b><span class="arr" data-d="1" data-r="2">›</span></span></div>
     <div class="srow" id="srow3"><span>Następna tapeta</span></div>
-    <div class="srow" id="srow4"><span>Ustawienia systemowe  ›</span></div></div></div>
+    <div style="padding:8px 14px 2px;font-size:12px;color:rgba(255,255,255,.55)" id="ustat">Wersja 1.0.2 · masz najnowszą</div>
+    <div class="srow" id="srow4"><span>Sprawdź aktualizacje</span></div>
+    <div class="srow" id="srow5"><span>Aktualizuj automatycznie</span><span class="ctl"><span class="arr" data-d="-1" data-r="5">‹</span><b id="sauto">Włączone</b><span class="arr" data-d="1" data-r="5">›</span></span></div>
+    <div class="srow" id="srow6"><span>Ustawienia systemowe  ›</span></div></div></div>
   <div id="launch"><div id="ldim"></div><div id="lart"><img id="limg"></div></div>
   <div id="toast"></div>
 </div></div>
@@ -168,7 +172,7 @@ body { display:flex; flex-direction:column; }
     <button data-k="left" aria-label="Lewo">◀</button><button data-k="up" aria-label="Góra">▲</button><button data-k="down" aria-label="Dół">▼</button><button data-k="right" aria-label="Prawo">▶</button>
     <button data-k="ok">OK</button><button data-k="back">Wstecz</button><button data-k="menu">Przytrzymaj OK (menu)</button>
   </div>
-  <div class="hint">Klikaj kafelki albo używaj pilota (strzałki i Enter/Esc też działają). ▼ na doku = wszystkie aplikacje, ▼ z ostatniego rzędu = trzecia strona (data), ▲ z pierwszego rzędu lub Wstecz = wyżej.</div>
+  <div class="hint">Klikaj kafelki albo używaj pilota (strzałki i Enter/Esc też działają). ▼ na doku = wszystkie aplikacje, ▲ z ikon na górze = strona z datą i „Dalej oglądaj”, ▲ z pierwszego rzędu aplikacji, ▼ z ostatniego rzędu daty albo Wstecz = ekran główny.</div>
 </div>
 <script>
 const stage=document.getElementById('stage'), wrap=document.getElementById('wrap');
@@ -183,10 +187,10 @@ const menu=document.getElementById('menu'), toastEl=document.getElementById('toa
 let screen='home', area='dock', r=0, c=0, ir=0, tt, busy=false, sOpen=false, sRow=0, tval=60;
 const dockEl=document.getElementById('dock'), settingsEl=document.getElementById('settings');
 function setT(v){ tval=Math.max(0,Math.min(100,v)); dockEl.style.setProperty('--t',tval/100); document.getElementById('sval').textContent=tval+'%'; document.getElementById('sbar').style.width=tval+'%'; }
-const CATS=['Wszystkie kategorie','Zwierzęta','Góry','Miasto','Las','Ocean i plaża','Kosmos','Zima','Niebo i zachody słońca','Abstrakcja','Minimalizm','Wyłączona (wbudowana)'], INTS=['1 min','5 min','10 min','30 min','1 godz.']; let ci=0, ii=2;
-function sFocus(){ for(let i=0;i<5;i++) document.getElementById('srow'+i).classList.toggle('sel',sRow===i); }
-function sStep(r,d){ if(r===0) setT(tval+10*d); else if(r===1){ ci=(ci+d+CATS.length)%CATS.length; document.getElementById('scat').textContent=CATS[ci]; } else if(r===2){ ii=Math.max(0,Math.min(INTS.length-1,ii+d)); document.getElementById('sint').textContent=INTS[ii]; } }
-function sAction(r){ if(r===3) toast('Następna tapeta (zdjęcia pojawią się po pobraniu z Unsplash, zob. README)'); if(r===4){ closeSettings(); toast('Otwieram ustawienia systemowe Androida'); } }
+const CATS=['Wszystkie kategorie','Zwierzęta','Góry','Miasto','Las','Ocean i plaża','Kosmos','Zima','Niebo i zachody słońca','Abstrakcja','Minimalizm','Wyłączona (wbudowana)'], INTS=['1 min','5 min','10 min','30 min','1 godz.']; let ci=0, ii=2, autoUp=true;
+function sFocus(){ for(let i=0;i<7;i++) document.getElementById('srow'+i).classList.toggle('sel',sRow===i); }
+function sStep(r,d){ if(r===0) setT(tval+10*d); else if(r===1){ ci=(ci+d+CATS.length)%CATS.length; document.getElementById('scat').textContent=CATS[ci]; } else if(r===2){ ii=Math.max(0,Math.min(INTS.length-1,ii+d)); document.getElementById('sint').textContent=INTS[ii]; } else if(r===5){ autoUp=!autoUp; document.getElementById('sauto').textContent=autoUp?'Włączone':'Wyłączone'; } }
+function sAction(r){ if(r===3) toast('Następna tapeta (zdjęcia pojawią się po pobraniu z Unsplash, zob. README)'); if(r===4){ const u=document.getElementById('ustat'); u.textContent='Wersja 1.0.2 · sprawdzanie…'; setTimeout(()=>{ u.textContent='Pobieranie aktualizacji… 100%'; },700); setTimeout(()=>{ u.textContent='Wersja 1.0.2 · masz najnowszą'; toast('W aplikacji: jeśli jest nowsza wersja, pobiera się sama i Android prosi o zatwierdzenie'); },1500); } if(r===5) sStep(5,1); if(r===6){ closeSettings(); toast('Otwieram ustawienia systemowe Androida'); } }
 function openSettings(){ sOpen=true; sRow=0; sFocus(); settingsEl.classList.add('open'); }
 function closeSettings(){ sOpen=false; settingsEl.classList.remove('open'); }
 function launch(el){
@@ -218,22 +222,22 @@ function toast(t){ toastEl.textContent=t; toastEl.classList.add('on'); clearTime
 function setFocus(){ document.querySelectorAll('.focus').forEach(e=>e.classList.remove('focus')); const el=cur(); el.classList.add('focus'); if(screen==='apps') el.scrollIntoView({block:'nearest'}); }
 const cx=el=>{ const b=el.getBoundingClientRect(); return b.left+b.width/2; };
 function nearest(row,x){ let best=0,bd=1e9; row.forEach((t,i)=>{const d=Math.abs(cx(t)-x); if(d<bd){bd=d;best=i;}}); return best; }
-function go(s){ screen=s; const p={home:0,apps:1,info:2}[s];
-  document.getElementById('home').style.transform=`translateY(${-p*540}px)`; document.getElementById('apps').style.transform=`translateY(${(1-p)*540}px)`; document.getElementById('info').style.transform=`translateY(${(2-p)*540}px)`;
-  stage.classList.toggle('show',p>=1); stage.classList.toggle('p2',p===2);
+function go(s){ screen=s; const p={info:0,home:1,apps:2}[s];
+  document.getElementById('info').style.transform=`translateY(${(0-p)*540}px)`; document.getElementById('home').style.transform=`translateY(${(1-p)*540}px)`; document.getElementById('apps').style.transform=`translateY(${(2-p)*540}px)`;
+  stage.classList.toggle('show',p===2); stage.classList.toggle('pinfo',p===0);
   if(s==='apps'){ r=0;c=0; document.getElementById('grid').scrollTo({top:0}); } else if(s==='info'){ ir=0;c=0; } else { area='dock'; c=0; } setTimeout(setFocus,60); }
 function press(k){
   if(busy) return;
   if(sOpen){
     if(k==='back'||k==='menu') closeSettings();
     else if(k==='up'){ sRow=Math.max(0,sRow-1); sFocus(); }
-    else if(k==='down'){ sRow=Math.min(4,sRow+1); sFocus(); }
+    else if(k==='down'){ sRow=Math.min(6,sRow+1); sFocus(); }
     else if(k==='left'||k==='right') sStep(sRow,k==='left'?-1:1);
     else if(k==='ok') sAction(sRow);
     return;
   }
   if(menu.classList.contains('open')){ if(k==='back'||k==='menu') menu.classList.remove('open'); return; }
-  if(k==='back'){ if(screen==='info') go('apps'); else if(screen==='apps') go('home'); else toast('Wstecz: launcher zostaje na ekranie głównym'); return; }
+  if(k==='back'){ if(screen!=='home') go('home'); else toast('Wstecz: launcher zostaje na ekranie głównym'); return; }
   if(k==='ok'){ const el=cur();
     if(el.classList.contains('tile')){ el.classList.add('press'); setTimeout(()=>{ el.classList.remove('press'); launch(el); },110); }
     else if(el.dataset.name==='Ustawienia') openSettings();
@@ -244,20 +248,20 @@ function press(k){
     const row=rowsHome[area==='dock'?1:0];
     if(k==='left') c=Math.max(0,c-1);
     else if(k==='right') c=Math.min(row.length-1,c+1);
-    else if(k==='up'&&area==='dock'){ const x=cx(dock[c]); area='top'; c=nearest(topBtns,x); }
+    else if(k==='up'){ if(area==='dock'){ const x=cx(dock[c]); area='top'; c=nearest(topBtns,x); } else { go('info'); return; } }
     else if(k==='down'){ if(area==='top'){ const x=cx(topBtns[c]); area='dock'; c=nearest(dock,x); } else { go('apps'); return; } }
     setFocus();
   } else if(screen==='apps'){
     if(k==='left') c=Math.max(0,c-1);
     else if(k==='right') c=Math.min(gridRows[r].length-1,c+1);
-    else if(k==='down'){ if(r<gridRows.length-1){ const x=cx(gridRows[r][c]); r++; c=nearest(gridRows[r],x); } else { go('info'); return; } }
+    else if(k==='down'){ if(r<gridRows.length-1){ const x=cx(gridRows[r][c]); r++; c=nearest(gridRows[r],x); } }
     else if(k==='up'){ if(r===0){ go('home'); return; } const x=cx(gridRows[r][c]); r--; c=nearest(gridRows[r],x); }
     setFocus();
   } else {
     if(k==='left') c=Math.max(0,c-1);
     else if(k==='right') c=Math.min(infoRows[ir].length-1,c+1);
-    else if(k==='down'&&ir<infoRows.length-1){ const x=cx(infoRows[ir][c]); ir++; c=nearest(infoRows[ir],x); }
-    else if(k==='up'){ if(ir===0){ go('apps'); return; } const x=cx(infoRows[ir][c]); ir--; c=nearest(infoRows[ir],x); }
+    else if(k==='down'){ if(ir>=infoRows.length-1){ go('home'); return; } const x=cx(infoRows[ir][c]); ir++; c=nearest(infoRows[ir],x); }
+    else if(k==='up'&&ir>0){ const x=cx(infoRows[ir][c]); ir--; c=nearest(infoRows[ir],x); }
     setFocus();
   }
 }

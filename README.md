@@ -3,14 +3,14 @@
 Launcher na Android TV (Xiaomi Mi Box itp.) inspirowany ekranem głównym Apple TV.
 Natywna aplikacja: Kotlin + Jetpack Compose, bez WebView.
 
-Dwa osobne ekrany:
+Trzy osobne ekrany, jeden nad drugim:
 
-1. **Ekran główny** — zdjęcie na cały ekran, u góry zegar, ustawienia i konto Google, na dole sam dok z ulubionymi
-   (zaokrąglony „szklany” panel z rozmytym tłem, do 6 aplikacji).
-2. **Wszystkie aplikacje** — strzałka w dół na doku przesuwa cały ekran w górę i wjeżdża pełnoekranowa siatka.
+1. **Data** (na górze) — strzałka w górę z ikon u góry ekranu głównego: duży zegar, pełna data, kalendarz miesiąca,
+   rząd „Dalej oglądaj” i rząd ostatnio otwieranych aplikacji. Strzałka w dół z ostatniego rzędu, **Wstecz** albo **Home** wraca.
+2. **Ekran główny** (środek, tu się startuje) — zdjęcie na cały ekran, u góry zegar, ustawienia i konto Google,
+   na dole sam dok z ulubionymi (zaokrąglony „szklany” panel z rozmytym tłem, do 6 aplikacji).
+3. **Wszystkie aplikacje** (na dole) — strzałka w dół na doku przesuwa cały ekran w górę i wjeżdża pełnoekranowa siatka.
    Strzałka w górę z pierwszego rzędu, **Wstecz** albo **Home** wraca na ekran główny.
-3. **Data** — strzałka w dół z ostatniego rzędu siatki: duży zegar, pełna data, kalendarz miesiąca,
-   rząd „Dalej oglądaj” i rząd ostatnio otwieranych aplikacji (Wstecz / strzałka w górę wraca).
 
 Ikona zębatki otwiera **ustawienia launchera**: przezroczystość docka (strzałki w lewo/prawo, zmiana widoczna od razu)
 oraz przejście do **ustawień systemowych** Androida. Ikona obok pokazuje konto Google z urządzenia (pierwsza litera adresu).
@@ -31,7 +31,7 @@ wpisy innych aplikacji (i to tylko z aktywnego profilu, nigdy ze wszystkich nara
 adb shell pm grant com.liquidglass.tvlauncher com.android.providers.tv.permission.READ_EPG_DATA
 ```
 
-  i otwórz trzecią stronę. Jeśli komenda zgłosi błąd albo rząd nadal pokazuje tylko kafelek systemowy, system tego nie dopuszcza.
+  i otwórz stronę z datą (strzałka w górę z ikon na górze). Jeśli komenda zgłosi błąd albo rząd nadal pokazuje tylko kafelek systemowy, system tego nie dopuszcza.
 
 **Tapety z Unsplash.** Launcher zmienia tapetę co kilka minut (z płynnym przenikaniem), losując z wybranej kategorii:
 zwierzęta, góry, miasto, las, ocean, kosmos, zima, niebo, abstrakcja, minimalizm (lub ze wszystkich).
@@ -49,7 +49,7 @@ Domyślne ulubione i zawsze pierwsze w siatce: YouTube, Netflix, YouTube Music, 
 
 ![Ekran główny](docs/preview-home.jpg)
 ![Wszystkie aplikacje](docs/preview-apps.jpg)
-![Data i dalej oglądaj](docs/preview-info.jpg)
+![Data i dalej oglądaj (strona nad ekranem głównym)](docs/preview-info.jpg)
 
 **Klikalny podgląd w przeglądarce: https://vcbgf5.github.io/LiquidLauncherMibox/preview.html**
 
@@ -62,11 +62,15 @@ Plik źródłowy: [`preview/preview.html`](preview/preview.html).
 
 ## Aktualizacje w aplikacji
 
-W ustawieniach launchera (zębatka) jest **Sprawdź aktualizacje**, a gdy jest nowsza wersja, także **Aktualizuj teraz**:
-launcher pobiera plik z najnowszego wydania i otwiera systemowy instalator (Android nigdy nie pozwala instalować po cichu,
-trzeba zatwierdzić). Opcja **Automatyczne sprawdzanie** (domyślnie włączona) sprawdza raz na 12 godzin i zapala
-czerwoną kropkę przy zębatce. Przy pierwszej aktualizacji system zapyta o zgodę na „instalowanie nieznanych aplikacji”
-dla Liquid TV — włącz ją i wybierz Aktualizuj jeszcze raz.
+Launcher **sam sprawdza**, czy w najnowszym wydaniu jest nowsza wersja (jedno malutkie zapytanie, gdy launcher pojawia się
+na ekranie, najwyżej raz na 6 godzin) i — gdy jest — **sam ją pobiera i otwiera systemowy instalator**. Zostaje Ci tylko
+zatwierdzić instalację (Android nigdy nie pozwala instalować po cichu). Tę samą wersję launcher proponuje samoczynnie tylko raz,
+więc jeśli odmówisz, nie będzie Cię nękał; wtedy przy zębatce świeci czerwona kropka.
+
+W ustawieniach launchera (zębatka): **Sprawdź aktualizacje** (sprawdza od razu i jeśli jest nowa wersja, od razu ją pobiera),
+**Aktualizuj teraz** (gdy nowa wersja czeka) i przełącznik **Aktualizuj automatycznie** (domyślnie włączony).
+Przy pierwszej aktualizacji system zapyta o zgodę na „instalowanie nieznanych aplikacji” dla Liquid TV — włącz ją
+i wybierz Aktualizuj teraz jeszcze raz (samoczynna aktualizacja sama tego okna nie otwiera).
 
 **Żeby aktualizacje „na wierzchu” w ogóle działały, wersje muszą być podpisane tym samym kluczem.** Jednorazowo:
 
