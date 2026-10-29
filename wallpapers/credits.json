@@ -1,8 +1,53 @@
 {
+ "abstrakcja/C_NJKfnTR5A.jpg": {
+  "name": "Sean Sinclair",
+  "page": "https://unsplash.com/photos/a-blurry-image-of-a-rainbow-colored-background-C_NJKfnTR5A",
+  "profile": "https://unsplash.com/@seanwsinclair"
+ },
+ "abstrakcja/EXHiq2ox0_g.jpg": {
+  "name": "Masud Merzaye",
+  "page": "https://unsplash.com/photos/a-very-colorful-abstract-background-with-lots-of-colors-EXHiq2ox0_g",
+  "profile": "https://unsplash.com/@ramen2022"
+ },
+ "abstrakcja/LeG68PrXA6Y.jpg": {
+  "name": "Codioful (Formerly Gradienta)",
+  "page": "https://unsplash.com/photos/blue-and-pink-light-illustration-LeG68PrXA6Y",
+  "profile": "https://unsplash.com/@codioful"
+ },
+ "abstrakcja/VGYdjjmBb-A.jpg": {
+  "name": "Jon Couch",
+  "page": "https://unsplash.com/photos/abstract-orange-and-blue-waves-VGYdjjmBb-A",
+  "profile": "https://unsplash.com/@northdust"
+ },
+ "abstrakcja/f_nFeb9eWVA.jpg": {
+  "name": "Steve A Johnson",
+  "page": "https://unsplash.com/photos/yellow-red-green-and-black-abstract-painting-f_nFeb9eWVA",
+  "profile": "https://unsplash.com/@steve_j"
+ },
  "abstrakcja/ix_kUDzCczo.jpg": {
   "name": "Codioful (Formerly Gradienta)",
   "page": "https://unsplash.com/photos/pink-purple-and-teal-gradient-ix_kUDzCczo",
   "profile": "https://unsplash.com/@codioful"
+ },
+ "abstrakcja/mlpt6rbrH_8.jpg": {
+  "name": "Nick Fewings",
+  "page": "https://unsplash.com/photos/a-multicolored-flower-with-a-black-background-mlpt6rbrH_8",
+  "profile": "https://unsplash.com/@jannerboy62"
+ },
+ "abstrakcja/p203ekCK4Ac.jpg": {
+  "name": "Alexander Grey",
+  "page": "https://unsplash.com/photos/green-purple-and-orange-abstract-painting-p203ekCK4Ac",
+  "profile": "https://unsplash.com/@sharonmccutcheon"
+ },
+ "abstrakcja/uiJNYtAbfVU.jpg": {
+  "name": "BoliviaInteligente",
+  "page": "https://unsplash.com/photos/a-colorful-abstract-background-with-wavy-lines-uiJNYtAbfVU",
+  "profile": "https://unsplash.com/@boliviainteligente"
+ },
+ "abstrakcja/yyIrg9qiLPs.jpg": {
+  "name": "Steve A Johnson",
+  "page": "https://unsplash.com/photos/multicolored-abstract-painting-yyIrg9qiLPs",
+  "profile": "https://unsplash.com/@steve_j"
  },
  "gory/I_n_b44cqhk.jpg": {
   "name": "Simon Lohmann",
@@ -203,6 +248,56 @@
   "name": "Jeff Brown",
   "page": "https://unsplash.com/photos/chicago-skyline-across-lake-michigan-xOj6_Ha1_R8",
   "profile": "https://unsplash.com/@jbrown1276"
+ },
+ "minimalizm/4L-AyDJM-yM.jpg": {
+  "name": "Cristina Gottardi",
+  "page": "https://unsplash.com/photos/pine-tree-covered-with-snow-4L-AyDJM-yM",
+  "profile": "https://unsplash.com/@cristina_gottardi"
+ },
+ "minimalizm/Qw3w0oBH63s.jpg": {
+  "name": "Carolinie Cavalli",
+  "page": "https://unsplash.com/photos/birds-eye-view-photography-of-mountain-Qw3w0oBH63s",
+  "profile": "https://unsplash.com/@caroliniecavalli"
+ },
+ "minimalizm/VuRQP-kOYbc.jpg": {
+  "name": "Tyler Lastovich",
+  "page": "https://unsplash.com/photos/selective-focus-photography-of-mountain-near-water-VuRQP-kOYbc",
+  "profile": "https://unsplash.com/@lastly"
+ },
+ "minimalizm/hXXRLtTxXCU.jpg": {
+  "name": "Brigitta Schneiter",
+  "page": "https://unsplash.com/photos/mountain-near-on-body-of-water-photo-hXXRLtTxXCU",
+  "profile": "https://unsplash.com/@brisch27"
+ },
+ "minimalizm/jUCQRQeRs3k.jpg": {
+  "name": "Willian Justen de Vasconcellos",
+  "page": "https://unsplash.com/photos/silhouette-of-mountain-at-daytime-jUCQRQeRs3k",
+  "profile": "https://unsplash.com/@willianjusten"
+ },
+ "minimalizm/k9Dl7jUxr7s.jpg": {
+  "name": "Serhii Shuliak",
+  "page": "https://unsplash.com/photos/a-snow-covered-hill-with-a-sky-background-k9Dl7jUxr7s",
+  "profile": "https://unsplash.com/@void_echo"
+ },
+ "minimalizm/tuM1XWeRzQc.jpg": {
+  "name": "Jan Huber",
+  "page": "https://unsplash.com/photos/grayscale-photo-of-tree-on-field-tuM1XWeRzQc",
+  "profile": "https://unsplash.com/@jan_huber"
+ },
+ "minimalizm/vm1xnHi6jDY.jpg": {
+  "name": "Luca Pozzoli",
+  "page": "https://unsplash.com/photos/a-lone-house-in-the-middle-of-a-vast-expanse-of-snow-vm1xnHi6jDY",
+  "profile": "https://unsplash.com/@pozlu0"
+ },
+ "minimalizm/wVjd0eWNqI8.jpg": {
+  "name": "Paul Earle",
+  "page": "https://unsplash.com/photos/mountains-cover-by-fogs-wVjd0eWNqI8",
+  "profile": "https://unsplash.com/@paulearlephotography"
+ },
+ "minimalizm/xKf_UzwqBtU.jpg": {
+  "name": "Taneli Lahtinen",
+  "page": "https://unsplash.com/photos/green-grass-covered-hill-under-white-sky-during-daytime-xKf_UzwqBtU",
+  "profile": "https://unsplash.com/@tanelah"
  },
  "niebo/B1GMcmfDj-Q.jpg": {
   "name": "Chris Barbalis",
