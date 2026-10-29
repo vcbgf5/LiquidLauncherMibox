@@ -1,8 +1,10 @@
 package com.liquidglass.tvlauncher
 
 import android.accessibilityservice.AccessibilityService
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -10,26 +12,34 @@ import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.database.ContentObserver
 import android.media.AudioManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import com.liquidglass.tvlauncher.data.KeyLearner
+import com.liquidglass.tvlauncher.data.KeyLog
 import com.liquidglass.tvlauncher.data.LauncherSettings
 
 /**
  * Lets the launcher reach past its own screen, once the user switches it on in Android's
- * accessibility settings. It reads nothing from the screen; it does two things:
+ * accessibility settings. It reads nothing from the screen; it does these things:
  *
  *  - Volume: shows the launcher's own bar at the top, above whatever app is in front, Netflix
- *    included. By default ([LauncherSettings.VOLUME_BESIDE]) Android handles the volume keys exactly
- *    as before and the bar only reports what happened, so volume can never stop working because of
- *    it. In [LauncherSettings.VOLUME_REPLACE] the keys are taken here instead, so Android's own bar
- *    doesn't show; that is the mode that can get in the way of a TV controlled over HDMI-CEC.
+ *    included. The bar is driven by *changes of the volume* (the broadcast Android sends, backed up by
+ *    a settings observer), not by key presses, because on a TV the keys are handled by the system
+ *    itself and a Bluetooth speaker or an HDMI device changes the volume without any key at all.
+ *    In [LauncherSettings.VOLUME_REPLACE] the volume keys are also taken here and applied without
+ *    Android's bar (a TV's window manager would otherwise handle them and show its own), and every
+ *    other change gets Android's bar closed straight away.
+ *  - The remote button taught as "quick settings": works in any app.
  *  - Power: [showPowerDialog] asks Android for its "power off / restart" dialog, which no ordinary
  *    app is allowed to do.
  */
@@ -37,54 +47,133 @@ class SystemService : AccessibilityService() {
 
     private var overlay: VolumeOverlay? = null
     private val handler = Handler(Looper.getMainLooper())
+    private lateinit var settings: LauncherSettings
+    private lateinit var audio: AudioManager
+
+    private var lastLevel = -1
+    private var lastMuted = false
+
+    private val volumeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val stream = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_TYPE", -1)
+            if (stream == AudioManager.STREAM_MUSIC) volumeChanged("sygnał systemu")
+        }
+    }
+
+    private val settingsObserver = object : ContentObserver(handler) {
+        override fun onChange(selfChange: Boolean) {
+            val level = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val muted = audio.isStreamMute(AudioManager.STREAM_MUSIC)
+            if (level != lastLevel || muted != lastMuted) volumeChanged("ustawienia")
+        }
+    }
+
+    private val closeDialogs = Runnable {
+        try {
+            @Suppress("DEPRECATION")
+            sendBroadcast(Intent(Intent.ACTION_CLOSE_SYSTEM_DIALOGS))
+        } catch (_: Throwable) {
+            // Android 12+ refuses this for apps: the bar then simply stays, ours is drawn above it.
+        }
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        settings = LauncherSettings(this)
+        audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         overlay = VolumeOverlay(this)
+        lastLevel = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        lastMuted = audio.isStreamMute(AudioManager.STREAM_MUSIC)
+        // These two broadcasts are what Android's own volume bar listens to; they are not in the public SDK.
+        val filter = IntentFilter().apply {
+            addAction("android.media.VOLUME_CHANGED_ACTION")
+            addAction("android.media.STREAM_MUTE_CHANGED_ACTION")
+        }
+        try {
+            registerReceiver(volumeReceiver, filter)
+        } catch (e: Throwable) {
+            Log.w(TAG, "volume receiver: $e")
+        }
+        try {
+            contentResolver.registerContentObserver(Settings.System.CONTENT_URI, true, settingsObserver)
+        } catch (e: Throwable) {
+            Log.w(TAG, "settings observer: $e")
+        }
         Log.i(TAG, "service connected")
     }
 
+    /** The volume (or the mute) changed, whoever did it: show the bar and, when asked to, close Android's. */
+    private fun volumeChanged(source: String) {
+        lastLevel = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        lastMuted = audio.isStreamMute(AudioManager.STREAM_MUSIC)
+        changesSeen++
+        lastChange = source
+        lastChangeAt = System.currentTimeMillis()
+        val mode = settings.volumeMode
+        if (mode == LauncherSettings.VOLUME_OFF) return
+        showCurrent()
+        if (mode == LauncherSettings.VOLUME_REPLACE && Build.VERSION.SDK_INT < 31) {
+            // Android's bar appears a moment after the change: ask for it to be closed a few times.
+            handler.removeCallbacks(closeDialogs)
+            for (delay in longArrayOf(0, 50, 130, 260, 500)) handler.postDelayed(closeDialogs, delay)
+        }
+    }
+
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        KeyLog.record("usługa", event)
         val code = event.keyCode
+
+        // Learning which button opens the quick settings.
+        if (KeyLearner.offer(event, settings)) return true
+        if (settings.quickKey != 0 && code == settings.quickKey) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) openQuickSettings()
+            return true
+        }
+
         if (code != KeyEvent.KEYCODE_VOLUME_UP && code != KeyEvent.KEYCODE_VOLUME_DOWN && code != KeyEvent.KEYCODE_VOLUME_MUTE) {
             return false
         }
         keysSeen++
         lastKey = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_") + if (event.action == KeyEvent.ACTION_UP) " (puszczony)" else ""
         lastKeyAt = System.currentTimeMillis()
-        Log.i(TAG, "key $lastKey")
 
-        val mode = LauncherSettings(this).volumeMode
-        if (mode == LauncherSettings.VOLUME_OFF) return false
-        val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val replace = mode == LauncherSettings.VOLUME_REPLACE && !audio.isVolumeFixed
-        if (event.action != KeyEvent.ACTION_DOWN) return replace
+        // Anything but "replace" leaves the keys to Android; the change they cause is picked up by volumeChanged.
+        if (settings.volumeMode != LauncherSettings.VOLUME_REPLACE || audio.isVolumeFixed) return false
+        if (event.action != KeyEvent.ACTION_DOWN) return true // the press was taken, so is its release
 
-        if (replace) {
-            val direction = when (code) {
-                KeyEvent.KEYCODE_VOLUME_UP -> AudioManager.ADJUST_RAISE
-                KeyEvent.KEYCODE_VOLUME_DOWN -> AudioManager.ADJUST_LOWER
-                else -> AudioManager.ADJUST_TOGGLE_MUTE
-            }
-            // Flag 0: no system volume bar, ours is the one shown.
-            audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
-            showCurrent(audio)
-            return true
+        val direction = when (code) {
+            KeyEvent.KEYCODE_VOLUME_UP -> AudioManager.ADJUST_RAISE
+            KeyEvent.KEYCODE_VOLUME_DOWN -> AudioManager.ADJUST_LOWER
+            else -> AudioManager.ADJUST_TOGGLE_MUTE
         }
-
-        // The keys are left to Android; a moment later the bar shows what they did, if anything.
         val before = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
         val mutedBefore = audio.isStreamMute(AudioManager.STREAM_MUSIC)
+        // Flag 0: no Android bar. It is the same call the TV's window manager would have made.
+        audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
         handler.postDelayed({
-            if (audio.getStreamVolume(AudioManager.STREAM_MUSIC) != before || audio.isStreamMute(AudioManager.STREAM_MUSIC) != mutedBefore) {
-                showCurrent(audio)
-            }
-        }, 220)
-        return false
+            val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val changed = audio.getStreamVolume(AudioManager.STREAM_MUSIC) != before || audio.isStreamMute(AudioManager.STREAM_MUSIC) != mutedBefore
+            val atLimit = (direction == AudioManager.ADJUST_RAISE && before >= max) || (direction == AudioManager.ADJUST_LOWER && before <= 0)
+            if (!changed && !atLimit) ignoredAdjusts++
+        }, 350)
+        return true
     }
 
-    private fun showCurrent(audio: AudioManager) {
+    /** The taught button: brings the launcher up with its quick settings open, from any app. */
+    private fun openQuickSettings() {
+        try {
+            startActivity(
+                Intent(this, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    .putExtra("open_quick", true),
+            )
+        } catch (e: Throwable) {
+            Log.w(TAG, "quick settings: $e")
+        }
+    }
+
+    private fun showCurrent() {
         val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
         val percent = audio.getStreamVolume(AudioManager.STREAM_MUSIC) * 100 / max
         overlay?.show(percent, audio.isStreamMute(AudioManager.STREAM_MUSIC))
@@ -95,6 +184,8 @@ class SystemService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onUnbind(intent: Intent?): Boolean {
+        runCatching { unregisterReceiver(volumeReceiver) }
+        runCatching { contentResolver.unregisterContentObserver(settingsObserver) }
         overlay?.release()
         overlay = null
         handler.removeCallbacksAndMessages(null)
@@ -120,6 +211,24 @@ class SystemService : AccessibilityService() {
 
         @Volatile
         var lastKeyAt = 0L
+            private set
+
+        /** Changes of the volume noticed (by the system broadcast or the settings observer), and the last one. */
+        @Volatile
+        var changesSeen = 0
+            private set
+
+        @Volatile
+        var lastChange = ""
+            private set
+
+        @Volatile
+        var lastChangeAt = 0L
+            private set
+
+        /** Key presses taken by the service that changed nothing (not counting the minimum and maximum). */
+        @Volatile
+        var ignoredAdjusts = 0
             private set
 
         val connected: Boolean get() = instance != null

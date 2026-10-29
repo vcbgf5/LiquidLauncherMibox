@@ -32,8 +32,8 @@
     <string name="settings_tile_lighting">Efekt światła na ikonach</string>
     <string name="settings_custom_volume">Pasek głośności Liquid TV</string>
     <string name="volume_mode_off">Wyłączony</string>
-    <string name="volume_mode_beside">Obok systemowego</string>
-    <string name="volume_mode_replace">Zamiast systemowego</string>
+    <string name="volume_mode_beside">Pasek Liquid TV (systemowy zostaje)</string>
+    <string name="volume_mode_replace">Pasek Liquid TV, systemowy ukryty</string>
     <string name="settings_volume_diagnostics">Diagnostyka głośności…</string>
     <string name="diag_title">Diagnostyka głośności</string>
     <string name="diag_test_bar">Pokaż pasek (test)</string>
@@ -285,4 +285,14 @@
     <string name="remote_always_on">Strona działa cały czas (wyłącz)</string>
     <string name="remote_always_off">Strona działa tylko przy tym oknie (włącz na stałe)</string>
     <string name="remote_new_link">Nowy link (stary przestanie działać)</string>
+    <string name="volume_mode_beside_short">oba paski</string>
+    <string name="volume_mode_replace_short">tylko nasz</string>
+    <string name="quick_diagnostics">diagnostyka</string>
+    <string name="diag_system_windows">Okna systemowe i audio (adb)</string>
+    <string name="settings_quick_key">Przycisk szybkich ustawień: %1$s (zmień)</string>
+    <string name="quick_key_none">żaden</string>
+    <string name="quick_key_clear">Wyczyść przypisany przycisk</string>
+    <string name="quick_key_learned">Zapisano przycisk: %1$s. Od teraz otwiera szybkie ustawienia.</string>
+    <string name="quick_key_prompt_title">Naciśnij przycisk na pilocie</string>
+    <string name="quick_key_prompt_text">Naciśnij ten, który ma otwierać szybkie ustawienia (np. Menu). Strzałki, OK, Wstecz, Home i głośność są pomijane. Wstecz anuluje. Z włączoną usługą dostępności przycisk będzie działał w każdej aplikacji.</string>
 </resources>

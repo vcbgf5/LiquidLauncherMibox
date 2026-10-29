@@ -63,6 +63,8 @@ import com.liquidglass.tvlauncher.data.FolderStore
 import com.liquidglass.tvlauncher.data.FrameMonitor
 import com.liquidglass.tvlauncher.data.IconOverrides
 import com.liquidglass.tvlauncher.data.IconPack
+import com.liquidglass.tvlauncher.data.KeyLearner
+import com.liquidglass.tvlauncher.data.KeyLog
 import com.liquidglass.tvlauncher.data.IconPacks
 import com.liquidglass.tvlauncher.data.LauncherSettings
 import com.liquidglass.tvlauncher.data.NowPlayingReader
@@ -101,6 +103,7 @@ import com.liquidglass.tvlauncher.ui.LocalTileTilt
 import com.liquidglass.tvlauncher.ui.PAGE_HOME
 import com.liquidglass.tvlauncher.ui.PAGE_INFO
 import com.liquidglass.tvlauncher.ui.LaunchOverlay
+import com.liquidglass.tvlauncher.ui.LearnKeyPrompt
 import com.liquidglass.tvlauncher.ui.LaunchRequest
 import com.liquidglass.tvlauncher.ui.MenuOption
 import com.liquidglass.tvlauncher.ui.QuickPanel
@@ -248,6 +251,12 @@ class MainActivity : ComponentActivity() {
             var restoreList by remember { mutableStateOf<List<String>?>(null) }
             var showAdbDiag by remember { mutableStateOf(false) }
             var adbDiagText by remember { mutableStateOf("") }
+
+            val openAdbDiagnostics: () -> Unit = {
+                adbDiagText = getString(R.string.adb_diag_running)
+                showAdbDiag = true
+                appScope.launch { adbDiagText = SelfAdb.diagnose(this@MainActivity) }
+            }
 
             // In-app updates (see UpdateManager): the status, the version found and the download.
             var silentUpdates by remember { mutableStateOf(settings.silentUpdates) }
@@ -465,7 +474,22 @@ class MainActivity : ComponentActivity() {
             // screen, and from the home screen it just returns focus to the dock.
             BackHandler {
                 menuApp = null
-                if (page != PAGE_HOME) page = PAGE_HOME else resetSignal++
+                if (KeyLearner.learning) {
+                    KeyLearner.stop()
+                } else if (page != PAGE_HOME) {
+                    page = PAGE_HOME
+                } else {
+                    resetSignal++
+                }
+            }
+
+            // The button taught in "learn" mode was saved: say which one it was.
+            val learnedKey = KeyLearner.learned
+            LaunchedEffect(learnedKey) {
+                if (learnedKey.isNotEmpty()) {
+                    toast(getString(R.string.quick_key_learned, learnedKey))
+                    KeyLearner.acknowledge()
+                }
             }
 
             val theme = LauncherTheme.of(accentIndex, glassIndex)
@@ -561,6 +585,9 @@ class MainActivity : ComponentActivity() {
                     visible = screensaverShowing,
                     extraLine = if (WidgetType.WEATHER.key in widgetKeys) weatherLine else null,
                 )
+
+                // Not a dialog on purpose: a dialog would take the keys, and this waits for one.
+                if (KeyLearner.learning) LearnKeyPrompt()
             }
 
             if (showSettings) {
@@ -605,6 +632,7 @@ class MainActivity : ComponentActivity() {
                     },
                 )
                 var animationScale by remember { mutableStateOf(SystemTools.animationScale(this@MainActivity)) }
+                var quickKeyShown by remember { mutableStateOf(settings.quickKey) }
                 SettingsDialog(
                     versionLabel = stringResource(R.string.settings_version_label, versionName),
                     transparencyPercent = dockTransparency,
@@ -785,9 +813,16 @@ class MainActivity : ComponentActivity() {
                         },
                         onAdbDiagnostics = {
                             showSettings = false
-                            adbDiagText = getString(R.string.adb_diag_running)
-                            showAdbDiag = true
-                            appScope.launch { adbDiagText = SelfAdb.diagnose(this@MainActivity) }
+                            openAdbDiagnostics()
+                        },
+                        quickKeyName = if (quickKeyShown == 0) "" else KeyLog.name(quickKeyShown),
+                        onLearnQuickKey = {
+                            showSettings = false
+                            KeyLearner.start()
+                        },
+                        onClearQuickKey = {
+                            settings.quickKey = 0
+                            quickKeyShown = 0
                         },
                         onSetupAdb = {
                             showSettings = false
@@ -925,6 +960,29 @@ class MainActivity : ComponentActivity() {
                     QuickTile(stringResource(R.string.quick_remote), stringResource(R.string.quick_qr), remoteAlways) {
                         showQuick = false
                         showRemote = true
+                    },
+                    QuickTile(
+                        stringResource(R.string.settings_custom_volume),
+                        stringResource(
+                            when (volumeMode) {
+                                LauncherSettings.VOLUME_OFF -> R.string.volume_mode_off
+                                LauncherSettings.VOLUME_REPLACE -> R.string.volume_mode_replace_short
+                                else -> R.string.volume_mode_beside_short
+                            },
+                        ),
+                        volumeMode != LauncherSettings.VOLUME_OFF,
+                    ) {
+                        val next = (volumeMode + 1) % 3
+                        volumeMode = next
+                        settings.volumeMode = next
+                    },
+                    QuickTile(stringResource(R.string.settings_volume_diagnostics), stringResource(R.string.quick_diagnostics), false) {
+                        showQuick = false
+                        showVolumeDiag = true
+                    },
+                    QuickTile(stringResource(R.string.settings_adb_diagnostics), stringResource(R.string.quick_diagnostics), false) {
+                        showQuick = false
+                        openAdbDiagnostics()
                     },
                     QuickTile(stringResource(R.string.group_system), stringResource(R.string.quick_settings), false) {
                         showQuick = false
@@ -1141,6 +1199,17 @@ class MainActivity : ComponentActivity() {
                         },
                         MenuOption(stringResource(R.string.diag_volume_up)) { testVolume(AudioManager.ADJUST_RAISE); diagTick++ },
                         MenuOption(stringResource(R.string.diag_volume_down)) { testVolume(AudioManager.ADJUST_LOWER); diagTick++ },
+                        MenuOption(stringResource(R.string.diag_system_windows)) {
+                            reportDialog = getString(R.string.diag_system_windows) to getString(R.string.tools_working)
+                            appScope.launch {
+                                val result = SelfAdb.run(this@MainActivity) { session ->
+                                    "okna z „volume”:\n" + session.sh("dumpsys window windows | grep -i volume | head -12").text +
+                                        "\n\naudio (HDMI/CEC/stała głośność):\n" +
+                                        session.sh("dumpsys audio | grep -i -E 'fixed|hdmi|cec|system audio' | head -14").text
+                                }
+                                reportDialog = getString(R.string.diag_system_windows) to if (result is AdbResult.Ok) result.value else adbProblem(result)
+                            }
+                        },
                         MenuOption(stringResource(R.string.diag_refresh)) { diagTick++ },
                     ),
                     closeLabel = stringResource(R.string.diag_close),
@@ -1250,6 +1319,7 @@ class MainActivity : ComponentActivity() {
     /** Any key wakes the screensaver (and is otherwise swallowed); any key also restarts the idle wait. */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         lastInputAt = System.currentTimeMillis()
+        KeyLog.record("launcher", event)
         if (event.action == KeyEvent.ACTION_DOWN) TileMotion.note(event.keyCode)
         if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || event.keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) {
             volumeKeysSeen++
@@ -1267,8 +1337,11 @@ class MainActivity : ComponentActivity() {
             if (event.action == KeyEvent.ACTION_UP) wakeKeyCode = -1
             return true
         }
-        // The Menu key opens the quick settings.
-        if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_SETTINGS) {
+        // "Teach the button" mode: the next unusual key becomes the quick settings button.
+        if (KeyLearner.offer(event, settings)) return true
+        // The Menu button (or the one the user taught) opens the quick settings.
+        val taught = settings.quickKey
+        if (event.keyCode in QUICK_KEYS || (taught != 0 && event.keyCode == taught)) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && launchRequest == null) showQuick = !showQuick
             return true
         }
@@ -1298,12 +1371,12 @@ class MainActivity : ComponentActivity() {
     /** Home pressed while the launcher is already on screen: back to the home screen. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleIntent(intent)
         screensaverShowing = false
         showQuick = false
         pendingRestore = false
         page = PAGE_HOME
         resetSignal++
+        handleIntent(intent)
     }
 
     private fun swapped(list: List<String>, from: Int, to: Int): List<String> =
@@ -1344,6 +1417,8 @@ class MainActivity : ComponentActivity() {
      * Google calendar (an empty link disconnects it); tools/tv_adb.py does this for you.
      */
     private fun handleIntent(intent: Intent?) {
+        // From the accessibility service, when the taught remote button is pressed in any app.
+        if (intent?.getBooleanExtra("open_quick", false) == true) showQuick = true
         if (intent?.hasExtra("ical_url") == true) {
             settings.icalUrl = intent.getStringExtra("ical_url")?.trim()?.takeIf { it.isNotEmpty() }
             calendarTick++
@@ -1401,6 +1476,11 @@ class MainActivity : ComponentActivity() {
     }
 
     // ---- The phone remote ------------------------------------------------------------------------------
+
+    /** Keys that open the quick settings out of the box; the user can teach another one in the settings. */
+    private val QUICK_KEYS = setOf(
+        KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_SETTINGS, KeyEvent.KEYCODE_TV_CONTENTS_MENU, KeyEvent.KEYCODE_TV_MEDIA_CONTEXT_MENU,
+    )
 
     private val keyCodes = mapOf(
         "UP" to 19, "DOWN" to 20, "LEFT" to 21, "RIGHT" to 22, "OK" to 23, "BACK" to 4, "HOME" to 3, "PLAYPAUSE" to 85,
@@ -1539,16 +1619,23 @@ class MainActivity : ComponentActivity() {
             appendLine()
             appendLine("Klawisze głośności widziane przez usługę:   ${SystemService.keysSeen} (ostatni: ${SystemService.lastKey.ifEmpty { "—" }} o ${at(SystemService.lastKeyAt)})")
             appendLine("Klawisze widziane przez sam launcher:       $volumeKeysSeen (ostatni: ${lastVolumeKey.ifEmpty { "—" }} o ${at(lastVolumeKeyAt)})")
+            appendLine("Zmiany głośności wykryte (sygnał/ustawienia): ${SystemService.changesSeen} (ostatnia: ${SystemService.lastChange.ifEmpty { "—" }} o ${at(SystemService.lastChangeAt)})")
+            appendLine("Naciśnięcia przejęte, a głośność bez zmiany: ${SystemService.ignoredAdjusts}")
+            appendLine()
+            appendLine("Ostatnie przyciski (nowe na górze), z nazwą urządzenia:")
+            appendLine(KeyLog.dump())
             appendLine()
             appendLine("Głośność multimediów: ${audio.getStreamVolume(AudioManager.STREAM_MUSIC)} z $max, wyciszenie: ${yes(audio.isStreamMute(AudioManager.STREAM_MUSIC))}")
             appendLine("Stała głośność (telewizor steruje): ${yes(audio.isVolumeFixed)}")
             appendLine("Wyjścia audio: $outputs")
             appendLine("HDMI-CEC włączone: ${global("hdmi_control_enabled")}")
             appendLine()
-            appendLine("Jak to czytać: naciśnij przycisk głośności na pilocie i wybierz Odśwież.")
-            appendLine("- Liczniki nie rosną: klawisz w ogóle nie dociera do Boxa (pilot wysyła go do telewizora).")
-            appendLine("- Rosną, a głośność stoi: steruje nią telewizor przez HDMI-CEC albo stała głośność.")
-            appendLine("- Usługa nie działa: włącz ją w ustawieniach dostępności (Ustawienia → System).")
+            appendLine("Jak to czytać: naciśnij przycisk głośności (albo zmień głośność na głośniku Bluetooth) i wybierz Odśwież.")
+            appendLine("- „Zmiany wykryte” rosną: pasek Liquid TV się pokaże. Nie rosną, a głośność się zmienia: głośnością steruje telewizor (HDMI-CEC), nie Box.")
+            appendLine("- Klawisze nie rosną, a lista przycisków pokazuje je: usługa je widzi, ale nie jako głośność; podaj nazwę z listy.")
+            appendLine("- Przycisku nie ma na liście: pilot nie wysyła go do Boxa (np. używa podczerwieni do telewizora).")
+            appendLine("- Usługa nie działa: Ustawienia → Narzędzia → Skonfiguruj adb albo włącz ją w ustawieniach dostępności.")
+            appendLine("- „Przejęte, a bez zmiany” rośnie: przełącz tryb paska na „Pasek Liquid TV, systemowy zostaje”.")
         }
     }
 

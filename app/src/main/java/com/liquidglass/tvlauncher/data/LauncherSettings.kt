@@ -28,14 +28,22 @@ class LauncherSettings(context: Context) {
         }
 
     /**
-     * The launcher's own volume bar (it needs its accessibility service): [VOLUME_OFF], [VOLUME_BESIDE]
-     * (Android handles the keys as always and the bar shows what happened; the safe default) or
-     * [VOLUME_REPLACE] (the service takes the keys itself, so only its bar shows).
+     * The launcher's own volume bar (it needs its accessibility service): [VOLUME_OFF];
+     * [VOLUME_BESIDE], where the bar shows every change of the volume and Android's own bar is left alone;
+     * and [VOLUME_REPLACE] (the default), where the volume keys are taken by the service and applied
+     * without Android's bar, and any other change (a Bluetooth speaker, HDMI) gets Android's bar closed.
      */
     var volumeMode: Int
-        get() = prefs.getInt(KEY_VOLUME_MODE, VOLUME_BESIDE).coerceIn(VOLUME_OFF, VOLUME_REPLACE)
+        get() = prefs.getInt(KEY_VOLUME_MODE, VOLUME_REPLACE).coerceIn(VOLUME_OFF, VOLUME_REPLACE)
         set(value) {
             prefs.edit().putInt(KEY_VOLUME_MODE, value).apply()
+        }
+
+    /** The remote button taught to open the quick settings (a key code), 0 = none taught. */
+    var quickKey: Int
+        get() = prefs.getInt(KEY_QUICK_KEY, 0)
+        set(value) {
+            prefs.edit().putInt(KEY_QUICK_KEY, value).apply()
         }
 
     /** What the big clock shows: see the CLOCK_* constants in HomeScreen (0 = time and date). */
@@ -306,6 +314,7 @@ class LauncherSettings(context: Context) {
         const val VOLUME_BESIDE = 1
         const val VOLUME_REPLACE = 2
         private const val KEY_VOLUME_MODE = "volume_mode"
+        private const val KEY_QUICK_KEY = "quick_key"
         private const val KEY_TILE_LIGHTING = "tile_lighting"
         private const val KEY_SCREENSAVER = "screensaver_minutes"
         const val DEFAULT_DOCK_TRANSPARENCY = 60

@@ -48,9 +48,17 @@ darmowe, bez klucza). Miasto wybierasz w Ustawieniach → Widżety (lista polski
 Liquid Glass, Minimal) dla 14 popularnych aplikacji; pojawiają się tam też paczki Nova/ADW zainstalowane na Boxie. Ikony paczek
 wbudowanych rysuje `tools/make_tvos_tiles.py` z otwartych kształtów logo (Simple Icons, CC0); nazwy i logo należą do ich właścicieli.
 
-**Głośność.** Pasek głośności Liquid TV (usługa dostępności) ma trzy tryby: wyłączony, „obok systemowego” (domyślny: Android
-obsługuje przyciski jak zawsze, a pasek pokazuje, co się stało; niczego nie psuje) i „zamiast systemowego” (usługa przejmuje
-przyciski). Gdy głośność nie działa: Ustawienia → System → „Diagnostyka głośności” pokazuje, czy klawisze w ogóle docierają do Boxa.
+**Głośność.** Pasek głośności Liquid TV (usługa dostępności) pokazuje się przy **każdej zmianie głośności**, także gdy zmieni ją
+głośnik Bluetooth albo HDMI, bo opiera się na sygnale, który Android rozsyła przy zmianie (a nie na samych przyciskach: w telewizorze
+przyciski obsługuje system, zanim dotrą do aplikacji). Tryby: wyłączony; „oba paski” (systemowy zostaje); „tylko nasz” (domyślny:
+przyciski głośności są przejmowane i stosowane bez paska Androida, a każda inna zmiana zamyka systemowy pasek). Tryb przełączysz
+w Szybkich ustawieniach. Gdy głośność nie działa: Ustawienia → System → „Diagnostyka głośności” pokazuje, jakie przyciski dochodzą
+z pilota i czy zmiany głośności są wykrywane; „Okna systemowe i audio (adb)” pokazuje, które okno Androida jest paskiem głośności.
+Jeśli głośnością steruje telewizor przez HDMI-CEC, Box nie widzi zmiany (to sprawa telewizora).
+
+**Przycisk Menu.** Przycisk Menu (oraz Settings i Contents Menu) otwiera szybkie ustawienia. Jeśli pilot wysyła inny kod, albo system
+go nie przepuszcza: Ustawienia → System → „Przycisk szybkich ustawień”, naciśnij wybrany przycisk, a launcher go zapamięta.
+Z włączoną usługą dostępności działa on w każdej aplikacji.
 
 **Uprawnienia.** Skrypt `tools/tv_adb.py` ma pozycję „Nadaj launcherowi uprawnienia”: zmiana ustawień systemowych (usługa
 dostępności włącza się wtedy sama z ustawień), sparowane urządzenia Bluetooth, kalendarz, rysowanie nad aplikacjami i praca w tle.

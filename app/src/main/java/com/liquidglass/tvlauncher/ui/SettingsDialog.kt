@@ -110,6 +110,9 @@ class SettingsExtras(
     val onRemote: () -> Unit,
     val notificationAccessOn: Boolean,
     val onNotificationAccess: () -> Unit,
+    val quickKeyName: String,
+    val onLearnQuickKey: () -> Unit,
+    val onClearQuickKey: () -> Unit,
 )
 
 private val GroupColor = Color.White.copy(alpha = 0.07f)
@@ -512,6 +515,19 @@ fun SettingsDialog(
                     )
                     Divider()
                     ActionRow(label = stringResource(R.string.settings_volume_diagnostics), arrow = false, onClick = onOpenVolumeDiagnostics)
+                    Divider()
+                    ActionRow(
+                        label = stringResource(
+                            R.string.settings_quick_key,
+                            extras.quickKeyName.ifEmpty { stringResource(R.string.quick_key_none) },
+                        ),
+                        arrow = false,
+                        onClick = extras.onLearnQuickKey,
+                    )
+                    if (extras.quickKeyName.isNotEmpty()) {
+                        Divider()
+                        ActionRow(label = stringResource(R.string.quick_key_clear), arrow = false, onClick = extras.onClearQuickKey)
+                    }
                     Divider()
                     ActionRow(label = stringResource(R.string.settings_power_menu), arrow = false, onClick = onOpenPowerMenu)
                     systemShortcuts.forEach { (label, open) ->
