@@ -42,6 +42,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlin.math.roundToInt
 import kotlinx.coroutines.MainScope
@@ -104,6 +105,7 @@ import com.liquidglass.tvlauncher.ui.PAGE_HOME
 import com.liquidglass.tvlauncher.ui.PAGE_INFO
 import com.liquidglass.tvlauncher.ui.LaunchOverlay
 import com.liquidglass.tvlauncher.ui.LearnKeyPrompt
+import com.liquidglass.tvlauncher.ui.MirrorScreen
 import com.liquidglass.tvlauncher.ui.LaunchRequest
 import com.liquidglass.tvlauncher.ui.MenuOption
 import com.liquidglass.tvlauncher.ui.QuickPanel
@@ -162,6 +164,13 @@ class MainActivity : ComponentActivity() {
     /** A wallpaper category the phone page asks to switch to (consumed by the screen). */
     private var forcedCategory by mutableStateOf<String?>(null)
 
+    /** The phone's screen, as the latest frame sent by the Pilot app, and when it arrived. */
+    private var mirrorFrame by mutableStateOf<ImageBitmap?>(null)
+    private var mirrorAt = 0L
+
+    /** After Back on a shared screen the frames are refused for a while (and the phone is told to stop). */
+    private var mirrorRefusedUntil = 0L
+
     /** The quick settings (hold OK on the gear, or the Menu key). */
     private var showQuick by mutableStateOf(false)
 
@@ -191,6 +200,7 @@ class MainActivity : ComponentActivity() {
             handle = ::handleRemote,
             tempDir = cacheDir,
             upload = ::receivePhoto,
+            mirror = ::receiveFrame,
         )
         handleIntent(intent)
 
@@ -496,12 +506,24 @@ class MainActivity : ComponentActivity() {
             // screen, and from the home screen it just returns focus to the dock.
             BackHandler {
                 menuApp = null
-                if (KeyLearner.learning) {
+                if (mirrorFrame != null) {
+                    // Back ends the sharing; the phone is told on its next frame.
+                    mirrorFrame = null
+                    mirrorRefusedUntil = System.currentTimeMillis() + 15_000L
+                } else if (KeyLearner.learning) {
                     KeyLearner.stop()
                 } else if (page != PAGE_HOME) {
                     page = PAGE_HOME
                 } else {
                     resetSignal++
+                }
+            }
+
+            // The shared phone screen goes away a few seconds after the last frame.
+            LaunchedEffect(mirrorFrame != null) {
+                while (mirrorFrame != null) {
+                    delay(1_000)
+                    if (System.currentTimeMillis() - mirrorAt > 4_000L) mirrorFrame = null
                 }
             }
 
@@ -612,6 +634,9 @@ class MainActivity : ComponentActivity() {
 
                 // Not a dialog on purpose: a dialog would take the keys, and this waits for one.
                 if (KeyLearner.learning) LearnKeyPrompt()
+
+                // The phone's screen, while it is being shared: full screen, black bars around a portrait picture.
+                mirrorFrame?.let { MirrorScreen(it) }
             }
 
             if (showSettings) {
@@ -1517,6 +1542,28 @@ class MainActivity : ComponentActivity() {
         "UP" to 19, "DOWN" to 20, "LEFT" to 21, "RIGHT" to 22, "OK" to 23, "BACK" to 4, "HOME" to 3, "PLAYPAUSE" to 85,
     )
 
+    /** One frame of the phone's screen (a JPEG). Runs on a server thread; "stop" tells the phone to quit sharing. */
+    private fun receiveFrame(jpeg: ByteArray): String {
+        val now = System.currentTimeMillis()
+        if (now < mirrorRefusedUntil) return "stop"
+        val options = android.graphics.BitmapFactory.Options().apply { inPreferredConfig = android.graphics.Bitmap.Config.RGB_565 }
+        val bitmap = android.graphics.BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size, options) ?: return "ok"
+        val first = mirrorFrame == null
+        runOnUiThread {
+            mirrorFrame = bitmap.asImageBitmap()
+            mirrorAt = now
+            screensaverShowing = false
+            if (first && !inForeground) {
+                // Sharing was started while another app is in front: bring the launcher up to show it.
+                try {
+                    startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+                } catch (_: Exception) {
+                }
+            }
+        }
+        return "ok"
+    }
+
     /** A photo sent from the phone: checked, copied to the launcher's own folder and shown. Runs on a server thread. */
     private fun receivePhoto(name: String, file: java.io.File): String {
         val extension = name.substringAfterLast('.', "").lowercase()
@@ -1557,6 +1604,18 @@ class MainActivity : ComponentActivity() {
                 val now = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
                 runOnUiThread { SystemService.testOverlay(now * 100 / max, audio.isStreamMute(AudioManager.STREAM_MUSIC)) }
                 "Głośność: ${now * 100 / max}%"
+            }
+            "ping" -> "Liquid TV ${Updater.currentVersionName(this)}: połączono"
+            "mirror_stop" -> {
+                runOnUiThread { mirrorFrame = null }
+                "ok"
+            }
+            "text" -> {
+                // Typed into whatever field is focused on the TV. Android's `input text` only knows ASCII.
+                val clean = value.take(200)
+                if (clean.isBlank()) return "Wpisz tekst"
+                val quoted = "'" + clean.replace("'", "'\\''").replace(" ", "%s") + "'"
+                adb(runBlocking { SelfAdb.shell(this@MainActivity, "input text $quoted") }, "Wpisano na TV (tylko znaki ASCII)")
             }
             "standby" -> adb(runBlocking { SystemTools.standby(this@MainActivity) }, "Box idzie spać")
             "reboot" -> adb(runBlocking { SystemTools.reboot(this@MainActivity) }, "Restartuję Box")

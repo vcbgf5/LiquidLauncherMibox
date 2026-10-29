@@ -301,4 +301,5 @@
     <string name="topbar_account">Konto</string>
     <string name="topbar_account_none">niepołączone</string>
     <string name="topbar_settings">Ustawienia</string>
+    <string name="mirror_hint">Ekran telefonu · Wstecz kończy udostępnianie</string>
 </resources>

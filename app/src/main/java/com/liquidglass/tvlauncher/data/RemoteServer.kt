@@ -25,6 +25,8 @@ class RemoteServer(
     private val tempDir: File,
     /** A file sent from the phone (name as the phone gave it, the file in a temporary place: copy it, it is deleted afterwards). */
     private val upload: (name: String, file: File) -> String,
+    /** One JPEG frame of the phone's screen; the answer is "ok", or "stop" to tell the phone to quit sharing. */
+    private val mirror: (frame: ByteArray) -> String,
 ) {
     private var server: ServerSocket? = null
     private val pool = Executors.newFixedThreadPool(3)
@@ -115,6 +117,15 @@ class RemoteServer(
                     }
                     return
                 }
+                if (method == "POST" && path == "/mirror") {
+                    if (declared <= 0L || declared > MAX_FRAME) {
+                        respond(output, 413, "text/plain; charset=utf-8", "Klatka za duża")
+                        return
+                    }
+                    val frame = readBytes(input, declared.toInt())
+                    respond(output, 200, "text/plain; charset=utf-8", mirror(frame))
+                    return
+                }
                 val length = declared.coerceIn(0L, MAX_BODY.toLong()).toInt()
                 val body = if (length > 0) String(readBytes(input, length), Charsets.UTF_8) else ""
                 when {
@@ -203,6 +214,7 @@ class RemoteServer(
         private const val MAX_HEAD = 8 * 1024
         private const val MAX_BODY = 8 * 1024
         private const val MAX_UPLOAD = 25_000_000L
+        private const val MAX_FRAME = 4_000_000L
 
         /** The control page; "__TOKEN__" is replaced with the secret of the request. */
         private val PAGE = """<!doctype html>

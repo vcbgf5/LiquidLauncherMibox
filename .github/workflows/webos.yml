@@ -1,0 +1,30 @@
+name: webOS package
+
+# Packs the clickable preview (preview/preview.html) as an LG webOS app, for testing the look on an LG TV.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "webos/**"
+      - "preview/preview.html"
+      - ".github/workflows/webos.yml"
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Package
+        run: |
+          cp preview/preview.html webos/index.html
+          npm install -g @webos-tools/cli
+          mkdir -p out
+          ares-package webos --outdir out
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: liquid-tv-webos-ipk
+          path: out/*.ipk

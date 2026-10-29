@@ -1,0 +1,13 @@
+{
+  "id": "com.liquidtv.preview",
+  "version": "1.0.0",
+  "vendor": "Liquid TV",
+  "type": "web",
+  "main": "index.html",
+  "title": "Liquid TV (podgląd)",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#050608",
+  "resolution": "1920x1080",
+  "disallowScrolling": true
+}

@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "LiquidTV"
 include(":app")
+include(":pilot")

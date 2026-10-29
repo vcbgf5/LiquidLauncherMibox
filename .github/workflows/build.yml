@@ -92,6 +92,7 @@ jobs:
       - name: Name the APK and describe its version
         run: |
           cp app/build/outputs/apk/release/*.apk LiquidTV.apk
+          cp pilot/build/outputs/apk/release/*.apk LiquidTVPilot.apk
           printf '{"versionCode": %s, "versionName": "%s"}\n' "$VERSION_CODE" "$VERSION_NAME" > version.json
           cat version.json
 
@@ -101,6 +102,7 @@ jobs:
           name: liquid-tv-apk
           path: |
             LiquidTV.apk
+            LiquidTVPilot.apk
             version.json
 
       - name: Attach APK to the release
@@ -112,4 +114,5 @@ jobs:
           target_commitish: ${{ github.sha }}
           files: |
             LiquidTV.apk
+            LiquidTVPilot.apk
             version.json

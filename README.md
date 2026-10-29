@@ -129,6 +129,23 @@ Działa też na telefonie.
 Zdjęcia powyżej to prawdziwe zrzuty ekranu z Mi Box S. Klikalny podgląd to makieta z przykładowymi ikonami — prawdziwa aplikacja pokazuje ikony zainstalowanych aplikacji.
 Plik źródłowy: [`preview/preview.html`](preview/preview.html).
 
+## Aplikacja na telefon: Liquid TV Pilot
+
+W każdym wydaniu jest drugi plik, `LiquidTVPilot.apk` (aplikacja na telefon z Androidem 8+):
+**pilot** (strzałki, OK, Wstecz, Home, głośność, uśpienie, włączenie telewizora), **wpisywanie tekstu** na TV i
+**otwieranie adresu** na TV, **wysyłanie zdjęć jako tapet** (zmniejszane i obracane do pionu) oraz **udostępnianie ekranu
+telefonu** na telewizorze (obraz bez dźwięku, kilka klatek na sekundę; na TV przycisk Wstecz kończy). Pozycja „Udostępnij”
+w galerii i przeglądarce też tu trafia: zdjęcie staje się tapetą, link otwiera się na TV, a inny tekst jest wpisywany w
+zaznaczone na TV pole. Połączenie: na TV Ustawienia → Narzędzia (adb) → Pilot z telefonu, w aplikacji zakładka Box →
+„Skanuj kod QR”. Telefon i Box muszą być w tej samej sieci. Wpisywanie tekstu i pilot poza launcherem wymagają
+skonfigurowanego adb (Ustawienia → Narzędzia → Skonfiguruj adb); `input text` zna tylko znaki ASCII.
+Filmy i muzykę z telefonu najlepiej wysyłać wbudowanym Chromecastem Mi Box S.
+
+## LG webOS
+
+Launcher jest natywny dla Androida i nie uruchomi się na webOS, ale folder [`webos/`](webos/) pakuje klikalny podgląd
+(makietę wyglądu) jako aplikację dla telewizorów LG, do testów: instrukcja w [`webos/README.md`](webos/README.md).
+
 ## Aktualizacje w aplikacji
 
 Gdy launcher jest na ekranie, **sam sprawdza co 5 sekund** (do zmiany: 5 s, 30 s, 5 min, 1 godz.; Ustawienia → Aktualizacje),
