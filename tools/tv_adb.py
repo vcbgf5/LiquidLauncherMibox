@@ -36,7 +36,10 @@ from pathlib import Path
 
 PACKAGE = "com.liquidglass.tvlauncher"
 SERVICE = f"{PACKAGE}/{PACKAGE}.SystemService"
-APK_URL = "https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk"
+APK_BASE = "https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/"
+APK_URL = APK_BASE + "LiquidTV.apk"
+LITE_URL = APK_BASE + "LiquidTVLite.apk"  # ta sama aplikacja dla starych telewizorów z ok. 0,5 GB RAM
+FORCE_LITE = False  # ustawiane przez --lite
 SITE_URL = "https://vcbgf5.github.io/LiquidLauncherMibox/"
 HERE = Path(__file__).resolve().parent
 
@@ -166,16 +169,42 @@ def status(tv):
     say(f"Domyślny ekran główny: {out.splitlines()[-1] if out else '?'}")
 
 
-def download_apk():
-    target = Path(tempfile.gettempdir()) / "LiquidTV.apk"
-    say(f"Pobieram najnowszą wersję:\n  {APK_URL}")
-    urllib.request.urlretrieve(APK_URL, target)
+def box_ram_mb(tv):
+    """Pamięć RAM Boxa w MB (z /proc/meminfo) albo None."""
+    code, out = tv.shell("cat", "/proc/meminfo")
+    for line in out.splitlines():
+        if line.startswith("MemTotal"):
+            digits = "".join(ch for ch in line if ch.isdigit())
+            return int(digits) // 1024 if digits else None
+    return None
+
+
+def choose_edition(tv):
+    """True, jeśli ma być wersja Lite (mniej pamięci, tryb oszczędny, proste okna)."""
+    if FORCE_LITE:
+        return True
+    ram = box_ram_mb(tv)
+    suggested = ram is not None and ram < 900
+    if ram:
+        say(f"Pamięć RAM Boxa: ok. {ram} MB.")
+    say("Którą wersję zainstalować?\n"
+        "  1) zwykła (LiquidTV.apk): wszystkie efekty, w tym Liquid Glass\n"
+        "  2) Lite (LiquidTVLite.apk): dla starych telewizorów z ok. 0,5 GB RAM, tryb oszczędny, proste okna")
+    answer = input(f"Wybór [{'2' if suggested else '1'}]: ").strip() or ("2" if suggested else "1")
+    return answer == "2"
+
+
+def download_apk(lite=False):
+    url = LITE_URL if lite else APK_URL
+    target = Path(tempfile.gettempdir()) / ("LiquidTVLite.apk" if lite else "LiquidTV.apk")
+    say(f"Pobieram najnowszą wersję{' Lite' if lite else ''}:\n  {url}")
+    urllib.request.urlretrieve(url, target)
     say(f"Pobrano {target.stat().st_size / 1_000_000:.1f} MB.")
     return target
 
 
 def install(tv):
-    apk = download_apk()
+    apk = download_apk(choose_edition(tv))
     say("Instaluję na Boxie (to chwilę trwa) ...")
     code, out = tv.run("install", "-r", str(apk), timeout=300)
     say(out)
@@ -296,10 +325,11 @@ def connect_calendar(tv):
 
 def type_link(tv):
     """Wpisuje link do pobrania w zaznaczone pole na Boxie (np. w Downloaderze)."""
-    choices = {"1": APK_URL, "2": SITE_URL + "apk"}
+    choices = {"1": APK_URL, "2": SITE_URL + "apk", "3": LITE_URL}
     say("Który link wpisać w zaznaczone pole na Boxie?\n"
         f"  1) bezpośredni do pliku: {APK_URL}\n"
-        f"  2) ze strony pobierania: {SITE_URL}apk")
+        f"  2) ze strony pobierania: {SITE_URL}apk\n"
+        f"  3) wersja Lite (stare telewizory, ok. 0,5 GB RAM): {LITE_URL}")
     url = choices.get(input("Wybór [1]: ").strip() or "1")
     if url:
         tv.shell("input", "text", url, check=True)
@@ -626,6 +656,7 @@ def main():
     parser.add_argument("--port", type=int, default=5555, help="port debugowania (domyślnie 5555)")
     parser.add_argument("--status", action="store_true", help="pokaż stan i zakończ")
     parser.add_argument("--install", action="store_true", help="zainstaluj / zaktualizuj najnowszą wersję")
+    parser.add_argument("--lite", action="store_true", help="przy --install: wersja Lite (stare telewizory, ok. 0,5 GB RAM)")
     parser.add_argument("--enable-service", action="store_true", help="włącz usługę dostępności Liquid TV")
     parser.add_argument("--home", action="store_true", help="ustaw Liquid TV jako domyślny ekran główny")
     parser.add_argument("--screenshot", action="store_true", help="zrób zrzut ekranu Boxa")
@@ -635,6 +666,8 @@ def main():
     parser.add_argument("--shell", metavar="KOMENDA", help="wykonaj jedną komendę na Boxie (adb shell) i zakończ")
     parser.add_argument("--grant-all", action="store_true", help="nadaj wszystkie uprawnienia i zakończ")
     args = parser.parse_args()
+    global FORCE_LITE
+    FORCE_LITE = args.lite
 
     adb = ensure_adb()
     ip = args.ip or input("Adres IP Boxa (np. 192.168.1.50): ").strip()

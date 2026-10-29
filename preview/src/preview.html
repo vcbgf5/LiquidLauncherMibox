@@ -57,7 +57,7 @@ button{font:inherit;color:inherit}
 #stage.iconbar .only-min{display:none}
 #stage:not(.iconbar) .only-icons{display:none}
 .avatar{width:100%;height:100%;border-radius:50%;background:linear-gradient(135deg,#7c9cff,#b36bff);display:grid;place-items:center;font-weight:700;font-size:18px}
-#tdrop{display:none;margin-top:10px;width:300px;border-radius:18px;padding:8px;background:rgba(36,38,48,.94);border:1px solid rgba(255,255,255,.22);box-shadow:0 20px 50px rgba(0,0,0,.5)}
+#tdrop{display:none;margin-top:10px;width:300px;border-radius:18px;padding:8px;background:rgba(var(--glass-rgb,28,30,38),.9);border:1px solid rgba(255,255,255,.22);box-shadow:0 20px 50px rgba(0,0,0,.5)}
 #tdrop.open{display:block;animation:rise .26s cubic-bezier(.2,.9,.25,1.1)}
 
 .dock{--t:.6;position:absolute;left:50%;bottom:32px;transform:translateX(-50%);display:flex;gap:16px;padding:26px 28px;width:max-content;border-radius:32px;
@@ -122,7 +122,7 @@ button{font:inherit;color:inherit}
 .ov{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.46)}
 .ov.open{display:flex}
 .ov.clear{background:transparent}
-.cardx{background:rgba(34,36,46,.95);border:1px solid rgba(255,255,255,.22);border-radius:26px;padding:16px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:rise .3s cubic-bezier(.2,.9,.25,1.1)}
+.cardx{background:rgba(var(--glass-rgb,28,30,38),.93);border:1px solid rgba(255,255,255,.22);border-radius:26px;padding:16px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:rise .3s cubic-bezier(.2,.9,.25,1.1)}
 .cardx h4{margin:4px 8px 10px;font-size:20px;font-weight:700}
 .cardx .sub{margin:-6px 8px 10px;font-size:12.5px;color:rgba(255,255,255,.6)}
 .head{display:flex;justify-content:space-between;align-items:baseline;margin:4px 8px 12px}
@@ -190,6 +190,24 @@ button{font:inherit;color:inherit}
 #boot{position:absolute;inset:0;z-index:90;background:#000;display:none;align-items:center;justify-content:center;flex-direction:column;gap:18px}
 #boot.on{display:flex}#boot .sp{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .9s linear infinite}
 #boot b{font-size:22px;letter-spacing:.5px}
+
+/* Liquid Glass: frosted, saturated glass, a bright light-catching rim with a faint colour fringe, a soft sheen */
+#stage.lg .cardx,#stage.lg #tdrop,#stage.lg #vol{
+  background:linear-gradient(135deg,rgba(255,255,255,.17),rgba(255,255,255,.04) 42%,rgba(255,255,255,.07)),rgba(var(--glass-rgb,28,30,38),.40);
+  -webkit-backdrop-filter:blur(30px) saturate(1.9) brightness(1.06);backdrop-filter:blur(30px) saturate(1.9) brightness(1.06);
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 32px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.45),inset 1px 0 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(255,255,255,.1),inset 0 0 40px rgba(255,255,255,.05)}
+#stage.lg.bright .cardx,#stage.lg.bright #tdrop,#stage.lg.bright #vol{background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.03) 42%,rgba(255,255,255,.06)),rgba(var(--glass-rgb,28,30,38),.58)}
+#stage.lg .cardx::before,#stage.lg #tdrop::before,#stage.lg #vol::before,#stage.lg .dock::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;padding:1.5px;pointer-events:none;
+  background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(255,255,255,.32) 28%,rgba(255,255,255,.05) 55%,rgba(255,255,255,.28) 80%,rgba(255,255,255,.7));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);mask-composite:exclude}
+#stage.lg .cardx::after,#stage.lg #tdrop::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(150deg,rgba(255,255,255,.16),rgba(255,255,255,0) 38%),radial-gradient(120% 90% at 100% 100%,rgba(255,255,255,.08),transparent 55%);
+  box-shadow:inset 2px 2px 0 rgba(255,138,216,.16),inset -2px -2px 0 rgba(127,230,255,.18)}
+#tdrop{position:relative}
+.cardx{position:relative}
 
 /* modes */
 #stage.lite #wallzoom{animation:none}
@@ -292,15 +310,16 @@ function fit(){const k=Math.min(wrap.clientWidth/960,wrap.clientHeight/540)*(wra
 addEventListener('resize',fit); fit();
 
 /* ---------- state (kept in localStorage so choices survive a reload) ---------- */
-const DEF={dockT:60,dockSize:100,accent:0,tint:0,topbar:'min',bigclock:true,clockContent:1,clockPos:0,parallax:true,tilt:true,light:true,perf:0,
+const DEF={glass:1,dockT:60,dockSize:100,accent:0,tint:0,topbar:'min',bigclock:true,clockContent:1,clockPos:0,parallax:true,tilt:true,light:true,perf:0,
   wall:'zima',wallInt:2,saver:0,auto:true,silent:true,updInt:0,widgets:{calendar:1,weather:1,np:1,agenda:0,network:0,bt:0,system:0},
   anim:0,volMode:2,volume:40,muted:false,wifi:true,bt:true,remoteAlways:false,favs:['youtube','netflix','spotify','disney','ytmusic'],folder:['buggy','crossy','digpig','fox','shark','orbia','pinata','redball']};
 let ST=JSON.parse(JSON.stringify(DEF));
 try{const s=JSON.parse(localStorage.getItem('liquidtv-preview-v2')||'null'); if(s&&typeof s==='object') ST=Object.assign(ST,s,{widgets:Object.assign({},DEF.widgets,s.widgets||{})});}catch(e){}
 const save=()=>{try{localStorage.setItem('liquidtv-preview-v2',JSON.stringify(ST));}catch(e){}};
 const ACCENTS=[['Niebieski','10,132,255'],['Fioletowy','191,90,242'],['Zielony','48,209,88'],['Pomarańczowy','255,159,10'],['Różowy','255,55,95'],['Biały','255,255,255']];
-const TINTS=[['Neutralne','255,255,255'],['Chłodne','170,200,255'],['Ciepłe','255,208,160'],['Ciemne','60,64,80']];
+const TINTS=[['Grafit','255,255,255'],['Granat','170,200,255'],['Fiolet','200,170,255'],['Zieleń','170,235,200'],['Bordo','255,180,200']];
 const PERF=['Automatyczny','Zawsze oszczędnie','Pełne efekty'];
+const GLASS_RGB=['28,30,38','19,32,66','39,26,68','17,40,30','52,26,34'];
 const WALLS=[['zima','Zima'],['gory','Góry'],['miasto','Miasto'],['las','Las'],['ocean','Ocean i plaża'],['kosmos','Kosmos'],['niebo','Niebo i zachody słońca'],['zwierzeta','Zwierzęta'],['minimalizm','Minimalizm']];
 const WALL_OPTS=['all',...WALLS.map(w=>w[0]),'off'];
 const wallName=k=>k==='all'?'Wszystkie kategorie':k==='off'?'Wyłączona (wbudowana)':(WALLS.find(w=>w[0]===k)||[0,k])[1];
@@ -657,7 +676,8 @@ function SET_CATS(){
      sl('Przezroczystość docka',0,100,10,v=>v+'%',()=>ST.dockT,v=>ST.dockT=v),
      sl('Rozmiar aplikacji na ekranie głównym',70,140,10,v=>v+'%',()=>ST.dockSize,v=>ST.dockSize=v),
      ch('Kolor akcentu',ACCENTS.map((a,i)=>[i,a[0]]),()=>ST.accent,v=>ST.accent=v),
-     ch('Odcień szkła',TINTS.map((a,i)=>[i,a[0]]),()=>ST.tint,v=>ST.tint=v),
+     ch('Styl okien i paneli',[[1,'Liquid Glass (szkło z połyskiem)'],[0,'Ciemne szkło (proste)']],()=>ST.glass,v=>ST.glass=v),
+     ch('Odcień szkła okien',TINTS.map((a,i)=>[i,a[0]]),()=>ST.tint,v=>ST.tint=v),
      ch('Pasek u góry',[['min','Minimalny (menu z trzema kreskami)'],['icons','Ikony']],()=>ST.topbar,v=>{ST.topbar=v;}),
      t('Duży zegar na ekranie głównym',()=>ST.bigclock,v=>ST.bigclock=v),
      ch('Zawartość zegara',[[0,'Sama godzina'],[1,'Godzina i data'],[2,'Godzina, data i pogoda']],()=>ST.clockContent,v=>ST.clockContent=v),
@@ -692,6 +712,7 @@ function SET_CATS(){
      ch('Sprawdzaj aktualizacje co',UPD_INT.map(a=>[a[1],a[0]]),()=>UPD_INT[ST.updInt][1],v=>{ST.updInt=UPD_INT.findIndex(a=>a[1]===v);}),
      ac('Co nowego',()=>openChangelog()),
      {type:'note',text:'Aktualizacja instaluje się przez adb działający na samym Boxie, tak jak z komputera, więc Android nie pokazuje swojego okna. Launcher sam się potem uruchamia.'},
+     {type:'note',text:'Stary telewizor z ok. 0,5 GB RAM? W wydaniu jest osobny plik LiquidTVLite.apk: mniejsze obrazy w pamięci, tryb oszczędny od początku i proste okna. Zastępuje zwykłą wersję i aktualizuje się z własnego pliku.'},
    ]},
    {id:'tools',name:'Narzędzia (adb)',icon:'term',color:'#40c8e0',state:()=>'adb',rows:()=>[
      {type:'note',text:'Te narzędzia działają przez adb na samym Boxie, jak polecenia z komputera. Wymagają włączonego debugowania (Opcje programisty).'},
@@ -724,9 +745,9 @@ function setupAdb(){ toast('Łączę z adb i nadaję uprawnienia…',1500); setT
 /* ---------- apply settings to the stage ---------- */
 function applyAll(){
   const r=stage.style, a=ACCENTS[ST.accent][1]; document.documentElement.style.setProperty('--accent','rgb('+a+')'); document.documentElement.style.setProperty('--accent-rgb',a);
-  document.documentElement.style.setProperty('--tint',TINTS[ST.tint][1]);
   const dock=$('#dock'); dock.style.setProperty('--t',ST.dockT/100); dock.style.setProperty('--tw',Math.min(128*ST.dockSize/100,129.3)+'px');
-  const lite=ST.perf===1; stage.classList.toggle('lite',lite);
+  const lite=ST.perf===1; stage.classList.toggle('lite',lite); stage.classList.toggle('lg',ST.glass===1&&!lite);
+  document.documentElement.style.setProperty('--glass-rgb',GLASS_RGB[ST.tint]);
   stage.classList.toggle('iconbar',ST.topbar==='icons'); stage.classList.toggle('bigclock',!!ST.bigclock);
   $('#bigclock').classList.toggle('mid',ST.clockPos===1);
   stage.classList.toggle('noparallax',!ST.parallax||lite); stage.classList.toggle('notilt',!ST.tilt||lite); stage.classList.toggle('light',!!ST.light);

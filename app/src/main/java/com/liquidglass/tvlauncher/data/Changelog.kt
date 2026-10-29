@@ -6,7 +6,7 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
-        "Nowa aplikacja na telefon „Liquid TV Pilot” (plik LiquidTVPilot.apk w wydaniu): pilot, wpisywanie tekstu, wysyłanie zdjęć jako tapet, udostępnianie ekranu telefonu na TV (Wstecz na TV kończy) i „Udostępnij” z galerii lub przeglądarki.",
-        "Głośność bez systemowego paska: launcher odbiera przyciski + i − i ustawia głośność przez adb (media volume bez --show). Wymaga skonfigurowanego adb (Ustawienia → Narzędzia → Skonfiguruj adb).",
+        "Nowy styl okien „Liquid Glass”: ustawienia, szybkie ustawienia i menu jako szkło z rozmytą tapetą, załamaniem światła przy brzegu i jasną krawędzią (Ustawienia → Wygląd → Styl okien i paneli; można wrócić do ciemnego szkła).",
+        "Wersja Lite dla starych telewizorów z ok. 0,5 GB RAM: plik LiquidTVLite.apk w wydaniu (mniejsze obrazy w pamięci, tryb oszczędny od początku, proste okna).",
     )
 }

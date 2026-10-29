@@ -155,7 +155,7 @@ footer .wrap{border-top:1px solid var(--line);padding-top:26px}
       <a id="dlp" class="btn alt" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTVPilot.apk">📱 <span>Pilot na telefon<small>LiquidTVPilot.apk · Android 8+</small></span></a>
     </div>
     <div class="chip" id="ver">Sprawdzam najnowszą wersję…</div>
-    <p class="dl-note">Na Boxie wpisz w aplikacji <b>Downloader</b> adres <b style="color:var(--accent)">vcbgf5.github.io/LiquidLauncherMibox/apk</b>. Zawsze pobiera najnowszą wersję.</p>
+    <p class="dl-note">Na Boxie wpisz w aplikacji <b>Downloader</b> adres <b style="color:var(--accent)">vcbgf5.github.io/LiquidLauncherMibox/apk</b>. Zawsze pobiera najnowszą wersję. Stary telewizor z ok. 0,5 GB RAM? Wpisz <b style="color:var(--accent)">vcbgf5.github.io/LiquidLauncherMibox/apk/lite</b> (wersja Lite).</p>
   </div>
   <div class="tv"><img src="img/preview-home.jpg" alt="Ekran główny Liquid TV: zegar, dok z aplikacjami i minimalny pasek u góry" width="1920" height="1080"></div>
 </div></header>
@@ -180,6 +180,10 @@ footer .wrap{border-top:1px solid var(--line);padding-top:26px}
       <p>Aplikacja na Boxa / Android TV. Po instalacji sama pilnuje aktualizacji (co 5 s sprawdza, czy jest nowa).</p>
       <a class="go" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk">Pobierz LiquidTV.apk</a>
       <div class="meta" id="m1">Android 6+ (zalecany 8+ dla cichych aktualizacji)</div></div>
+    <div class="card"><div class="ic">🪶</div><h3>Launcher Lite <span class="chip" id="v3"></span></h3>
+      <p>Ta sama aplikacja dla starych telewizorów z ok. 0,5 GB RAM: mniejsze obrazy w pamięci, tryb oszczędny od początku, proste okna. Zastępuje zwykłą wersję (ten sam klucz) i aktualizuje się z własnego pliku.</p>
+      <a class="go" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTVLite.apk">Pobierz LiquidTVLite.apk</a>
+      <div class="meta" id="m3">Android 6+ · 0,5 GB RAM wystarcza</div></div>
     <div class="card"><div class="ic">📱</div><h3>Liquid TV Pilot <span class="chip" id="v2"></span></h3>
       <p>Aplikacja na telefon: pilot, wpisywanie tekstu, zdjęcia jako tapety, udostępnianie ekranu, „Udostępnij” z galerii.</p>
       <a class="go" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTVPilot.apk">Pobierz LiquidTVPilot.apk</a>
@@ -210,7 +214,8 @@ footer .wrap{border-top:1px solid var(--line);padding-top:26px}
     <div class="card"><div class="ic">🧩</div><h3>Widżety</h3><p>Kalendarz Google (link iCal), pogoda, „Teraz gra” ze sterowaniem, sieć, Bluetooth, pamięć.</p></div>
     <div class="card"><div class="ic">🖼️</div><h3>Tapety i wygaszacz</h3><p>Kategorie z Unsplash, własne zdjęcia z telefonu, wygaszacz z zegarem, automatyczne przyciemnianie jasnych tapet.</p></div>
     <div class="card"><div class="ic">🗂️</div><h3>Foldery, ikony, szybkie ustawienia</h3><p>Foldery aplikacji, zmiana ikony jednej aplikacji, panel szybkich ustawień pod przyciskiem Menu.</p></div>
-    <div class="card"><div class="ic">⚡</div><h3>Tryb wydajności</h3><p>Sam wykrywa przycinanie i wyłącza efekty, a launcher rysuje tylko to, co się zmienia.</p></div>
+    <div class="card"><div class="ic">🔮</div><h3>Liquid Glass w oknach</h3><p>Ustawienia, szybkie ustawienia i menu jako prawdziwe szkło: rozmyta tapeta, załamanie światła przy brzegu, jasna krawędź z poświatą. W Ustawieniach → Wygląd wrócisz do prostego, ciemnego szkła.</p></div>
+    <div class="card"><div class="ic">⚡</div><h3>Tryb wydajności i wersja Lite</h3><p>Sam wykrywa przycinanie i wyłącza efekty, a launcher rysuje tylko to, co się zmienia. Na starych telewizorach z ok. 0,5 GB RAM jest osobna wersja Lite.</p></div>
   </div>
 </div></section>
 
@@ -225,7 +230,7 @@ footer .wrap{border-top:1px solid var(--line);padding-top:26px}
       <ol>
         <li>W Sklepie Play na Boxie zainstaluj aplikację <b>Downloader</b> (AFTVnews).</li>
         <li>Uruchom ją. Gdy system zapyta o instalowanie z nieznanych źródeł, wejdź w ustawienia i <b>zezwól Downloaderowi</b> (przełącznik „Zezwalaj z tego źródła”), potem wróć.</li>
-        <li>W polu adresu wpisz: <code>vcbgf5.github.io/LiquidLauncherMibox/apk</code> i wybierz <b>Go</b>.</li>
+        <li>W polu adresu wpisz: <code>vcbgf5.github.io/LiquidLauncherMibox/apk</code> i wybierz <b>Go</b>. Na starym telewizorze z ok. 0,5 GB RAM wpisz zamiast tego <code>vcbgf5.github.io/LiquidLauncherMibox/apk/lite</code> (wersja Lite).</li>
         <li>Po pobraniu wybierz <b>Zainstaluj</b>, a na końcu <b>Otwórz</b>.</li>
       </ol>
       <h4>B. Z komputera przez adb</h4>
@@ -362,6 +367,7 @@ adb logcat -d -s LiquidTV                 # zwykłe polecenie adb (przedrostek �
       <p>Bez menu, z poziomu skryptu:</p>
       <div class="pre"><pre>python tv_adb.py 192.168.0.170 --status
 python tv_adb.py 192.168.0.170 --install --enable-service
+python tv_adb.py 192.168.0.170 --install --lite          # wersja Lite (stare telewizory, ok. 0,5 GB RAM)
 python tv_adb.py 192.168.0.170 --shell "dumpsys battery"
 python tv_adb.py 192.168.0.170 --grant-all
 python tv_adb.py 192.168.0.170 --live
@@ -495,6 +501,9 @@ python tv_adb.py 192.168.0.170 --screenshot</pre></div>
     document.getElementById("ver").innerHTML="Najnowsza: <b>"+latest.tag_name+"</b> · "+day(latest.published_at)+(apk?" · "+mb(apk.size):"");
     var v1=document.getElementById("v1"); if(v1) v1.textContent=latest.tag_name;
     var v2=document.getElementById("v2"); if(v2&&pilot) v2.textContent=latest.tag_name;
+    var lite=(latest.assets||[]).find(function(a){return a.name==="LiquidTVLite.apk"});
+    var v3=document.getElementById("v3"); if(v3&&lite) v3.textContent=latest.tag_name;
+    if(lite) document.getElementById("m3").textContent=mb(lite.size)+" · Android 6+ · 0,5 GB RAM wystarcza";
     if(apk) document.getElementById("m1").textContent=mb(apk.size)+" · Android 6+ (zalecany 8+ dla cichych aktualizacji)";
     if(pilot) document.getElementById("m2").textContent=mb(pilot.size)+" · Android 8+ · bez reklam i śledzenia";
     var box=document.getElementById("rel"); box.innerHTML="";

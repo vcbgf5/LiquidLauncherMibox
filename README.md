@@ -95,7 +95,9 @@ z aktualnym stanem sieci, Bluetooth i konta; Wstecz zwija listę.
 
 **Wygląd i wydajność.** Kafelki pochylają się w stronę, z której przyszedł fokus, a grafika przesuwa się za ramką; tapeta
 lekko przesuwa się przy przechodzeniu po doku; kolor akcentu i odcień szkła okien (Ustawienia → Wygląd); na jasnych zdjęciach
-góra i dół są automatycznie przyciemniane, żeby zegar i nazwy aplikacji były czytelne. **Tryb wydajności** (automatyczny /
+góra i dół są automatycznie przyciemniane, żeby zegar i nazwy aplikacji były czytelne. **Styl okien: Liquid Glass** (Ustawienia → Wygląd → Styl okien i paneli): okna, szybkie ustawienia i menu są szkłem z rozmytą,
+bardziej kolorową tapetą pod spodem, załamaniem światła przy brzegu, jasną krawędzią i delikatną poświatą (na jasnej tapecie
+szkło ciemnieje, żeby tekst był czytelny); można wrócić do prostego, ciemnego szkła. **Tryb wydajności** (automatyczny /
 zawsze oszczędnie / pełne efekty): w oszczędnym nie ma oddychającej tapety, błysków, pochylania ani płynnego przenikania tapet,
 tapeta jest mniejsza, a cienie lżejsze; automatyczny włącza go sam, gdy urządzenie jest słabe albo gdy zmierzone klatki
 launchera stale się spóźniają. Po powrocie z aplikacji fokus wraca na kafelek, z którego ją uruchomiono.
@@ -213,13 +215,31 @@ potwierdź pytanie na ekranie telewizora.
 - Strona z pobieraniem i poradnikami (instalacja, adb, tv_adb.py, pilot na telefon): **https://vcbgf5.github.io/LiquidLauncherMibox/** — źródło w `site/`, publikowane automatycznie workflow „Site” po zmianie plików w `site/`, `preview/` lub `docs/`
 - Krótki adres do wpisania pilotem (od razu pobiera najnowszą wersję): **vcbgf5.github.io/LiquidLauncherMibox/apk**
 - Bezpośredni link: `https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk`
+- **Wersja Lite** (stare telewizory z ok. 0,5 GB RAM): `https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTVLite.apk`
+  albo krótki adres **vcbgf5.github.io/LiquidLauncherMibox/apk/lite**. Opis niżej.
+
+### Dwie wersje: zwykła i Lite
+
+Każde wydanie ma dwa pliki z launcherem, `LiquidTV.apk` i `LiquidTVLite.apk`. To ta sama aplikacja (ta sama nazwa
+pakietu i klucz), więc jedna zastępuje drugą i możesz wybrać tę, która pasuje do telewizora. **Lite** jest dla starych
+telewizorów z ok. 0,5 GB RAM:
+
+- tapeta w pamięci jest dwa razy mniejsza w każdym wymiarze i zajmuje dwa bajty na piksel zamiast czterech, wbudowane tło
+  też; kafelki aplikacji i ikony mają ok. jedną trzecią zwykłej pamięci,
+- od początku działa tryb oszczędny (bez efektów, pochylania kafelków i płynnego przenikania tapet) i proste ciemne szkło
+  w oknach zamiast Liquid Glass (oba da się zmienić w Ustawieniach → Wygląd),
+- aktualizuje się z własnego pliku (`LiquidTVLite.apk`), więc nie przeskakuje na zwykłą wersję. W Ustawieniach numer
+  wersji ma dopisek „Lite”.
+
+Wymaga tego samego Androida co zwykła wersja (6.0 i nowszy). Skrypt `tv_adb.py` sam podpowiada Lite, gdy Box ma mniej niż
+ok. 0,9 GB RAM (`--install --lite` wybiera ją bez pytania).
 
 Nowe wydanie: utwórz release z tagiem (np. `v1.1.0`) na GitHubie albo wypchnij tag. Workflow zbuduje APK i doda go do Releases,
 a linki powyżej zawsze wskazują na najnowsze.
 
 ## Instalacja na Mi Box
 
-1. Wgraj `app-release.apk` (Downloader, pendrive albo `adb install`).
+1. Wgraj `LiquidTV.apk` (na starym telewizorze z ok. 0,5 GB RAM: `LiquidTVLite.apk`) (Downloader, pendrive albo `adb install`).
 2. Ustaw jako ekran główny (przycisk Home): Button Mapper albo wyłączenie
    fabrycznego launchera przez ADB:
 
