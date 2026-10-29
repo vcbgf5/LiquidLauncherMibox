@@ -97,6 +97,20 @@ i wybierz Aktualizuj teraz jeszcze raz (samoczynna aktualizacja sama tego okna n
 Nie usuwaj ani nie zmieniaj sekretu `KEYSTORE_PASSPHRASE` — bez niego nie da się podpisać następnych wersji
 tym samym kluczem i trzeba zaczynać od nowa (z odinstalowaniem).
 
+## Połączenie z Boxem przez ADB (skrypt na komputer)
+
+[`tools/tv_adb.py`](tools/tv_adb.py) łączy się z Boxem przez sieć (domyślnie port 5555) i ma menu najczęstszych czynności:
+instalacja i aktualizacja Liquid TV z GitHuba, włączenie usługi dostępności (pasek głośności, okno zasilania),
+ustawienie domyślnego ekranu głównego, wpisanie linku w zaznaczone pole, zrzut ekranu, uśpienie i obudzenie Boxa.
+Potrzebuje tylko Pythona 3; jeśli nie ma `adb`, zaproponuje pobranie go od Google.
+
+```bash
+python tools/tv_adb.py 192.168.1.50
+```
+
+Najpierw na Boxie włącz Opcje programisty (7 razy „Kompilacja” w Informacjach) i debugowanie, a przy pierwszym połączeniu
+potwierdź pytanie na ekranie telewizora.
+
 ## Pobranie APK
 
 - Strona z przyciskiem: **https://vcbgf5.github.io/LiquidLauncherMibox/**
