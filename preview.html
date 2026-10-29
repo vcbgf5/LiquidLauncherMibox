@@ -68,7 +68,7 @@ body { display:flex; flex-direction:column; }
 #lart img { width:100%; height:100%; object-fit:cover; display:block; }
 #settings { position:absolute; inset:0; background:rgba(0,0,0,.2); z-index:20; display:none; align-items:center; justify-content:center; }
 #settings.open { display:flex; }
-#settings .card { width:460px; border-radius:22px; padding:14px; background:rgba(42,44,54,.92); border:1px solid rgba(255,255,255,.25); }
+#settings .card { width:480px; border-radius:22px; padding:14px; background:rgba(42,44,54,.92); border:1px solid rgba(255,255,255,.25); }
 #settings h4 { margin:6px 10px 10px; font-size:15px; color:#fff; }
 .srow { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-radius:12px; font-size:14px; color:rgba(255,255,255,.9); cursor:pointer; }
 .srow.sel { background:rgba(255,255,255,.92); color:#111; font-weight:600; }
@@ -126,8 +126,11 @@ body { display:flex; flex-direction:column; }
   </section>
   <div id="menu"><div class="card"><h4 id="mtitle"></h4><div class="opt sel">Usuń z ulubionych</div><div class="opt">Przesuń w prawo</div><div class="opt">Informacje o aplikacji</div><div class="opt">Odinstaluj</div></div></div>
   <div id="settings"><div class="card"><h4>Ustawienia launchera</h4>
-    <div class="srow sel" id="srow0"><span>Przezroczystość docka</span><span class="ctl"><span class="arr" data-d="-1">‹</span><span class="bar"><i id="sbar"></i></span><b id="sval" style="width:40px;text-align:right">60%</b><span class="arr" data-d="1">›</span></span></div>
-    <div class="srow" id="srow1"><span>Ustawienia systemowe  ›</span></div></div></div>
+    <div class="srow sel" id="srow0"><span>Przezroczystość docka</span><span class="ctl"><span class="arr" data-d="-1" data-r="0">‹</span><span class="bar"><i id="sbar"></i></span><b id="sval" style="width:40px;text-align:right">60%</b><span class="arr" data-d="1" data-r="0">›</span></span></div>
+    <div class="srow" id="srow1"><span>Tapeta</span><span class="ctl"><span class="arr" data-d="-1" data-r="1">‹</span><b id="scat">Wszystkie kategorie</b><span class="arr" data-d="1" data-r="1">›</span></span></div>
+    <div class="srow" id="srow2"><span>Zmiana tapety co</span><span class="ctl"><span class="arr" data-d="-1" data-r="2">‹</span><b id="sint">10 min</b><span class="arr" data-d="1" data-r="2">›</span></span></div>
+    <div class="srow" id="srow3"><span>Następna tapeta</span></div>
+    <div class="srow" id="srow4"><span>Ustawienia systemowe  ›</span></div></div></div>
   <div id="launch"><div id="ldim"></div><div id="lart"><img id="limg"></div></div>
   <div id="toast"></div>
 </div></div>
@@ -151,7 +154,10 @@ const menu=document.getElementById('menu'), toastEl=document.getElementById('toa
 let screen='home', area='dock', r=0, c=0, tt, busy=false, sOpen=false, sRow=0, tval=60;
 const dockEl=document.getElementById('dock'), settingsEl=document.getElementById('settings');
 function setT(v){ tval=Math.max(0,Math.min(100,v)); dockEl.style.setProperty('--t',tval/100); document.getElementById('sval').textContent=tval+'%'; document.getElementById('sbar').style.width=tval+'%'; }
-function sFocus(){ document.getElementById('srow0').classList.toggle('sel',sRow===0); document.getElementById('srow1').classList.toggle('sel',sRow===1); }
+const CATS=['Wszystkie kategorie','Zwierzęta','Góry','Miasto','Las','Ocean i plaża','Kosmos','Zima','Niebo i zachody słońca','Abstrakcja','Minimalizm','Wyłączona (wbudowana)'], INTS=['1 min','5 min','10 min','30 min','1 godz.']; let ci=0, ii=2;
+function sFocus(){ for(let i=0;i<5;i++) document.getElementById('srow'+i).classList.toggle('sel',sRow===i); }
+function sStep(r,d){ if(r===0) setT(tval+10*d); else if(r===1){ ci=(ci+d+CATS.length)%CATS.length; document.getElementById('scat').textContent=CATS[ci]; } else if(r===2){ ii=Math.max(0,Math.min(INTS.length-1,ii+d)); document.getElementById('sint').textContent=INTS[ii]; } }
+function sAction(r){ if(r===3) toast('Następna tapeta (zdjęcia pojawią się po pobraniu z Unsplash, zob. README)'); if(r===4){ closeSettings(); toast('Otwieram ustawienia systemowe Androida'); } }
 function openSettings(){ sOpen=true; sRow=0; sFocus(); settingsEl.classList.add('open'); }
 function closeSettings(){ sOpen=false; settingsEl.classList.remove('open'); }
 function launch(el){
@@ -180,10 +186,10 @@ function press(k){
   if(busy) return;
   if(sOpen){
     if(k==='back'||k==='menu') closeSettings();
-    else if(k==='up'||k==='down'){ sRow=sRow?0:1; sFocus(); }
-    else if(sRow===0&&k==='left') setT(tval-10);
-    else if(sRow===0&&k==='right') setT(tval+10);
-    else if(k==='ok'&&sRow===1){ closeSettings(); toast('Otwieram ustawienia systemowe Androida'); }
+    else if(k==='up'){ sRow=Math.max(0,sRow-1); sFocus(); }
+    else if(k==='down'){ sRow=Math.min(4,sRow+1); sFocus(); }
+    else if(k==='left'||k==='right') sStep(sRow,k==='left'?-1:1);
+    else if(k==='ok') sAction(sRow);
     return;
   }
   if(menu.classList.contains('open')){ if(k==='back'||k==='menu') menu.classList.remove('open'); return; }
@@ -227,8 +233,8 @@ document.querySelectorAll('#remote button').forEach(b=>b.addEventListener('click
 }));
 // long press / right click on a tile = the "hold OK" menu
 [...dock,...grid].forEach(el=>el.addEventListener('contextmenu',ev=>{ ev.preventDefault(); el.click(); press('menu'); }));
-settingsEl.addEventListener('click',ev=>{ const a=ev.target.closest('.arr'); if(a){ sRow=0; sFocus(); setT(tval+10*(+a.dataset.d)); return; }
-  const row=ev.target.closest('.srow'); if(row){ sRow=row.id==='srow1'?1:0; sFocus(); if(sRow===1){ closeSettings(); toast('Otwieram ustawienia systemowe Androida'); } return; }
+settingsEl.addEventListener('click',ev=>{ const a=ev.target.closest('.arr'); if(a){ sRow=+a.dataset.r; sFocus(); sStep(sRow,+a.dataset.d); return; }
+  const row=ev.target.closest('.srow'); if(row){ sRow=+row.id.slice(4); sFocus(); sAction(sRow); return; }
   if(!ev.target.closest('.card')) closeSettings(); });
 // menu: click an option, or click outside the card to close
 menu.addEventListener('click',ev=>{ const o=ev.target.closest('.opt'); if(o){ menu.classList.remove('open'); toast('„'+o.textContent+'” (w aplikacji zadziała naprawdę)'); } else if(!ev.target.closest('.card')) menu.classList.remove('open'); });
