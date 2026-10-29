@@ -30,11 +30,15 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.liquidglass.tvlauncher.data.AppInfo
 
-private val DockTileWidth = 128.dp
+private const val DockTileWidthDp = 128f
+private const val DockSideMarginDp = 24f
+private const val DockHorizontalPaddingDp = 28f
+private const val DockSpacingDp = 16f
 private val DockShape = RoundedCornerShape(32.dp)
 
 /**
@@ -47,6 +51,8 @@ private val DockShape = RoundedCornerShape(32.dp)
  *
  * [transparency] (0..1) is the user's option: 0 is frosted and nearly
  * opaque, 1 is almost clear glass with the photo showing through.
+ * [sizeFactor] (1 = normal) is the other one: how big the tiles are. It is capped so that
+ * all the tiles always fit on the screen, however many favorites there are.
  *
  * Real backdrop blur isn't available on the Android versions most TV
  * boxes ship, so the blur is baked: [backdrop] is a pre-blurred copy of
@@ -66,6 +72,7 @@ fun FavoritesDock(
     screenSize: IntSize,
     bottomInsetPx: Float,
     transparency: Float,
+    sizeFactor: Float,
     zoom: () -> Float,
     firstTileFocus: FocusRequester,
     onLaunch: (AppInfo, Rect) -> Unit,
@@ -75,6 +82,12 @@ fun FavoritesDock(
 ) {
     var size by remember { mutableStateOf(IntSize.Zero) }
     val t = transparency.coerceIn(0f, 1f)
+    val density = LocalDensity.current.density
+    val tileWidth = run {
+        val room = screenSize.width / density - 2 * DockSideMarginDp - 2 * DockHorizontalPaddingDp -
+            DockSpacingDp * (apps.size - 1).coerceAtLeast(0)
+        minOf(DockTileWidthDp * sizeFactor, room / apps.size.coerceAtLeast(1)).dp
+    }
 
     Row(
         modifier = modifier
@@ -115,15 +128,15 @@ fun FavoritesDock(
                 ),
             )
             .border(1.dp, Color.White.copy(alpha = 0.30f - 0.08f * t), DockShape)
-            .padding(horizontal = 28.dp, vertical = 26.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = DockHorizontalPaddingDp.dp, vertical = 26.dp),
+        horizontalArrangement = Arrangement.spacedBy(DockSpacingDp.dp),
     ) {
         apps.forEachIndexed { index, app ->
             AppTile(
                 label = app.label,
                 art = app.tile,
                 modifier = Modifier
-                    .width(DockTileWidth)
+                    .width(tileWidth)
                     .riseIn(delayMillis = 220 + index * 70, distance = 28.dp, fromScale = 0.85f),
                 focusRequester = if (index == 0) firstTileFocus else null,
                 reserveLabelSpace = false,

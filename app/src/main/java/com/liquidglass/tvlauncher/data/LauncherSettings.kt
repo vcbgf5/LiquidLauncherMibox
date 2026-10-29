@@ -13,6 +13,20 @@ class LauncherSettings(context: Context) {
             prefs.edit().putInt(KEY_DOCK_TRANSPARENCY, value.coerceIn(0, 100)).apply()
         }
 
+    /** How big the apps on the home screen are, in percent of the normal size. */
+    var dockSize: Int
+        get() = prefs.getInt(KEY_DOCK_SIZE, DEFAULT_DOCK_SIZE).coerceIn(MIN_DOCK_SIZE, MAX_DOCK_SIZE)
+        set(value) {
+            prefs.edit().putInt(KEY_DOCK_SIZE, value.coerceIn(MIN_DOCK_SIZE, MAX_DOCK_SIZE)).apply()
+        }
+
+    /** Minutes without a key press after which the screensaver starts; 0 = never. */
+    var screensaverMinutes: Int
+        get() = prefs.getInt(KEY_SCREENSAVER, DEFAULT_SCREENSAVER_MINUTES)
+        set(value) {
+            prefs.edit().putInt(KEY_SCREENSAVER, value).apply()
+        }
+
     /** A category id from the wallpaper catalog, or [WallpaperCatalog.OFF] / [WallpaperCatalog.ALL]. */
     var wallpaperCategory: String
         get() = prefs.getString(KEY_WALLPAPER_CATEGORY, WallpaperCatalog.ALL) ?: WallpaperCatalog.ALL
@@ -65,6 +79,12 @@ class LauncherSettings(context: Context) {
         private const val KEY_WALLPAPER_CATEGORY = "wallpaper_category"
         private const val KEY_WALLPAPER_INTERVAL = "wallpaper_interval"
         private const val KEY_LAST_WALLPAPER = "last_wallpaper"
+        const val DEFAULT_DOCK_SIZE = 100
+        const val MIN_DOCK_SIZE = 70
+        const val MAX_DOCK_SIZE = 140
+        const val DEFAULT_SCREENSAVER_MINUTES = 3
+        private const val KEY_DOCK_SIZE = "dock_size"
+        private const val KEY_SCREENSAVER = "screensaver_minutes"
         const val DEFAULT_DOCK_TRANSPARENCY = 60
         private const val KEY_DOCK_TRANSPARENCY = "dock_transparency"
     }

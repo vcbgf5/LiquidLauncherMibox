@@ -7,6 +7,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -26,6 +30,7 @@ import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.liquidglass.tvlauncher.data.AccountProvider
 import com.liquidglass.tvlauncher.data.AppInfo
@@ -35,7 +40,6 @@ import com.liquidglass.tvlauncher.data.LauncherSettings
 import com.liquidglass.tvlauncher.data.PriorityApps
 import com.liquidglass.tvlauncher.data.UpdateInfo
 import com.liquidglass.tvlauncher.data.Updater
-import com.liquidglass.tvlauncher.data.RecentsStore
 import com.liquidglass.tvlauncher.data.SystemHomeFinder
 import com.liquidglass.tvlauncher.data.WatchNextRepository
 import com.liquidglass.tvlauncher.data.WallpaperCatalog
@@ -47,6 +51,7 @@ import com.liquidglass.tvlauncher.ui.PAGE_HOME
 import com.liquidglass.tvlauncher.ui.LaunchOverlay
 import com.liquidglass.tvlauncher.ui.LaunchRequest
 import com.liquidglass.tvlauncher.ui.MenuOption
+import com.liquidglass.tvlauncher.ui.Screensaver
 import com.liquidglass.tvlauncher.ui.SettingsDialog
 import com.liquidglass.tvlauncher.ui.WallpaperState
 
@@ -61,15 +66,19 @@ class MainActivity : ComponentActivity() {
     /** One of the PAGE_ constants: info (top), home (middle), the app list (bottom). */
     private var page by mutableIntStateOf(PAGE_HOME)
 
-    /** Keys of the apps opened most recently from here, newest first. */
-    private var recentKeys by mutableStateOf<List<String>>(emptyList())
-
     /** The app being opened (null when none) and whether its opening animation is out. */
     private var launchRequest by mutableStateOf<LaunchRequest?>(null)
     private var launchExpanded by mutableStateOf(false)
 
     /** True while the launcher is on screen; wallpaper rotation only runs then. */
     private var inForeground by mutableStateOf(false)
+
+    /** When a key or touch last arrived (the screensaver counts idle time from it), and whether it is up. */
+    private var lastInputAt by mutableLongStateOf(System.currentTimeMillis())
+    private var screensaverShowing by mutableStateOf(false)
+
+    /** The key that woke the screensaver: it does nothing else, not even when it is released. */
+    private var wakeKeyCode = -1
 
     /** Bumped by "next wallpaper" in the settings. */
     private var skipSignal by mutableIntStateOf(0)
@@ -80,14 +89,11 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var store: FavoritesStore
     private lateinit var settings: LauncherSettings
-    private lateinit var recentsStore: RecentsStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = FavoritesStore(this)
         settings = LauncherSettings(this)
-        recentsStore = RecentsStore(this)
-        recentKeys = recentsStore.load()
 
         setContent {
             var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
@@ -95,6 +101,8 @@ class MainActivity : ComponentActivity() {
             var menuApp by remember { mutableStateOf<AppInfo?>(null) }
             var showSettings by remember { mutableStateOf(false) }
             var dockTransparency by remember { mutableIntStateOf(settings.dockTransparency) }
+            var dockSize by remember { mutableIntStateOf(settings.dockSize) }
+            var screensaverMinutes by remember { mutableIntStateOf(settings.screensaverMinutes) }
             var accountName by remember { mutableStateOf(AccountProvider.googleAccountName(this@MainActivity)) }
 
             val wallpaper = remember {
@@ -173,6 +181,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Screensaver: starts after the chosen time without any key press, while the launcher
+            // is on screen and nothing (a dialog, an app opening) is going on. Every key press
+            // (see dispatchKeyEvent) restarts the wait.
+            LaunchedEffect(inForeground, screensaverMinutes, showSettings, menuApp, launchRequest) {
+                if (!inForeground || screensaverMinutes <= 0 || showSettings || menuApp != null || launchRequest != null) {
+                    return@LaunchedEffect
+                }
+                snapshotFlow { lastInputAt }.collectLatest {
+                    delay(screensaverMinutes * 60_000L)
+                    screensaverShowing = true
+                }
+            }
+
             LaunchedEffect(resumeSignal) {
                 apps = AppRepository.load(this@MainActivity)
                 if (accountName == null) accountName = AccountProvider.googleAccountName(this@MainActivity)
@@ -237,7 +258,6 @@ class MainActivity : ComponentActivity() {
             val keys = favoriteKeys.orEmpty()
             val byKey = remember(apps) { apps.associateBy { it.key } }
             val favorites = remember(apps, keys) { keys.mapNotNull { byKey[it] } }
-            val recents = remember(apps, recentKeys) { recentKeys.mapNotNull { byKey[it] }.take(7) }
             val watchNext = watchNextTitles.ifEmpty { listOfNotNull(systemHome) }
 
             fun saveKeys(updated: List<String>) {
@@ -257,7 +277,6 @@ class MainActivity : ComponentActivity() {
                     favorites = favorites,
                     allApps = apps,
                     watchNext = watchNext,
-                    recents = recents,
                     page = page,
                     onPage = { page = it },
                     resetSignal = resetSignal,
@@ -266,6 +285,7 @@ class MainActivity : ComponentActivity() {
                     updateAvailable = updateInfo != null,
                     wallpaper = wallpaper,
                     dockTransparency = dockTransparency / 100f,
+                    dockSize = dockSize / 100f,
                     onLaunch = { app, from ->
                         if (launchRequest == null) {
                             launchRequest = LaunchRequest(app, from)
@@ -296,6 +316,8 @@ class MainActivity : ComponentActivity() {
                     onExpanded = { launchRequest?.let { startApp(it.app) } },
                     onCollapsed = { launchRequest = null },
                 )
+
+                Screensaver(wallpaper = wallpaper, visible = screensaverShowing)
             }
 
             if (showSettings) {
@@ -331,6 +353,20 @@ class MainActivity : ComponentActivity() {
                     onTransparencyChange = {
                         dockTransparency = it
                         settings.dockTransparency = it
+                    },
+                    dockSizePercent = dockSize,
+                    onDockSizeChange = {
+                        dockSize = it
+                        settings.dockSize = it
+                    },
+                    screensaverMinutes = screensaverMinutes,
+                    onScreensaverChange = {
+                        screensaverMinutes = it
+                        settings.screensaverMinutes = it
+                    },
+                    onShowScreensaver = {
+                        showSettings = false
+                        screensaverShowing = true
                     },
                     categoryOptions = options,
                     categoryId = wallpaperCategory,
@@ -401,12 +437,51 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         inForeground = false
+        screensaverShowing = false
         super.onPause()
+    }
+
+    /** Any key wakes the screensaver (and is otherwise swallowed); any key also restarts the idle wait. */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        lastInputAt = System.currentTimeMillis()
+        if (screensaverShowing) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                wakeKeyCode = event.keyCode
+                screensaverShowing = false
+            }
+            return true
+        }
+        if (event.keyCode == wakeKeyCode) {
+            if (event.action == KeyEvent.ACTION_UP) wakeKeyCode = -1
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (wakeScreensaver()) return true
+        return super.dispatchTouchEvent(ev)
+    }
+
+    /** Mice and air-mouse remotes: moving them counts as being there. */
+    override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+        if (wakeScreensaver()) return true
+        return super.dispatchGenericMotionEvent(ev)
+    }
+
+    /** True when the screensaver was up (the event is then used up waking it). */
+    private fun wakeScreensaver(): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - lastInputAt > 1000) lastInputAt = now // not on every mouse move
+        if (!screensaverShowing) return false
+        screensaverShowing = false
+        return true
     }
 
     /** Home pressed while the launcher is already on screen: back to the home screen. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        screensaverShowing = false
         page = PAGE_HOME
         resetSignal++
     }
@@ -436,8 +511,6 @@ class MainActivity : ComponentActivity() {
             // The screen is already black from the opening animation, so a plain fade hands over cleanly.
             val options = ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out)
             startActivity(intent, options.toBundle())
-            recentsStore.record(app.key)
-            recentKeys = recentsStore.load()
             // If the app never actually takes over the screen, don't stay stuck on black.
             window.decorView.postDelayed({ if (inForeground) launchExpanded = false }, 2500)
         } catch (_: Exception) {

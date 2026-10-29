@@ -63,15 +63,15 @@ private const val GRID_COLUMNS = 6
 /**
  * Three screens stacked vertically like pages of a pager ([page] is one of the PAGE_ constants):
  *
- *  - [PAGE_INFO] (top): the date, a calendar, "continue watching" and recently opened apps.
- *    Reached with Up from the top bar; Down from its last row of tiles comes back.
+ *  - [PAGE_INFO] (top): the date, a calendar and "continue watching".
+ *    Reached with Up from the top bar; Down comes back.
  *  - [PAGE_HOME] (middle): the photo filling the screen, the clock/settings/account in the
  *    corner and, at the bottom, the favorites dock. Down on the dock goes to the app list.
  *  - [PAGE_APPS] (bottom): the full app grid. Up from its first row comes back.
  *
  * Back and Home are handled by the caller through [page] / [resetSignal].
  *
- * Where a screen ends is worked out from which tile has focus (first/last row), never from
+ * Where the app list starts is worked out from which tile has focus (first row), never from
  * the scroll position or from whether a focus move failed: after scrolling a long list the
  * grid is often left a few pixels off its start, and those checks then misfire.
  *
@@ -86,7 +86,6 @@ fun HomeScreen(
     favorites: List<AppInfo>,
     allApps: List<AppInfo>,
     watchNext: List<AppInfo>,
-    recents: List<AppInfo>,
     page: Int,
     onPage: (Int) -> Unit,
     resetSignal: Int,
@@ -95,6 +94,7 @@ fun HomeScreen(
     updateAvailable: Boolean,
     wallpaper: WallpaperState,
     dockTransparency: Float,
+    dockSize: Float,
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
     onOpenSettings: () -> Unit,
@@ -110,8 +110,6 @@ fun HomeScreen(
 
     // Which tile / row has focus on the pages that need to know where their edges are.
     var focusedGridIndex by remember { mutableIntStateOf(0) }
-    var focusedInfoRow by remember { mutableIntStateOf(0) }
-    val infoLastRow = (if (watchNext.isNotEmpty()) 1 else 0) + (if (recents.isNotEmpty()) 1 else 0) - 1
 
     // Whether the page on screen currently holds focus (see the watchdog below).
     var pageHasFocus by remember { mutableStateOf(true) }
@@ -129,7 +127,6 @@ fun HomeScreen(
     // Whenever the page changes (or Home is pressed), put focus on its first tile.
     LaunchedEffect(page, resetSignal, hasFavorites, hasApps) {
         if (page == PAGE_APPS) gridState.scrollToItem(0)
-        if (page == PAGE_INFO) focusedInfoRow = 0
         focusedGridIndex = 0
         delay(90) // the page that just became focusable needs a frame to say so
         focusFirst()
@@ -231,6 +228,7 @@ fun HomeScreen(
                     screenSize = screenSize,
                     bottomInsetPx = dockInsetPx,
                     transparency = dockTransparency,
+                    sizeFactor = dockSize,
                     zoom = { zoomState.value },
                     firstTileFocus = dockFirst,
                     onLaunch = onLaunch,
@@ -310,10 +308,8 @@ fun HomeScreen(
         InfoPage(
             wallpaper = wallpaper,
             watchNext = watchNext,
-            recents = recents,
             entry = { ((0.95f - progress) / 0.7f).coerceIn(0f, 1f) },
             firstFocus = infoFirst,
-            onFocusedRow = { focusedInfoRow = it },
             onLaunch = onLaunch,
             onOpenMenu = onOpenMenu,
             modifier = Modifier
@@ -321,10 +317,8 @@ fun HomeScreen(
                 .focusProperties { canFocus = page == PAGE_INFO }
                 .onFocusChanged { if (page == PAGE_INFO) pageHasFocus = it.hasFocus }
                 .onPreviewKeyEvent { event ->
-                    // Down from the last row of tiles goes back to the home screen.
-                    if (page == PAGE_INFO && event.type == KeyEventType.KeyDown &&
-                        event.key == Key.DirectionDown && focusedInfoRow >= infoLastRow
-                    ) {
+                    // The page has a single row of tiles, so Down always goes back to the home screen.
+                    if (page == PAGE_INFO && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
                         onPage(PAGE_HOME)
                         true
                     } else {

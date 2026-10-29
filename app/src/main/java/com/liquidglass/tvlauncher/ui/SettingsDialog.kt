@@ -44,6 +44,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.liquidglass.tvlauncher.R
+import com.liquidglass.tvlauncher.data.LauncherSettings
 import kotlinx.coroutines.delay
 
 private const val STEP = 10
@@ -51,9 +52,13 @@ private const val STEP = 10
 /** How often the wallpaper can change, in minutes. */
 val WallpaperIntervals = listOf(1, 5, 10, 30, 60)
 
+/** Idle minutes before the screensaver starts; 0 = never. */
+val ScreensaverDelays = listOf(0, 1, 3, 5, 10, 15, 30)
+
 /**
  * The launcher's own settings, opened from the gear in the top bar:
- *  - how transparent the dock is (the dock behind the card updates live),
+ *  - how transparent the dock is and how big its apps are (the dock behind the card updates live),
+ *  - when the screensaver starts, and showing it right now,
  *  - which wallpaper category to rotate through, and how often,
  *  - skipping to the next wallpaper right now,
  *  - updates: the current version, "check now", "update now" (only when [installLabel] is set)
@@ -67,6 +72,11 @@ val WallpaperIntervals = listOf(1, 5, 10, 30, 60)
 fun SettingsDialog(
     transparencyPercent: Int,
     onTransparencyChange: (Int) -> Unit,
+    dockSizePercent: Int,
+    onDockSizeChange: (Int) -> Unit,
+    screensaverMinutes: Int,
+    onScreensaverChange: (Int) -> Unit,
+    onShowScreensaver: () -> Unit,
     categoryOptions: List<Pair<String, String>>,
     categoryId: String,
     onCategoryChange: (String) -> Unit,
@@ -122,6 +132,15 @@ fun SettingsDialog(
                 },
             )
             ChoiceRow(
+                label = stringResource(R.string.settings_dock_size),
+                value = "$dockSizePercent%",
+                onStep = { direction ->
+                    onDockSizeChange(
+                        (dockSizePercent + direction * STEP).coerceIn(LauncherSettings.MIN_DOCK_SIZE, LauncherSettings.MAX_DOCK_SIZE),
+                    )
+                },
+            )
+            ChoiceRow(
                 label = stringResource(R.string.settings_wallpaper),
                 value = categoryLabel,
                 onStep = { direction ->
@@ -141,6 +160,19 @@ fun SettingsDialog(
                 },
             )
             ActionRow(label = stringResource(R.string.settings_wallpaper_next), arrow = false, onClick = onNextWallpaper)
+            ChoiceRow(
+                label = stringResource(R.string.settings_screensaver),
+                value = if (screensaverMinutes <= 0) {
+                    stringResource(R.string.screensaver_off)
+                } else {
+                    stringResource(R.string.minutes_short, screensaverMinutes)
+                },
+                onStep = { direction ->
+                    val i = ScreensaverDelays.indexOf(screensaverMinutes).let { if (it < 0) 2 else it }
+                    onScreensaverChange(ScreensaverDelays[(i + direction).coerceIn(0, ScreensaverDelays.lastIndex)])
+                },
+            )
+            ActionRow(label = stringResource(R.string.settings_screensaver_show), arrow = false, onClick = onShowScreensaver)
             if (photoCredit != null) {
                 Text(
                     text = stringResource(R.string.settings_photo_by, photoCredit),

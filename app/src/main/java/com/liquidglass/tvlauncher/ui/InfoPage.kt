@@ -48,14 +48,11 @@ private val PL = Locale("pl", "PL")
 private val WEEKDAYS = listOf("Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd")
 
 /**
- * The third page: the date (big clock, full date, a month calendar) and two rows of
- * tiles — "continue watching" (real Watch Next titles when the system allows reading
- * them, otherwise a shortcut to the system home screen, which shows them) and the
- * apps opened most recently from this launcher.
+ * The page above the home screen: the date (big clock, full date, a month calendar) and a
+ * row of "continue watching" tiles (real Watch Next titles when the system allows reading
+ * them, otherwise a shortcut to the system home screen, which shows them).
  *
  * [entry] (0..1) is how far the page has slid in; the content fades up with it.
- * [onFocusedRow] reports which row of tiles has focus, so the caller can tell when Down
- * is pressed on the last one.
  * [firstFocus] goes to the first tile, or to the page itself when it has no tiles,
  * so there is always something focused to carry Up/Back.
  */
@@ -63,16 +60,14 @@ private val WEEKDAYS = listOf("Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd")
 fun InfoPage(
     wallpaper: WallpaperState,
     watchNext: List<AppInfo>,
-    recents: List<AppInfo>,
     entry: () -> Float,
     firstFocus: FocusRequester,
-    onFocusedRow: (Int) -> Unit,
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val now = rememberNow()
-    val hasTiles = watchNext.isNotEmpty() || recents.isNotEmpty()
+    val hasTiles = watchNext.isNotEmpty()
 
     Box(
         modifier = modifier
@@ -109,21 +104,8 @@ fun InfoPage(
                 ClockBlock(now.value)
                 CalendarCard(now.value)
             }
-            var rows = 0
             if (watchNext.isNotEmpty()) {
-                TileRow(stringResource(R.string.info_watch_next), watchNext, firstFocus, rows, onFocusedRow, onLaunch, onOpenMenu)
-                rows++
-            }
-            if (recents.isNotEmpty()) {
-                TileRow(
-                    title = stringResource(R.string.info_recent),
-                    items = recents,
-                    firstFocus = if (rows == 0) firstFocus else null,
-                    rowIndex = rows,
-                    onFocusedRow = onFocusedRow,
-                    onLaunch = onLaunch,
-                    onOpenMenu = onOpenMenu,
-                )
+                TileRow(stringResource(R.string.info_watch_next), watchNext, firstFocus, onLaunch, onOpenMenu)
             }
         }
     }
@@ -134,8 +116,6 @@ private fun TileRow(
     title: String,
     items: List<AppInfo>,
     firstFocus: FocusRequester?,
-    rowIndex: Int,
-    onFocusedRow: (Int) -> Unit,
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
 ) {
@@ -154,7 +134,6 @@ private fun TileRow(
                 art = app.tile,
                 modifier = Modifier.width(104.dp),
                 focusRequester = if (index == 0) firstFocus else null,
-                onFocusChange = { if (it) onFocusedRow(rowIndex) },
                 onClick = { rect -> onLaunch(app, rect) },
                 onLongClick = { onOpenMenu(app) },
             )
@@ -240,7 +219,7 @@ private fun Cell(text: String, header: Boolean, today: Boolean) {
 
 /** Wall-clock time, refreshed every 15 seconds (so the date also rolls over at midnight). */
 @Composable
-private fun rememberNow(): State<Long> {
+internal fun rememberNow(): State<Long> {
     val now = remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {

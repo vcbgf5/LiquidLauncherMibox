@@ -9,6 +9,11 @@
     <string name="menu_uninstall">Odinstaluj</string>
     <string name="settings_title">Ustawienia launchera</string>
     <string name="settings_dock_transparency">Przezroczystość docka</string>
+    <string name="settings_dock_size">Rozmiar aplikacji na ekranie głównym</string>
+    <string name="settings_screensaver">Wygaszacz po</string>
+    <string name="settings_screensaver_show">Pokaż wygaszacz teraz</string>
+    <string name="screensaver_off">Wyłączony</string>
+    <string name="dream_name">Liquid TV (zegar i tapeta)</string>
     <string name="settings_system">Ustawienia systemowe</string>
     <string name="settings_wallpaper">Tapeta</string>
     <string name="settings_wallpaper_interval">Zmiana tapety co</string>
@@ -21,7 +26,6 @@
     <string name="hour_short">1 godz.</string>
     <string name="info_watch_next">Dalej oglądaj</string>
     <string name="info_system_home">ekran systemowy</string>
-    <string name="info_recent">Ostatnio otwierane</string>
     <string name="settings_update_check">Sprawdź aktualizacje</string>
     <string name="settings_update_install">Aktualizuj teraz (%1$s)</string>
     <string name="settings_update_auto">Aktualizuj automatycznie</string>
