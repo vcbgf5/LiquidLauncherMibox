@@ -1,5 +1,7 @@
 package com.liquidglass.tvlauncher.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -7,27 +9,34 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
@@ -35,10 +44,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.liquidglass.tvlauncher.R
-import com.liquidglass.tvlauncher.data.AppInfo
+import com.liquidglass.tvlauncher.data.Agenda
+import com.liquidglass.tvlauncher.data.AgendaSource
+import com.liquidglass.tvlauncher.data.NetworkKind
+import com.liquidglass.tvlauncher.data.WidgetData
+import com.liquidglass.tvlauncher.data.WidgetType
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -49,31 +63,31 @@ private val PL = Locale("pl", "PL")
 private val WEEKDAYS = listOf("Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd")
 
 /**
- * The page above the home screen: the date (big clock, full date, a month calendar) and a
- * row of "continue watching" tiles (real Watch Next titles when the system allows reading
- * them, otherwise a shortcut to the system home screen, which shows them).
+ * The page above the home screen: the date and time, and a row of widgets chosen in the settings
+ * (calendar, upcoming events, network, Bluetooth, storage and memory). The widgets are cards you
+ * can move between with Left/Right; OK on one opens the matching Android screen, or refreshes it.
  *
  * [entry] (0..1) is how far the page has slid in; the content fades up with it.
- * [firstFocus] goes to the first tile, or to the page itself when it has no tiles,
- * so there is always something focused to carry Up/Back.
+ * [firstFocus] goes to the first widget, or to the page itself when none is shown, so there is
+ * always something focused to carry Up/Down/Back.
  */
 @Composable
 fun InfoPage(
     wallpaper: WallpaperState,
-    watchNext: List<AppInfo>,
+    widgets: List<WidgetType>,
+    data: WidgetData,
+    agenda: Agenda,
     entry: () -> Float,
     firstFocus: FocusRequester,
-    onLaunch: (AppInfo, Rect) -> Unit,
-    onOpenMenu: (AppInfo) -> Unit,
+    onWidget: (WidgetType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val now = rememberNow()
-    val hasTiles = watchNext.isNotEmpty()
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .then(if (hasTiles) Modifier else Modifier.focusRequester(firstFocus).focusable()),
+            .then(if (widgets.isNotEmpty()) Modifier else Modifier.focusRequester(firstFocus).focusable()),
     ) {
         wallpaper.previous?.let { old ->
             Image(bitmap = old.blurred, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -91,55 +105,90 @@ fun InfoPage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 48.dp, end = 48.dp, top = 36.dp, bottom = 24.dp)
+                .padding(top = 36.dp, bottom = 26.dp)
                 .graphicsLayer {
                     val e = entry()
                     alpha = e
-                    compositingStrategy = CompositingStrategy.ModulateAlpha
                     translationY = (1f - e) * 40f * density
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
                 },
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+            Box(modifier = Modifier.weight(1f).padding(horizontal = 48.dp)) {
                 ClockBlock(now.value)
-                CalendarCard(now.value)
             }
-            if (watchNext.isNotEmpty()) {
-                TileRow(stringResource(R.string.info_watch_next), watchNext, firstFocus, onLaunch, onOpenMenu)
+            if (widgets.isNotEmpty()) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 48.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    itemsIndexed(widgets, key = { _, type -> type.key }) { index, type ->
+                        val focus = if (index == 0) firstFocus else null
+                        when (type) {
+                            WidgetType.CALENDAR -> WidgetCard(310.dp, stringResource(R.string.widget_calendar), focus, onClick = { onWidget(type) }) {
+                                MonthCalendar(now.value)
+                            }
+                            WidgetType.AGENDA -> WidgetCard(330.dp, stringResource(R.string.widget_agenda_title), focus, onClick = { onWidget(type) }) {
+                                AgendaContent(agenda, now.value)
+                            }
+                            WidgetType.NETWORK -> WidgetCard(270.dp, stringResource(R.string.widget_network_title), focus, onClick = { onWidget(type) }) {
+                                NetworkContent(data)
+                            }
+                            WidgetType.BLUETOOTH -> WidgetCard(270.dp, stringResource(R.string.widget_bluetooth_title), focus, onClick = { onWidget(type) }) {
+                                BluetoothContent(data)
+                            }
+                            WidgetType.SYSTEM -> WidgetCard(290.dp, stringResource(R.string.widget_system_title), focus, onClick = { onWidget(type) }) {
+                                SystemContent(data)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
+/** A glass card holding one widget. Focus lifts it and brightens its edge. */
 @Composable
-private fun TileRow(
+private fun WidgetCard(
+    width: Dp,
     title: String,
-    items: List<AppInfo>,
-    firstFocus: FocusRequester?,
-    onLaunch: (AppInfo, Rect) -> Unit,
-    onOpenMenu: (AppInfo) -> Unit,
+    focusRequester: FocusRequester?,
+    onClick: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
-    Text(
-        text = title.uppercase(),
-        color = Color.White.copy(alpha = 0.55f),
-        fontSize = 12.sp,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = 1.4.sp,
-        modifier = Modifier.padding(top = 6.dp, bottom = 6.dp, start = 2.dp),
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.04f else 1f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 420f),
+        label = "widgetScale",
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(bottom = 4.dp)) {
-        items.forEachIndexed { index, app ->
-            AppTile(
-                label = app.label,
-                art = app.tile,
-                modifier = Modifier.width(104.dp),
-                focusRequester = if (index == 0) firstFocus else null,
-                onClick = { rect -> onLaunch(app, rect) },
-                onLongClick = { onOpenMenu(app) },
-            )
-        }
+    val shape = RoundedCornerShape(22.dp)
+    Column(
+        modifier = Modifier
+            .width(width)
+            .height(236.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(shape)
+            .onFocusChanged { focused = it.isFocused }
+            .okAction(onClick)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .focusable()
+            .background(Color.White.copy(alpha = if (focused) 0.17f else 0.09f))
+            .border(if (focused) 2.dp else 1.dp, Color.White.copy(alpha = if (focused) 0.9f else 0.2f), shape)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+    ) {
+        Text(
+            text = title.uppercase(),
+            color = Color.White.copy(alpha = 0.6f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.3.sp,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        content()
     }
 }
 
@@ -163,8 +212,10 @@ private fun ClockBlock(nowMillis: Long) {
     }
 }
 
+// ---- Calendar -----------------------------------------------------------------------------------
+
 @Composable
-private fun CalendarCard(nowMillis: Long) {
+private fun MonthCalendar(nowMillis: Long) {
     val cal = Calendar.getInstance().apply { timeInMillis = nowMillis }
     val today = cal.get(Calendar.DAY_OF_MONTH)
     val monthTitle = SimpleDateFormat("LLLL yyyy", PL).format(cal.time).replaceFirstChar { it.uppercase() }
@@ -173,24 +224,15 @@ private fun CalendarCard(nowMillis: Long) {
     val days = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
     val weeks = (offset + days + 6) / 7
 
-    val shape = RoundedCornerShape(20.dp)
-    Column(
-        modifier = Modifier
-            .clip(shape)
-            .background(Color.White.copy(alpha = 0.08f))
-            .border(1.dp, Color.White.copy(alpha = 0.2f), shape)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-    ) {
-        Text(monthTitle, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
+    Text(monthTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 2.dp))
+    Row {
+        WEEKDAYS.forEach { Cell(it, header = true, today = false) }
+    }
+    repeat(weeks) { week ->
         Row {
-            WEEKDAYS.forEach { Cell(it, header = true, today = false) }
-        }
-        repeat(weeks) { week ->
-            Row {
-                repeat(7) { column ->
-                    val day = week * 7 + column - offset + 1
-                    Cell(if (day in 1..days) day.toString() else "", header = false, today = day == today)
-                }
+            repeat(7) { column ->
+                val day = week * 7 + column - offset + 1
+                Cell(if (day in 1..days) day.toString() else "", header = false, today = day == today)
             }
         }
     }
@@ -199,16 +241,16 @@ private fun CalendarCard(nowMillis: Long) {
 @Composable
 private fun Cell(text: String, header: Boolean, today: Boolean) {
     Box(
-        modifier = Modifier.width(36.dp).height(25.dp),
+        modifier = Modifier.width(38.dp).height(22.dp),
         contentAlignment = Alignment.Center,
     ) {
         if (today) {
-            Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color.White))
+            Box(modifier = Modifier.size(21.dp).clip(CircleShape).background(Color.White))
         }
         Text(
             text = text,
             textAlign = TextAlign.Center,
-            fontSize = if (header) 11.sp else 13.sp,
+            fontSize = if (header) 10.5.sp else 12.5.sp,
             fontWeight = if (today) FontWeight.Bold else FontWeight.Medium,
             color = when {
                 today -> Color(0xFF111111)
@@ -216,6 +258,166 @@ private fun Cell(text: String, header: Boolean, today: Boolean) {
                 else -> Color.White.copy(alpha = 0.9f)
             },
         )
+    }
+}
+
+@Composable
+private fun AgendaContent(agenda: Agenda, nowMillis: Long) {
+    if (agenda.events.isEmpty()) {
+        val message = when {
+            agenda.source == AgendaSource.NONE && agenda.needsPermission -> R.string.agenda_needs_permission
+            agenda.source == AgendaSource.NONE && agenda.failed -> R.string.agenda_no_calendar
+            agenda.source == AgendaSource.NONE -> R.string.agenda_not_connected
+            agenda.failed -> R.string.agenda_failed
+            else -> R.string.agenda_empty
+        }
+        Muted(stringResource(message))
+        return
+    }
+    val dayFormat = SimpleDateFormat("EEE d MMM", PL)
+    val timeFormat = SimpleDateFormat("HH:mm", PL)
+    val todayKey = dayKey(nowMillis)
+    var lastDay = ""
+    agenda.events.take(6).forEach { event ->
+        val key = dayKey(event.startMillis)
+        val day = when {
+            key == todayKey -> stringResource(R.string.agenda_today)
+            key == dayKey(nowMillis + 24L * 3_600_000L) -> stringResource(R.string.agenda_tomorrow)
+            else -> dayFormat.format(Date(event.startMillis)).replaceFirstChar { it.uppercase() }
+        }
+        if (day != lastDay) {
+            lastDay = day
+            Text(day, color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 3.dp))
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = if (event.allDay) stringResource(R.string.agenda_all_day) else timeFormat.format(Date(event.startMillis)),
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 12.sp,
+                modifier = Modifier.width(56.dp),
+            )
+            Text(text = event.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
+    }
+}
+
+private fun dayKey(millis: Long): String =
+    SimpleDateFormat("yyyyMMdd", Locale.US).format(Date(millis))
+
+// ---- Network, Bluetooth, system --------------------------------------------------------------------
+
+@Composable
+private fun NetworkContent(data: WidgetData) {
+    val network = data.network
+    val kindText = when (network.kind) {
+        NetworkKind.WIFI -> R.string.status_wifi
+        NetworkKind.ETHERNET -> R.string.status_ethernet
+        NetworkKind.OTHER -> R.string.status_online
+        NetworkKind.OFFLINE -> R.string.status_offline
+    }
+    Text(stringResource(kindText), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+    Spacer(Modifier.height(6.dp))
+    if (network.kind == NetworkKind.OFFLINE) {
+        Muted(stringResource(R.string.widget_network_offline))
+        return
+    }
+    network.signalPercent?.let { Meter(stringResource(R.string.widget_signal), it / 100f, "$it%") }
+    network.linkMbps?.let { Line(stringResource(R.string.widget_link_speed), "$it Mb/s") }
+    network.ip?.let { Line(stringResource(R.string.widget_ip), it) }
+}
+
+@Composable
+private fun BluetoothContent(data: WidgetData) {
+    val bluetooth = data.bluetooth
+    when (bluetooth.enabled) {
+        null -> {
+            Text(stringResource(R.string.widget_bluetooth_none), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        }
+        false -> {
+            Text(stringResource(R.string.widget_bluetooth_off), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(6.dp))
+            Muted(stringResource(R.string.widget_bluetooth_open))
+        }
+        true -> {
+            Text(stringResource(R.string.widget_bluetooth_on), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(6.dp))
+            when {
+                bluetooth.needsPermission -> Muted(stringResource(R.string.widget_bluetooth_permission))
+                bluetooth.devices.isEmpty() -> Muted(stringResource(R.string.widget_bluetooth_no_devices))
+                else -> {
+                    Text(stringResource(R.string.widget_paired), color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    bluetooth.devices.take(5).forEach {
+                        Text(it, color = Color.White, fontSize = 13.sp, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SystemContent(data: WidgetData) {
+    val system = data.system
+    if (system.storageTotalBytes > 0) {
+        val used = system.storageTotalBytes - system.storageFreeBytes
+        Meter(
+            stringResource(R.string.widget_storage),
+            used.toFloat() / system.storageTotalBytes,
+            stringResource(R.string.widget_free_of, gigabytes(system.storageFreeBytes), gigabytes(system.storageTotalBytes)),
+        )
+    }
+    if (system.ramTotalBytes > 0) {
+        val used = system.ramTotalBytes - system.ramFreeBytes
+        Meter(
+            stringResource(R.string.widget_ram),
+            used.toFloat() / system.ramTotalBytes,
+            stringResource(R.string.widget_free_of, gigabytes(system.ramFreeBytes), gigabytes(system.ramTotalBytes)),
+        )
+    }
+    val hours = system.uptimeMillis / 3_600_000L
+    val minutes = system.uptimeMillis / 60_000L % 60
+    Line(stringResource(R.string.widget_uptime), stringResource(R.string.widget_uptime_value, hours, minutes))
+    if (system.androidVersion.isNotEmpty()) Line("Android", "${system.androidVersion} · ${system.model}")
+}
+
+private fun gigabytes(bytes: Long): String = String.format(PL, "%.1f GB", bytes / 1_073_741_824.0)
+
+@Composable
+private fun Muted(text: String) {
+    Text(text, color = Color.White.copy(alpha = 0.6f), fontSize = 12.5.sp, lineHeight = 17.sp)
+}
+
+@Composable
+private fun Line(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(top = 5.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = Color.White.copy(alpha = 0.6f), fontSize = 12.5.sp)
+        Text(value, color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+    }
+}
+
+/** A label, a thin bar filled to [fraction] and a value under it. */
+@Composable
+private fun Meter(label: String, fraction: Float, value: String) {
+    Column(modifier = Modifier.padding(top = 6.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, color = Color.White.copy(alpha = 0.6f), fontSize = 12.5.sp)
+            Text(value, color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
+        Box(
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .fillMaxWidth()
+                .height(5.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color.White.copy(alpha = 0.2f)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                    .height(5.dp)
+                    .background(Color.White),
+            )
+        }
     }
 }
 

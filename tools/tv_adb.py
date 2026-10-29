@@ -216,9 +216,41 @@ def set_home(tv):
         say("Jeśli to nie zadziałało, wciśnij Home na pilocie i wybierz Liquid TV z listy „Zawsze”.")
 
 
-def grant_epg(tv):
-    code, out = tv.shell("pm", "grant", PACKAGE, "com.android.providers.tv.permission.READ_EPG_DATA")
-    say(out or "Nadano uprawnienie do listy „Dalej oglądaj” (jeśli system na to pozwala).")
+def grant_permissions(tv):
+    """Nadaje launcherowi wszystko, co Android pozwala nadać zwykłej aplikacji przez adb."""
+    say("Nadaję uprawnienia ...")
+    steps = [
+        ("zmiana ustawień systemowych (włączanie usługi dostępności z poziomu aplikacji)",
+         ["pm", "grant", PACKAGE, "android.permission.WRITE_SECURE_SETTINGS"]),
+        ("lista sparowanych urządzeń Bluetooth (Android 12+)",
+         ["pm", "grant", PACKAGE, "android.permission.BLUETOOTH_CONNECT"]),
+        ("odczyt kalendarza systemowego",
+         ["pm", "grant", PACKAGE, "android.permission.READ_CALENDAR"]),
+        ("rysowanie nad innymi aplikacjami",
+         ["appops", "set", PACKAGE, "SYSTEM_ALERT_WINDOW", "allow"]),
+        ("praca w tle bez oszczędzania baterii",
+         ["cmd", "deviceidle", "whitelist", f"+{PACKAGE}"]),
+    ]
+    for label, command in steps:
+        code, out = tv.shell(*command)
+        failed = code != 0 or "Exception" in out or "Unknown permission" in out or "not a changeable" in out
+        say(f"  {'BŁĄD' if failed else 'OK  '}  {label}" + (f"\n        {out.splitlines()[0]}" if failed and out else ""))
+    enable_service(tv)
+    say("\nCzego Android nie pozwala nadać żadnej zwykłej aplikacji: uprawnień „systemowych” (podpis producenta),\n"
+        "np. odczytu list „Dalej oglądaj” innych aplikacji (READ_EPG_DATA) albo wyłączania Boxa. Fabryczny launcher\n"
+        "je ma, bo jest częścią systemu. Reszta, co widzi i robi fabryczny launcher, jest dostępna po powyższych krokach.")
+
+
+def connect_calendar(tv):
+    """Podłącza kalendarz Google do widżetu wydarzeń przez tajny adres iCal."""
+    say("Kalendarz Google na komputerze: Ustawienia kalendarza -> (wybierz kalendarz) -> „Tajny adres w formacie iCal”.\n"
+        "Skopiuj ten link i wklej tutaj (pusty = odłącz kalendarz).")
+    url = input("Link iCal: ").strip()
+    if url and not url.startswith(("http://", "https://", "webcal://")):
+        say("To nie wygląda jak link (powinien zaczynać się od https://).")
+        return
+    code, out = tv.shell("am", "start", "-n", f"{PACKAGE}/.MainActivity", "--es", "ical_url", f"'{url}'")
+    say(out or ("Kalendarz podłączony." if url else "Kalendarz odłączony."))
 
 
 def type_link(tv):
@@ -275,7 +307,8 @@ MENU = [
     ("Zrzut ekranu Boxa (zapisze plik w bieżącym folderze)", screenshot),
     ("Uśpij Boxa", sleep_tv),
     ("Obudź Boxa", wake_tv),
-    ("Nadaj uprawnienie do „Dalej oglądaj” (eksperyment)", grant_epg),
+    ("Podłącz kalendarz Google (link iCal) do widżetu wydarzeń", connect_calendar),
+    ("Nadaj launcherowi uprawnienia (ustawienia, Bluetooth, kalendarz, tło)", grant_permissions),
     ("Wyłącz usługę dostępności", disable_service),
     ("Odinstaluj Liquid TV", uninstall),
     ("Zrestartuj Boxa", reboot),

@@ -32,6 +32,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -47,6 +50,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.liquidglass.tvlauncher.data.NetworkKind
+import com.liquidglass.tvlauncher.data.SystemStatus
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -61,6 +66,9 @@ fun TopBar(
     accountName: String?,
     updateAvailable: Boolean,
     showClock: Boolean,
+    status: SystemStatus?,
+    onOpenWifi: () -> Unit,
+    onOpenBluetooth: () -> Unit,
     onUp: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPower: () -> Unit,
@@ -98,6 +106,13 @@ fun TopBar(
                 fontWeight = FontWeight.Medium,
                 style = TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.55f), blurRadius = 10f)),
             )
+        }
+        // Network and Bluetooth, like the stock launcher's status icons; OK opens Android's own screen for them.
+        if (status != null) {
+            TopBarButton(onClick = onOpenWifi) { NetworkIcon(status.network, Modifier.size(24.dp)) }
+            if (status.bluetooth != null) {
+                TopBarButton(onClick = onOpenBluetooth) { BluetoothIcon(status.bluetooth, Modifier.size(24.dp)) }
+            }
         }
         TopBarButton(onClick = onOpenSettings, onLongClick = onOpenPower) {
             Box(modifier = Modifier.size(24.dp)) {
@@ -172,6 +187,70 @@ private fun TopBarButton(onClick: () -> Unit, onLongClick: (() -> Unit)? = null,
         contentAlignment = Alignment.Center,
     ) {
         content()
+    }
+}
+
+/** Wi-Fi (arcs), cable (three linked boxes) or offline (dimmed Wi-Fi, crossed out). */
+@Composable
+private fun NetworkIcon(kind: NetworkKind, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        if (kind == NetworkKind.ETHERNET) {
+            val box = w * 0.28f
+            val corner = CornerRadius(w * 0.05f)
+            drawRoundRect(Color.White, Offset(w / 2 - box / 2, h * 0.08f), Size(box, box * 0.8f), corner)
+            drawRoundRect(Color.White, Offset(w * 0.06f, h * 0.68f), Size(box, box * 0.8f), corner)
+            drawRoundRect(Color.White, Offset(w * 0.94f - box, h * 0.68f), Size(box, box * 0.8f), corner)
+            val line = w * 0.07f
+            drawLine(Color.White, Offset(w / 2, h * 0.08f + box * 0.8f), Offset(w / 2, h * 0.52f), strokeWidth = line)
+            drawLine(Color.White, Offset(w * 0.06f + box / 2, h * 0.52f), Offset(w * 0.94f - box / 2, h * 0.52f), strokeWidth = line)
+            drawLine(Color.White, Offset(w * 0.06f + box / 2, h * 0.52f), Offset(w * 0.06f + box / 2, h * 0.68f), strokeWidth = line)
+            drawLine(Color.White, Offset(w * 0.94f - box / 2, h * 0.52f), Offset(w * 0.94f - box / 2, h * 0.68f), strokeWidth = line)
+            return@Canvas
+        }
+        val online = kind != NetworkKind.OFFLINE
+        val color = Color.White.copy(alpha = if (online) 1f else 0.45f)
+        val cx = w / 2f
+        val cy = h * 0.84f
+        val stroke = Stroke(width = w * 0.11f, cap = StrokeCap.Round)
+        listOf(0.30f, 0.54f, 0.78f).forEach { r ->
+            drawArc(
+                color = color,
+                startAngle = -135f,
+                sweepAngle = 90f,
+                useCenter = false,
+                topLeft = Offset(cx - w * r, cy - w * r),
+                size = Size(w * r * 2, w * r * 2),
+                style = stroke,
+            )
+        }
+        drawCircle(color, radius = w * 0.075f, center = Offset(cx, cy))
+        if (!online) {
+            drawLine(Color.White, Offset(w * 0.12f, h * 0.1f), Offset(w * 0.88f, h * 0.92f), strokeWidth = w * 0.1f, cap = StrokeCap.Round)
+        }
+    }
+}
+
+/** The Bluetooth rune; dimmed and crossed out when Bluetooth is off. */
+@Composable
+private fun BluetoothIcon(on: Boolean, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val color = Color.White.copy(alpha = if (on) 1f else 0.45f)
+        val rune = Path().apply {
+            moveTo(w * 0.27f, h * 0.30f)
+            lineTo(w * 0.73f, h * 0.70f)
+            lineTo(w * 0.50f, h * 0.92f)
+            lineTo(w * 0.50f, h * 0.08f)
+            lineTo(w * 0.73f, h * 0.30f)
+            lineTo(w * 0.27f, h * 0.70f)
+        }
+        drawPath(rune, color, style = Stroke(width = w * 0.09f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        if (!on) {
+            drawLine(Color.White, Offset(w * 0.12f, h * 0.1f), Offset(w * 0.88f, h * 0.92f), strokeWidth = w * 0.1f, cap = StrokeCap.Round)
+        }
     }
 }
 

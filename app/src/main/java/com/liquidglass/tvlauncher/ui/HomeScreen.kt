@@ -42,11 +42,27 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.liquidglass.tvlauncher.R
+import com.liquidglass.tvlauncher.data.Agenda
 import com.liquidglass.tvlauncher.data.AppInfo
+import com.liquidglass.tvlauncher.data.WidgetData
+import com.liquidglass.tvlauncher.data.WidgetType
+import com.liquidglass.tvlauncher.data.NetworkKind
+import com.liquidglass.tvlauncher.data.SystemStatus
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
 internal val ShelfColor = Color(0xFF050608)
+
+/** What the big clock shows. */
+const val CLOCK_TIME_DATE = 0
+const val CLOCK_TIME_ONLY = 1
+const val CLOCK_TIME_DATE_STATUS = 2
+
+/** Where the big clock sits on the photo. */
+const val CLOCK_POS_HIGH = 0
+const val CLOCK_POS_CENTER = 1
 
 /** The pages, top to bottom: info above home above the app list. */
 const val PAGE_INFO = 0
@@ -59,7 +75,7 @@ private const val GRID_COLUMNS = 6
 /**
  * Three screens stacked vertically like pages of a pager ([page] is one of the PAGE_ constants):
  *
- *  - [PAGE_INFO] (top): the date, a calendar and "continue watching".
+ *  - [PAGE_INFO] (top): the date and time and a row of widgets (calendar, events, network...).
  *    Reached with Up from the top bar; Down comes back.
  *  - [PAGE_HOME] (middle): the photo filling the screen, the clock/settings/account in the
  *    corner and, at the bottom, the favorites dock. Down on the dock goes to the app list.
@@ -81,7 +97,10 @@ private const val GRID_COLUMNS = 6
 fun HomeScreen(
     favorites: List<AppInfo>,
     allApps: List<AppInfo>,
-    watchNext: List<AppInfo>,
+    widgets: List<WidgetType>,
+    widgetData: WidgetData,
+    agenda: Agenda,
+    onWidget: (WidgetType) -> Unit,
     page: Int,
     onPage: (Int) -> Unit,
     resetSignal: Int,
@@ -92,6 +111,11 @@ fun HomeScreen(
     dockTransparency: Float,
     dockSize: Float,
     bigClock: Boolean,
+    clockContent: Int,
+    clockPosition: Int,
+    status: SystemStatus?,
+    onOpenWifi: () -> Unit,
+    onOpenBluetooth: () -> Unit,
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
     onOpenSettings: () -> Unit,
@@ -161,6 +185,7 @@ fun HomeScreen(
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.roundToPx() }
         val screenWidth = maxWidth // a nested Box's scope can't reach maxWidth itself
+        val screenHeight = maxHeight
         val heightPx = with(density) { maxHeight.roundToPx() }
         val screenSize = IntSize(widthPx, heightPx)
         val dockInsetPx = with(density) { DockBottomInset.toPx() }
@@ -213,12 +238,17 @@ fun HomeScreen(
             if (bigClock) {
                 // The big clock instead of the small one: in the middle of the photo, above the dock.
                 val now = rememberNow()
+                val extraLine = if (clockContent == CLOCK_TIME_DATE_STATUS) statusLine(status) else null
+                val high = clockPosition == CLOCK_POS_HIGH
                 GlassClock(
                     widthDp = screenWidth,
                     nowMillis = now.value,
                     scale = 0.14f,
+                    showDate = clockContent != CLOCK_TIME_ONLY,
+                    extraLine = extraLine,
                     modifier = Modifier
-                        .align(Alignment.Center)
+                        .align(if (high) Alignment.TopCenter else Alignment.Center)
+                        .then(if (high) Modifier.padding(top = screenHeight * 0.13f) else Modifier)
                         .riseIn(delayMillis = 250, distance = 16.dp, fromScale = 0.96f),
                 )
             }
@@ -227,6 +257,9 @@ fun HomeScreen(
                 accountName = accountName,
                 updateAvailable = updateAvailable,
                 showClock = !bigClock,
+                status = status,
+                onOpenWifi = onOpenWifi,
+                onOpenBluetooth = onOpenBluetooth,
                 onUp = { onPage(PAGE_INFO) },
                 onOpenSettings = onOpenSettings,
                 onOpenPower = onOpenPower,
@@ -321,20 +354,21 @@ fun HomeScreen(
             }
         }
 
-        // ---- Page 0: date and what to watch (above home) -------------------------
+        // ---- Page 0: date, time and the widgets (above home) ----------------------
         InfoPage(
             wallpaper = wallpaper,
-            watchNext = watchNext,
+            widgets = widgets,
+            data = widgetData,
+            agenda = agenda,
             entry = { ((0.95f - progress) / 0.7f).coerceIn(0f, 1f) },
             firstFocus = infoFirst,
-            onLaunch = onLaunch,
-            onOpenMenu = onOpenMenu,
+            onWidget = onWidget,
             modifier = Modifier
                 .graphicsLayer { translationY = (0f - progress) * heightPx }
                 .focusProperties { canFocus = page == PAGE_INFO }
                 .onFocusChanged { if (page == PAGE_INFO) pageHasFocus = it.hasFocus }
                 .onPreviewKeyEvent { event ->
-                    // The page has a single row of tiles, so Down always goes back to the home screen.
+                    // The page is one row of widgets, so Down always goes back to the home screen.
                     if (page == PAGE_INFO && event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
                         onPage(PAGE_HOME)
                         true
@@ -344,4 +378,19 @@ fun HomeScreen(
                 },
         )
     }
+}
+
+/** "Wi-Fi · Bluetooth": the one-line status shown under the big clock. */
+@Composable
+private fun statusLine(status: SystemStatus?): String? {
+    status ?: return null
+    val network = stringResource(
+        when (status.network) {
+            NetworkKind.WIFI -> R.string.status_wifi
+            NetworkKind.ETHERNET -> R.string.status_ethernet
+            NetworkKind.OTHER -> R.string.status_online
+            NetworkKind.OFFLINE -> R.string.status_offline
+        },
+    )
+    return if (status.bluetooth == true) network + " · " + stringResource(R.string.status_bluetooth) else network
 }

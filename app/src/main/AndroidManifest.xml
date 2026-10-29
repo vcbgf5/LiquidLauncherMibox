@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-feature
         android:name="android.software.leanback"
@@ -19,8 +20,15 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Only to read the Google account name for the avatar; nothing is requested at runtime. -->
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
-    <!-- For "continue watching": only used if the system lets this app have it (see WatchNextRepository). -->
-    <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA" />
+    <!-- Widgets: Wi-Fi signal, paired Bluetooth devices, the system calendar (if there is one). -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Optional, granted over adb (tools/tv_adb.py): lets the settings switch the accessibility service on by themselves. -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
 
     <queries>
         <intent>

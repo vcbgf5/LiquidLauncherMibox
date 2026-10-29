@@ -1,5 +1,6 @@
 package com.liquidglass.tvlauncher
 
+import android.Manifest
 import android.accounts.AccountManager
 import android.app.ActivityOptions
 import android.content.ComponentName
@@ -48,10 +49,14 @@ import com.liquidglass.tvlauncher.data.IconPack
 import com.liquidglass.tvlauncher.data.IconPacks
 import com.liquidglass.tvlauncher.data.LauncherSettings
 import com.liquidglass.tvlauncher.data.PriorityApps
+import com.liquidglass.tvlauncher.data.SystemStatus
 import com.liquidglass.tvlauncher.data.UpdateInfo
 import com.liquidglass.tvlauncher.data.Updater
-import com.liquidglass.tvlauncher.data.SystemHomeFinder
-import com.liquidglass.tvlauncher.data.WatchNextRepository
+import com.liquidglass.tvlauncher.data.Agenda
+import com.liquidglass.tvlauncher.data.AgendaRepository
+import com.liquidglass.tvlauncher.data.WidgetData
+import com.liquidglass.tvlauncher.data.WidgetDataReader
+import com.liquidglass.tvlauncher.data.WidgetType
 import com.liquidglass.tvlauncher.data.WallpaperCatalog
 import com.liquidglass.tvlauncher.data.WallpaperImage
 import com.liquidglass.tvlauncher.data.WallpaperRepository
@@ -60,6 +65,7 @@ import com.liquidglass.tvlauncher.ui.HomeScreen
 import com.liquidglass.tvlauncher.ui.IconPicker
 import com.liquidglass.tvlauncher.ui.LocalTileLighting
 import com.liquidglass.tvlauncher.ui.PAGE_HOME
+import com.liquidglass.tvlauncher.ui.PAGE_INFO
 import com.liquidglass.tvlauncher.ui.LaunchOverlay
 import com.liquidglass.tvlauncher.ui.LaunchRequest
 import com.liquidglass.tvlauncher.ui.MenuOption
@@ -92,6 +98,9 @@ class MainActivity : ComponentActivity() {
     /** The key that woke the screensaver: it does nothing else, not even when it is released. */
     private var wakeKeyCode = -1
 
+    /** Bumped to fetch the calendar again (a new link, or OK on the events widget). */
+    private var calendarTick by mutableIntStateOf(0)
+
     /** Bumped by "next wallpaper" in the settings. */
     private var skipSignal by mutableIntStateOf(0)
 
@@ -106,6 +115,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         store = FavoritesStore(this)
         settings = LauncherSettings(this)
+        handleIntent(intent)
 
         setContent {
             var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
@@ -117,7 +127,14 @@ class MainActivity : ComponentActivity() {
             var screensaverMinutes by remember { mutableIntStateOf(settings.screensaverMinutes) }
             var bigClock by remember { mutableStateOf(settings.bigClock) }
             var tileLighting by remember { mutableStateOf(settings.tileLighting) }
+            var clockContent by remember { mutableIntStateOf(settings.clockContent) }
+            var clockPosition by remember { mutableIntStateOf(settings.clockPosition) }
+            var statusIcons by remember { mutableStateOf(settings.statusIcons) }
+            var systemStatus by remember { mutableStateOf(SystemStatus.UNKNOWN) }
             var customVolume by remember { mutableStateOf(settings.customVolume) }
+            var accessibilityOn by remember { mutableStateOf(false) }
+            LaunchedEffect(showSettings, resumeSignal) { accessibilityOn = accessibilityServiceOn() }
+            val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { calendarTick++ }
             var showPower by remember { mutableStateOf(false) }
             var iconPickerApp by remember { mutableStateOf<AppInfo?>(null) }
             var iconsVersion by remember { mutableIntStateOf(0) }
@@ -134,8 +151,9 @@ class MainActivity : ComponentActivity() {
             var wallpaperCategory by remember { mutableStateOf(settings.wallpaperCategory) }
             var wallpaperInterval by remember { mutableIntStateOf(settings.wallpaperIntervalMinutes) }
             var photoCredit by remember { mutableStateOf<String?>(null) }
-            var watchNextTitles by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
-            var systemHome by remember { mutableStateOf<AppInfo?>(null) }
+            var widgetKeys by remember { mutableStateOf(settings.enabledWidgets) }
+            var widgetData by remember { mutableStateOf(WidgetData.EMPTY) }
+            var agenda by remember { mutableStateOf(Agenda.EMPTY) }
 
             // In-app updates (see Updater): what the check found, and where the download is.
             val scope = rememberCoroutineScope()
@@ -218,6 +236,14 @@ class MainActivity : ComponentActivity() {
                 iconPacks = withContext(Dispatchers.Default) { IconPacks.installed(this@MainActivity) }
             }
 
+            // Network and Bluetooth state for the status icons; refreshed while the launcher is on screen.
+            LaunchedEffect(inForeground) {
+                while (inForeground) {
+                    systemStatus = withContext(Dispatchers.Default) { SystemStatus.read(this@MainActivity) }
+                    delay(8_000)
+                }
+            }
+
             LaunchedEffect(resumeSignal, iconsVersion) {
                 apps = AppRepository.load(this@MainActivity)
                 if (accountName == null) accountName = AccountProvider.googleAccountName(this@MainActivity)
@@ -227,11 +253,25 @@ class MainActivity : ComponentActivity() {
                 if (catalog.isEmpty) catalog = WallpaperRepository.catalog(this@MainActivity)
             }
 
-            // The third page: real "continue watching" titles if the system lets us read them,
-            // and the system home screen (where they are shown) as a fallback tile.
-            LaunchedEffect(resumeSignal) {
-                watchNextTitles = WatchNextRepository.load(this@MainActivity)
-                systemHome = SystemHomeFinder.find(this@MainActivity)
+            // The widgets page: numbers about the network, Bluetooth and the box, refreshed every few
+            // seconds while that page is shown (and once whenever the launcher comes back).
+            LaunchedEffect(inForeground, page) {
+                if (inForeground) {
+                    widgetData = withContext(Dispatchers.Default) { WidgetDataReader.read(this@MainActivity) }
+                    while (page == PAGE_INFO && inForeground) {
+                        delay(8_000)
+                        widgetData = withContext(Dispatchers.Default) { WidgetDataReader.read(this@MainActivity) }
+                    }
+                }
+            }
+
+            // The calendar: fetched when the launcher comes up, when a link is set or refreshed, and
+            // every 20 minutes after that.
+            LaunchedEffect(inForeground, calendarTick) {
+                while (inForeground) {
+                    agenda = AgendaRepository.load(this@MainActivity, settings.icalUrl)
+                    delay(20 * 60_000L)
+                }
             }
 
             // Wallpaper rotation. Restarts when the category, interval or "next" changes, and
@@ -282,7 +322,7 @@ class MainActivity : ComponentActivity() {
             val keys = favoriteKeys.orEmpty()
             val byKey = remember(apps) { apps.associateBy { it.key } }
             val favorites = remember(apps, keys) { keys.mapNotNull { byKey[it] } }
-            val watchNext = watchNextTitles.ifEmpty { listOfNotNull(systemHome) }
+            val widgets = WidgetType.values().filter { it.key in widgetKeys }
 
             fun saveKeys(updated: List<String>) {
                 favoriteKeys = updated
@@ -301,7 +341,18 @@ class MainActivity : ComponentActivity() {
                 HomeScreen(
                     favorites = favorites,
                     allApps = apps,
-                    watchNext = watchNext,
+                    widgets = widgets,
+                    widgetData = widgetData,
+                    agenda = agenda,
+                    onWidget = { type ->
+                        when (type) {
+                            WidgetType.AGENDA -> calendarTick++
+                            WidgetType.NETWORK -> openSystemScreen(Settings.ACTION_WIFI_SETTINGS)
+                            WidgetType.BLUETOOTH -> openSystemScreen(Settings.ACTION_BLUETOOTH_SETTINGS)
+                            WidgetType.SYSTEM -> openSystemScreen(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)
+                            WidgetType.CALENDAR -> Unit
+                        }
+                    },
                     page = page,
                     onPage = { page = it },
                     resetSignal = resetSignal,
@@ -312,6 +363,11 @@ class MainActivity : ComponentActivity() {
                     dockTransparency = dockTransparency / 100f,
                     dockSize = dockSize / 100f,
                     bigClock = bigClock,
+                    clockContent = clockContent,
+                    clockPosition = clockPosition,
+                    status = if (statusIcons) systemStatus else null,
+                    onOpenWifi = { openSystemScreen(Settings.ACTION_WIFI_SETTINGS) },
+                    onOpenBluetooth = { openSystemScreen(Settings.ACTION_BLUETOOTH_SETTINGS) },
                     onLaunch = { app, from ->
                         if (launchRequest == null) {
                             launchRequest = LaunchRequest(app, from)
@@ -394,6 +450,21 @@ class MainActivity : ComponentActivity() {
                         tileLighting = it
                         settings.tileLighting = it
                     },
+                    clockContent = clockContent,
+                    onClockContentChange = {
+                        clockContent = it
+                        settings.clockContent = it
+                    },
+                    clockPosition = clockPosition,
+                    onClockPositionChange = {
+                        clockPosition = it
+                        settings.clockPosition = it
+                    },
+                    statusIcons = statusIcons,
+                    onStatusIconsChange = {
+                        statusIcons = it
+                        settings.statusIcons = it
+                    },
                     dockSizePercent = dockSize,
                     onDockSizeChange = {
                         dockSize = it
@@ -436,10 +507,14 @@ class MainActivity : ComponentActivity() {
                         customVolume = it
                         settings.customVolume = it
                     },
-                    accessibilityOn = accessibilityServiceOn(),
+                    accessibilityOn = accessibilityOn,
                     onOpenAccessibility = {
-                        showSettings = false
-                        openSystemScreen(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        if (enableAccessibilityDirectly()) {
+                            accessibilityOn = true
+                        } else {
+                            showSettings = false
+                            openSystemScreen(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        }
                     },
                     onOpenPowerMenu = {
                         showSettings = false
@@ -453,6 +528,22 @@ class MainActivity : ComponentActivity() {
                         stringResource(R.string.shortcut_dream) to { openSystemScreen(Settings.ACTION_DREAM_SETTINGS) },
                         stringResource(R.string.shortcut_a11y) to { openSystemScreen(Settings.ACTION_ACCESSIBILITY_SETTINGS) },
                     ),
+                    enabledWidgets = widgetKeys,
+                    onWidgetToggle = { type, on ->
+                        val updated = if (on) widgetKeys + type.key else widgetKeys - type.key
+                        widgetKeys = updated
+                        settings.enabledWidgets = updated
+                    },
+                    calendarLinked = settings.icalUrl != null,
+                    calendarStatus = stringResource(
+                        if (settings.icalUrl != null) R.string.widgets_calendar_linked else R.string.widgets_calendar_unlinked,
+                    ),
+                    onRefreshCalendar = { calendarTick++ },
+                    onDisconnectCalendar = {
+                        settings.icalUrl = null
+                        calendarTick++
+                    },
+                    onRequestCalendarPermission = { calendarPermission.launch(Manifest.permission.READ_CALENDAR) },
                     onOpenSystemSettings = { openSettings() },
                     onDismiss = { showSettings = false },
                 )
@@ -591,6 +682,7 @@ class MainActivity : ComponentActivity() {
     /** Home pressed while the launcher is already on screen: back to the home screen. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        handleIntent(intent)
         screensaverShowing = false
         page = PAGE_HOME
         resetSignal++
@@ -626,6 +718,31 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
             launchExpanded = false // uninstalled since the list was loaded; the next resume refreshes it
         }
+    }
+
+    /**
+     * `adb shell am start -n com.liquidglass.tvlauncher/.MainActivity --es ical_url "<link>"` connects a
+     * Google calendar (an empty link disconnects it); tools/tv_adb.py does this for you.
+     */
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.hasExtra("ical_url") == true) {
+            settings.icalUrl = intent.getStringExtra("ical_url")?.trim()?.takeIf { it.isNotEmpty() }
+            calendarTick++
+        }
+    }
+
+    /** Turns the accessibility service on without the system screens, when WRITE_SECURE_SETTINGS was granted over adb. */
+    private fun enableAccessibilityDirectly(): Boolean = try {
+        val service = "$packageName/${SystemService::class.java.name}"
+        val current = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+        if (service !in current.split(':')) {
+            val updated = if (current.isEmpty()) service else "$current:$service"
+            Settings.Secure.putString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, updated)
+        }
+        Settings.Secure.putInt(contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
+        true
+    } catch (_: SecurityException) {
+        false
     }
 
     /** One of Android's own settings screens, or the main settings when this box doesn't have it. */

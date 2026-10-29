@@ -34,6 +34,41 @@ class LauncherSettings(context: Context) {
             prefs.edit().putBoolean(KEY_CUSTOM_VOLUME, value).apply()
         }
 
+    /** What the big clock shows: see the CLOCK_* constants in HomeScreen (0 = time and date). */
+    var clockContent: Int
+        get() = prefs.getInt(KEY_CLOCK_CONTENT, 0).coerceIn(0, 2)
+        set(value) {
+            prefs.edit().putInt(KEY_CLOCK_CONTENT, value).apply()
+        }
+
+    /** Where the big clock sits: 0 = high up on the photo (default), 1 = in the middle. */
+    var clockPosition: Int
+        get() = prefs.getInt(KEY_CLOCK_POSITION, 0).coerceIn(0, 1)
+        set(value) {
+            prefs.edit().putInt(KEY_CLOCK_POSITION, value).apply()
+        }
+
+    /** Wi-Fi and Bluetooth icons in the top bar. */
+    var statusIcons: Boolean
+        get() = prefs.getBoolean(KEY_STATUS_ICONS, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_STATUS_ICONS, value).apply()
+        }
+
+    /** Which widgets are on the page above the home screen (WidgetType keys). */
+    var enabledWidgets: Set<String>
+        get() = prefs.getString(KEY_WIDGETS, null)?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: WidgetType.DEFAULT_KEYS
+        set(value) {
+            prefs.edit().putString(KEY_WIDGETS, value.joinToString(",")).apply()
+        }
+
+    /** The private iCal address of the user's Google calendar, or null when none is connected. */
+    var icalUrl: String?
+        get() = prefs.getString(KEY_ICAL_URL, null)?.takeIf { it.isNotBlank() }
+        set(value) {
+            prefs.edit().putString(KEY_ICAL_URL, value ?: "").apply()
+        }
+
     /** A big clock in the middle of the home screen instead of the small one in the corner. */
     var bigClock: Boolean
         get() = prefs.getBoolean(KEY_BIG_CLOCK, false)
@@ -106,6 +141,11 @@ class LauncherSettings(context: Context) {
         const val DEFAULT_SCREENSAVER_MINUTES = 3
         private const val KEY_DOCK_SIZE = "dock_size"
         private const val KEY_BIG_CLOCK = "big_clock"
+        private const val KEY_WIDGETS = "widgets"
+        private const val KEY_ICAL_URL = "ical_url"
+        private const val KEY_CLOCK_CONTENT = "clock_content"
+        private const val KEY_CLOCK_POSITION = "clock_position"
+        private const val KEY_STATUS_ICONS = "status_icons"
         private const val KEY_CUSTOM_VOLUME = "custom_volume"
         private const val KEY_TILE_LIGHTING = "tile_lighting"
         private const val KEY_SCREENSAVER = "screensaver_minutes"

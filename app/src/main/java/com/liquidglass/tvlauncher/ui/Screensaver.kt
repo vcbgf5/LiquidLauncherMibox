@@ -117,10 +117,19 @@ fun Screensaver(wallpaper: WallpaperState, visible: Boolean, modifier: Modifier 
  * the digits are [scale] of it.
  */
 @Composable
-internal fun GlassClock(widthDp: Dp, nowMillis: Long, scale: Float, modifier: Modifier = Modifier) {
+internal fun GlassClock(
+    widthDp: Dp,
+    nowMillis: Long,
+    scale: Float,
+    showDate: Boolean = true,
+    extraLine: String? = null,
+    modifier: Modifier = Modifier,
+) {
     val date = Date(nowMillis)
     val clockSize = (widthDp.value * scale).sp
-    val dateOffset = with(LocalDensity.current) { clockSize.toDp() } * 0.6f
+    val clockDp = with(LocalDensity.current) { clockSize.toDp() }
+    val dateOffset = clockDp * 0.6f
+    val extraOffset = clockDp * 0.86f
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         GlassText(
             text = SimpleDateFormat("HH:mm", ScreensaverLocale).format(date),
@@ -128,13 +137,24 @@ internal fun GlassClock(widthDp: Dp, nowMillis: Long, scale: Float, modifier: Mo
             weight = FontWeight.Bold,
             tracking = 0.sp,
         )
-        GlassText(
-            text = SimpleDateFormat("EEEE, d MMMM", ScreensaverLocale).format(date).replaceFirstChar { it.uppercase() },
-            size = clockSize * 0.17f,
-            weight = FontWeight.SemiBold,
-            tracking = 0.sp,
-            modifier = Modifier.offset(y = dateOffset),
-        )
+        if (showDate) {
+            GlassText(
+                text = SimpleDateFormat("EEEE, d MMMM", ScreensaverLocale).format(date).replaceFirstChar { it.uppercase() },
+                size = clockSize * 0.17f,
+                weight = FontWeight.SemiBold,
+                tracking = 0.sp,
+                modifier = Modifier.offset(y = dateOffset),
+            )
+            if (extraLine != null) {
+                GlassText(
+                    text = extraLine,
+                    size = clockSize * 0.12f,
+                    weight = FontWeight.Medium,
+                    tracking = 0.sp,
+                    modifier = Modifier.offset(y = extraOffset),
+                )
+            }
+        }
     }
 }
 

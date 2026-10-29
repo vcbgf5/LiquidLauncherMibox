@@ -5,8 +5,10 @@ Natywna aplikacja: Kotlin + Jetpack Compose, bez WebView.
 
 Trzy osobne ekrany, jeden nad drugim:
 
-1. **Data** (na górze) — strzałka w górę z ikon u góry ekranu głównego: duży zegar, pełna data, kalendarz miesiąca,
-   i rząd „Dalej oglądaj”. Strzałka w dół, **Wstecz** albo **Home** wraca.
+1. **Widżety** (na górze) — strzałka w górę z ikon u góry ekranu głównego: duży zegar, pełna data i rząd widżetów:
+   kalendarz miesiąca, najbliższe wydarzenia z Kalendarza Google, sieć (Wi-Fi, sygnał, adres IP), Bluetooth ze sparowanymi
+   urządzeniami oraz pamięć i system. Które widżety są widoczne, wybierasz w Ustawieniach → Widżety. Strzałka w dół,
+   **Wstecz** albo **Home** wraca.
 2. **Ekran główny** (środek, tu się startuje) — zdjęcie na cały ekran, u góry zegar, ustawienia i konto Google,
    na dole sam dok z ulubionymi (zaokrąglony „szklany” panel z rozmytym tłem, do 6 aplikacji).
 3. **Wszystkie aplikacje** (na dole) — strzałka w dół na doku przesuwa cały ekran w górę i wjeżdża pełnoekranowa siatka.
@@ -32,18 +34,17 @@ kafelki wchodzą jeden po drugim, zaznaczony kafelek unosi się, świeci i przeb
 lekko go „dociska", a otwierana aplikacja wyrasta z własnego kafelka na cały ekran (po powrocie zwija się z powrotem).
 Zdjęcie bardzo powoli „oddycha".
 
-**„Dalej oglądaj” z Netflixa i Disney+.** Android pozwala aplikacji czytać tylko *własne* wpisy z listy „Dalej oglądaj”;
-wpisy innych aplikacji (i to tylko z aktywnego profilu, nigdy ze wszystkich naraz) czyta wyłącznie system. Dlatego:
+**Kalendarz Google w widżecie.** Android TV zwykle nie ma własnego kalendarza, więc launcher czyta „Tajny adres w formacie
+iCal” Twojego kalendarza Google (Kalendarz Google na komputerze → ustawienia kalendarza). Link wysyłasz na Boxa skryptem
+`tools/tv_adb.py` (pozycja „Podłącz kalendarz Google”), a launcher odświeża go co 20 minut i pokazuje najbliższe dwa tygodnie,
+także wydarzenia cykliczne. Rozumie typowe powtarzanie (codziennie, co tydzień z dniami, co miesiąc, co rok), ale nie wszystkie
+egzotyczne reguły. Bez linku próbuje kalendarza systemowego, jeśli Box go ma i dałeś zgodę.
 
-- w rzędzie „Dalej oglądaj” jest kafelek **ekranu systemowego** (jeśli fabryczny launcher nie jest wyłączony) — tam ten rząd jest;
-- jeśli Twoje urządzenie mimo wszystko pozwoli na odczyt, launcher pokaże prawdziwe tytuły i kliknięcie włączy dany film.
-  Żeby to sprawdzić, na komputerze (po `adb connect`) wydaj raz:
-
-```bash
-adb shell pm grant com.liquidglass.tvlauncher com.android.providers.tv.permission.READ_EPG_DATA
-```
-
-  i otwórz stronę z datą (strzałka w górę z ikon na górze). Jeśli komenda zgłosi błąd albo rząd nadal pokazuje tylko kafelek systemowy, system tego nie dopuszcza.
+**Uprawnienia.** Skrypt `tools/tv_adb.py` ma pozycję „Nadaj launcherowi uprawnienia”: zmiana ustawień systemowych (usługa
+dostępności włącza się wtedy sama z ustawień), sparowane urządzenia Bluetooth, kalendarz, rysowanie nad aplikacjami i praca w tle.
+Czego Android nie pozwala nadać żadnej zwykłej aplikacji, to uprawnień „systemowych” (podpis producenta): fabryczny launcher je
+ma, bo jest częścią systemu, a Liquid TV nie. Dotyczy to m.in. list „Dalej oglądaj” innych aplikacji i wyłączania Boxa.
+Dlatego tej listy w launcherze już nie ma.
 
 **Tapety z Unsplash.** Launcher zmienia tapetę co kilka minut (z płynnym przenikaniem), losując z wybranej kategorii:
 zwierzęta, góry, miasto, las, ocean, kosmos, zima, niebo, abstrakcja, minimalizm (lub ze wszystkich).

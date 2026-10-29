@@ -61,6 +61,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.liquidglass.tvlauncher.R
 import com.liquidglass.tvlauncher.data.LauncherSettings
+import com.liquidglass.tvlauncher.data.WidgetType
 import kotlinx.coroutines.delay
 
 private const val STEP = 10
@@ -78,6 +79,7 @@ private val Purple = Color(0xFFAF52DE)
 private val Indigo = Color(0xFF5E5CE6)
 private val Green = Color(0xFF30D158)
 private val Gray = Color(0xFF8E8E93)
+private val Orange = Color(0xFFFF9F0A)
 
 /**
  * The launcher's own settings, opened from the gear in the top bar, in groups:
@@ -105,6 +107,12 @@ fun SettingsDialog(
     onBigClockChange: (Boolean) -> Unit,
     tileLighting: Boolean,
     onTileLightingChange: (Boolean) -> Unit,
+    clockContent: Int,
+    onClockContentChange: (Int) -> Unit,
+    clockPosition: Int,
+    onClockPositionChange: (Int) -> Unit,
+    statusIcons: Boolean,
+    onStatusIconsChange: (Boolean) -> Unit,
     categoryOptions: List<Pair<String, String>>,
     categoryId: String,
     onCategoryChange: (String) -> Unit,
@@ -121,6 +129,13 @@ fun SettingsDialog(
     onInstallUpdate: () -> Unit,
     autoCheckUpdates: Boolean,
     onAutoCheckChange: (Boolean) -> Unit,
+    enabledWidgets: Set<String>,
+    onWidgetToggle: (WidgetType, Boolean) -> Unit,
+    calendarLinked: Boolean,
+    calendarStatus: String,
+    onRefreshCalendar: () -> Unit,
+    onDisconnectCalendar: () -> Unit,
+    onRequestCalendarPermission: () -> Unit,
     networkStatus: String,
     customVolume: Boolean,
     onCustomVolumeChange: (Boolean) -> Unit,
@@ -184,6 +199,7 @@ fun SettingsDialog(
                 null -> CategoryList(
                     summaries = mapOf(
                         SettingsCategory.APPEARANCE to "",
+                        SettingsCategory.WIDGETS to "",
                         SettingsCategory.WALLPAPERS to categoryLabel,
                         SettingsCategory.SCREENSAVER to if (screensaverMinutes <= 0) {
                             stringResource(R.string.screensaver_off)
@@ -222,9 +238,58 @@ fun SettingsDialog(
                     Divider()
                     ToggleRow(stringResource(R.string.settings_big_clock), bigClock, onBigClockChange)
                     Divider()
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_clock_content),
+                        value = stringResource(
+                            when (clockContent) {
+                                CLOCK_TIME_ONLY -> R.string.clock_content_time
+                                CLOCK_TIME_DATE_STATUS -> R.string.clock_content_status
+                                else -> R.string.clock_content_date
+                            },
+                        ),
+                        onStep = { direction -> onClockContentChange((clockContent + direction).mod(3)) },
+                    )
+                    Divider()
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_clock_position),
+                        value = stringResource(if (clockPosition == CLOCK_POS_CENTER) R.string.clock_position_center else R.string.clock_position_high),
+                        onStep = { onClockPositionChange(if (clockPosition == CLOCK_POS_CENTER) CLOCK_POS_HIGH else CLOCK_POS_CENTER) },
+                    )
+                    Divider()
+                    ToggleRow(stringResource(R.string.settings_status_icons), statusIcons, onStatusIconsChange)
+                    Divider()
                     ToggleRow(stringResource(R.string.settings_tile_lighting), tileLighting, onTileLightingChange)
                 }
 
+                SettingsCategory.WIDGETS -> Group {
+                    WidgetType.values().forEachIndexed { index, type ->
+                        if (index > 0) Divider()
+                        ToggleRow(
+                            label = stringResource(
+                                when (type) {
+                                    WidgetType.CALENDAR -> R.string.widget_pick_calendar
+                                    WidgetType.AGENDA -> R.string.widget_pick_agenda
+                                    WidgetType.NETWORK -> R.string.widget_pick_network
+                                    WidgetType.BLUETOOTH -> R.string.widget_pick_bluetooth
+                                    WidgetType.SYSTEM -> R.string.widget_pick_system
+                                },
+                            ),
+                            checked = type.key in enabledWidgets,
+                            onChange = { onWidgetToggle(type, it) },
+                            autoFocus = index == 0,
+                        )
+                    }
+                    Divider()
+                    Note(calendarStatus, top = 10.dp)
+                    Note(stringResource(R.string.widgets_calendar_help))
+                    ActionRow(label = stringResource(R.string.widgets_refresh), arrow = false, onClick = onRefreshCalendar)
+                    if (calendarLinked) {
+                        Divider()
+                        ActionRow(label = stringResource(R.string.widgets_disconnect), arrow = false, onClick = onDisconnectCalendar)
+                    }
+                    Divider()
+                    ActionRow(label = stringResource(R.string.widgets_request_permission), arrow = false, onClick = onRequestCalendarPermission)
+                }
                 SettingsCategory.WALLPAPERS -> Group {
                     ChoiceRow(
                         label = stringResource(R.string.settings_wallpaper),
@@ -327,6 +392,7 @@ private fun intervalLabel(minutes: Int): String =
 /** The settings are split into these categories; the main screen lists them. */
 private enum class SettingsCategory(val titleRes: Int, val tint: Color) {
     APPEARANCE(R.string.group_appearance, Blue),
+    WIDGETS(R.string.group_widgets, Orange),
     WALLPAPERS(R.string.group_wallpapers, Purple),
     SCREENSAVER(R.string.group_screensaver, Indigo),
     UPDATES(R.string.group_updates, Green),
@@ -394,6 +460,7 @@ private fun CategoryRow(category: SettingsCategory, summary: String, autoFocus: 
             val icon = Modifier.size(20.dp)
             when (category) {
                 SettingsCategory.APPEARANCE -> SlidersIcon(icon)
+                SettingsCategory.WIDGETS -> WidgetsIcon(icon)
                 SettingsCategory.WALLPAPERS -> PhotoIcon(icon)
                 SettingsCategory.SCREENSAVER -> MoonIcon(icon)
                 SettingsCategory.UPDATES -> RefreshIcon(icon)
@@ -602,6 +669,24 @@ private fun SlidersIcon(modifier: Modifier) {
             drawLine(Color.White, Offset(w * 0.05f, h * y), Offset(w * 0.95f, h * y), strokeWidth = w * 0.11f, cap = StrokeCap.Round)
             drawCircle(Blue, radius = w * 0.14f, center = Offset(w * knob, h * y))
             drawCircle(Color.White, radius = w * 0.14f, center = Offset(w * knob, h * y), style = Stroke(width = w * 0.08f))
+        }
+    }
+}
+
+@Composable
+private fun WidgetsIcon(modifier: Modifier) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val gap = w * 0.1f
+        val box = (w - gap) / 2f
+        listOf(0f to 0f, 1f to 0f, 0f to 1f, 1f to 1f).forEach { (cx, cy) ->
+            drawRoundRect(
+                color = Color.White,
+                topLeft = Offset(cx * (box + gap), cy * (box + gap)),
+                size = Size(box, box),
+                cornerRadius = CornerRadius(w * 0.12f),
+            )
         }
     }
 }
