@@ -24,7 +24,7 @@
     <string name="info_recent">Ostatnio otwierane</string>
     <string name="settings_update_check">Sprawdź aktualizacje</string>
     <string name="settings_update_install">Aktualizuj teraz (%1$s)</string>
-    <string name="settings_update_auto">Automatyczne sprawdzanie</string>
+    <string name="settings_update_auto">Aktualizuj automatycznie</string>
     <string name="on_label">Włączone</string>
     <string name="off_label">Wyłączone</string>
     <string name="update_version">Wersja %1$s</string>

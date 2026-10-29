@@ -43,6 +43,7 @@ import com.liquidglass.tvlauncher.data.WallpaperImage
 import com.liquidglass.tvlauncher.data.WallpaperRepository
 import com.liquidglass.tvlauncher.ui.AppMenu
 import com.liquidglass.tvlauncher.ui.HomeScreen
+import com.liquidglass.tvlauncher.ui.PAGE_HOME
 import com.liquidglass.tvlauncher.ui.LaunchOverlay
 import com.liquidglass.tvlauncher.ui.LaunchRequest
 import com.liquidglass.tvlauncher.ui.MenuOption
@@ -57,8 +58,8 @@ class MainActivity : ComponentActivity() {
     /** Bumped on Home/Back: focus returns to the first favorite. */
     private var resetSignal by mutableIntStateOf(0)
 
-    /** 0 = home screen (photo + dock), 1 = the full app list, 2 = date and what to watch. */
-    private var page by mutableIntStateOf(0)
+    /** One of the PAGE_ constants: info (top), home (middle), the app list (bottom). */
+    private var page by mutableIntStateOf(PAGE_HOME)
 
     /** Keys of the apps opened most recently from here, newest first. */
     private var recentKeys by mutableStateOf<List<String>>(emptyList())
@@ -116,44 +117,52 @@ class MainActivity : ComponentActivity() {
             var downloadPercent by remember { mutableIntStateOf(0) }
             var autoCheck by remember { mutableStateOf(settings.autoCheckUpdates) }
 
-            // [silent] checks (the automatic ones) only ever show the red dot, never errors.
-            suspend fun checkForUpdates(silent: Boolean) {
-                if (!silent) updateStatus = UpdateStatus.CHECKING
+            // [automatic] = nobody pressed anything: stay quiet about errors, only the red dot
+            // shows. Downloading and handing the APK to the installer is [installUpdate].
+            suspend fun installUpdate(automatic: Boolean) {
+                val info = updateInfo ?: return
+                if (updateStatus == UpdateStatus.DOWNLOADING) return
+                updateStatus = UpdateStatus.DOWNLOADING
+                downloadPercent = 0
+                val file = Updater.download(this@MainActivity, info) { downloadPercent = it }
+                updateStatus = if (file == null) {
+                    UpdateStatus.DOWNLOAD_FAILED
+                } else when (Updater.install(this@MainActivity, file, askPermission = !automatic)) {
+                    Updater.InstallStart.STARTED -> UpdateStatus.INSTALLING
+                    Updater.InstallStart.NEEDS_PERMISSION -> UpdateStatus.NEEDS_PERMISSION
+                    Updater.InstallStart.FAILED -> UpdateStatus.DOWNLOAD_FAILED
+                }
+            }
+
+            // Pings GitHub for the newest version.json. A newer one is installed right away when
+            // [thenInstall] says so (the check button, or the automatic path with the switch on).
+            suspend fun checkForUpdates(automatic: Boolean, thenInstall: Boolean) {
+                if (!automatic) updateStatus = UpdateStatus.CHECKING
                 when (val result = Updater.check(this@MainActivity)) {
                     is Updater.CheckResult.Newer -> {
                         updateInfo = result.info
                         updateStatus = UpdateStatus.AVAILABLE
+                        // The automatic path offers each version once; a refused install is not repeated.
+                        val alreadyOffered = automatic && settings.lastAutoInstalled == result.info.versionCode
+                        if (thenInstall && !alreadyOffered) {
+                            if (automatic) settings.lastAutoInstalled = result.info.versionCode
+                            installUpdate(automatic)
+                        }
                     }
                     Updater.CheckResult.UpToDate -> {
                         updateInfo = null
-                        if (!silent) updateStatus = UpdateStatus.UP_TO_DATE
+                        if (!automatic) updateStatus = UpdateStatus.UP_TO_DATE
                     }
-                    Updater.CheckResult.Failed -> if (!silent) updateStatus = UpdateStatus.CHECK_FAILED
+                    Updater.CheckResult.Failed -> if (!automatic) updateStatus = UpdateStatus.CHECK_FAILED
                 }
                 settings.lastUpdateCheck = System.currentTimeMillis()
             }
 
-            fun installUpdate() {
-                val info = updateInfo ?: return
-                if (updateStatus == UpdateStatus.DOWNLOADING) return
-                scope.launch {
-                    updateStatus = UpdateStatus.DOWNLOADING
-                    downloadPercent = 0
-                    val file = Updater.download(this@MainActivity, info) { downloadPercent = it }
-                    updateStatus = if (file == null) {
-                        UpdateStatus.DOWNLOAD_FAILED
-                    } else when (Updater.install(this@MainActivity, file)) {
-                        Updater.InstallStart.STARTED -> UpdateStatus.INSTALLING
-                        Updater.InstallStart.NEEDS_PERMISSION -> UpdateStatus.NEEDS_PERMISSION
-                        Updater.InstallStart.FAILED -> UpdateStatus.DOWNLOAD_FAILED
-                    }
-                }
-            }
-
-            // Automatic check: when the launcher is on screen, at most every 12 hours.
+            // Automatic: whenever the launcher comes on screen, at most every 6 hours (one tiny
+            // request), and with the switch on a newer version is downloaded and offered to Android.
             LaunchedEffect(inForeground, autoCheck) {
-                if (inForeground && autoCheck && System.currentTimeMillis() - settings.lastUpdateCheck > 12 * 3_600_000L) {
-                    checkForUpdates(silent = true)
+                if (inForeground && autoCheck && System.currentTimeMillis() - settings.lastUpdateCheck > 6 * 3_600_000L) {
+                    checkForUpdates(automatic = true, thenInstall = true)
                 }
             }
 
@@ -236,11 +245,11 @@ class MainActivity : ComponentActivity() {
                 store.save(updated)
             }
 
-            // Back never leaves the launcher: it goes up one page, and from the home
-            // screen it just returns focus to the dock.
+            // Back never leaves the launcher: from the info or app pages it returns to the home
+            // screen, and from the home screen it just returns focus to the dock.
             BackHandler {
                 menuApp = null
-                if (page > 0) page-- else resetSignal++
+                if (page != PAGE_HOME) page = PAGE_HOME else resetSignal++
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
@@ -252,6 +261,7 @@ class MainActivity : ComponentActivity() {
                     page = page,
                     onPage = { page = it },
                     resetSignal = resetSignal,
+                    focusPaused = showSettings || menuApp != null || launchRequest != null,
                     accountName = accountName,
                     updateAvailable = updateInfo != null,
                     wallpaper = wallpaper,
@@ -337,8 +347,8 @@ class MainActivity : ComponentActivity() {
                     onNextWallpaper = { skipSignal++ },
                     updateStatus = statusText,
                     installLabel = installLabel,
-                    onCheckUpdates = { scope.launch { checkForUpdates(silent = false) } },
-                    onInstallUpdate = { installUpdate() },
+                    onCheckUpdates = { scope.launch { checkForUpdates(automatic = false, thenInstall = true) } },
+                    onInstallUpdate = { scope.launch { installUpdate(automatic = false) } },
                     autoCheckUpdates = autoCheck,
                     onAutoCheckChange = {
                         autoCheck = it
@@ -397,7 +407,7 @@ class MainActivity : ComponentActivity() {
     /** Home pressed while the launcher is already on screen: back to the home screen. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        page = 0
+        page = PAGE_HOME
         resetSignal++
     }
 

@@ -34,7 +34,7 @@ class LauncherSettings(context: Context) {
             prefs.edit().putString(KEY_LAST_WALLPAPER, value).apply()
         }
 
-    /** Whether the launcher checks for a new version by itself (at most every 12 hours). */
+    /** Whether the launcher looks for a new version by itself and, when there is one, starts the update. */
     var autoCheckUpdates: Boolean
         get() = prefs.getBoolean(KEY_AUTO_UPDATES, true)
         set(value) {
@@ -47,9 +47,20 @@ class LauncherSettings(context: Context) {
             prefs.edit().putLong(KEY_LAST_UPDATE_CHECK, value).apply()
         }
 
+    /**
+     * The newest versionCode the launcher already started installing by itself. If the user
+     * backs out of the system installer, the same version is not pushed at them again.
+     */
+    var lastAutoInstalled: Long
+        get() = prefs.getLong(KEY_LAST_AUTO_INSTALLED, 0L)
+        set(value) {
+            prefs.edit().putLong(KEY_LAST_AUTO_INSTALLED, value).apply()
+        }
+
     companion object {
         private const val KEY_AUTO_UPDATES = "auto_updates"
         private const val KEY_LAST_UPDATE_CHECK = "last_update_check"
+        private const val KEY_LAST_AUTO_INSTALLED = "last_auto_installed"
         const val DEFAULT_WALLPAPER_INTERVAL = 10
         private const val KEY_WALLPAPER_CATEGORY = "wallpaper_category"
         private const val KEY_WALLPAPER_INTERVAL = "wallpaper_interval"

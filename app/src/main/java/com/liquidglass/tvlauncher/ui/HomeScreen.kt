@@ -25,12 +25,15 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -41,37 +44,42 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.liquidglass.tvlauncher.data.AppInfo
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 internal val ShelfColor = Color(0xFF050608)
 
+/** The pages, top to bottom: info above home above the app list. */
+const val PAGE_INFO = 0
+const val PAGE_HOME = 1
+const val PAGE_APPS = 2
+
 private val DockBottomInset = 32.dp
+private const val GRID_COLUMNS = 6
 
 /**
- * Three separate screens stacked vertically, like pages of a pager ([page] 0, 1, 2):
+ * Three screens stacked vertically like pages of a pager ([page] is one of the PAGE_ constants):
  *
- *  1. Home: the photo filling the screen, the clock/settings/account in
- *     the corner, and only the favorites dock at the bottom.
- *  2. All apps: nothing but the full app grid.
- *  3. Info: the date, a calendar, "continue watching" and recently opened apps.
+ *  - [PAGE_INFO] (top): the date, a calendar, "continue watching" and recently opened apps.
+ *    Reached with Up from the top bar; Down from its last row of tiles comes back.
+ *  - [PAGE_HOME] (middle): the photo filling the screen, the clock/settings/account in the
+ *    corner and, at the bottom, the favorites dock. Down on the dock goes to the app list.
+ *  - [PAGE_APPS] (bottom): the full app grid. Up from its first row comes back.
  *
- * Down on the dock slides screen 1 up and out while screen 2 rises into its
- * place; Down from the grid's last row goes on to screen 3. Up from the first
- * row of a screen (or Back, or Home — handled by the caller through [page] /
- * [resetSignal]) goes back one.
+ * Back and Home are handled by the caller through [page] / [resetSignal].
  *
- * The slide is one critically-damped spring ([progress]) that everything
- * else is derived from: the photo trails behind the dock for depth, screen 1
- * fades as it leaves, and the grid's rows ripple in one after another.
- * Meanwhile the photo breathes with a very slow zoom, and fades up from
- * black when the launcher starts.
+ * Where a screen ends is worked out from which tile has focus (first/last row), never from
+ * the scroll position or from whether a focus move failed: after scrolling a long list the
+ * grid is often left a few pixels off its start, and those checks then misfire.
  *
- * Only the visible screen can take focus, so D-pad movement never wanders
- * onto tiles that are sitting off-screen.
+ * The slide is one critically-damped spring ([progress]) everything else is derived from: the
+ * photo trails behind the dock for depth, the home screen fades as it leaves, the grid's rows
+ * ripple in one after another. The photo breathes with a very slow zoom and fades up from
+ * black at start. Only the visible page can take focus, and if focus is ever lost it is put
+ * back on that page's first tile ([focusPaused] holds that off while a dialog is open).
  */
 @Composable
 fun HomeScreen(
@@ -82,6 +90,7 @@ fun HomeScreen(
     page: Int,
     onPage: (Int) -> Unit,
     resetSignal: Int,
+    focusPaused: Boolean,
     accountName: String?,
     updateAvailable: Boolean,
     wallpaper: WallpaperState,
@@ -98,17 +107,40 @@ fun HomeScreen(
     val dockFirst = remember { FocusRequester() }
     val gridFirst = remember { FocusRequester() }
     val infoFirst = remember { FocusRequester() }
-    val focusManager = LocalFocusManager.current
 
-    // Whenever the screen changes (or Home is pressed), put focus on the
-    // first tile of the screen that is now showing.
+    // Which tile / row has focus on the pages that need to know where their edges are.
+    var focusedGridIndex by remember { mutableIntStateOf(0) }
+    var focusedInfoRow by remember { mutableIntStateOf(0) }
+    val infoLastRow = (if (watchNext.isNotEmpty()) 1 else 0) + (if (recents.isNotEmpty()) 1 else 0) - 1
+
+    // Whether the page on screen currently holds focus (see the watchdog below).
+    var pageHasFocus by remember { mutableStateOf(true) }
+
+    val focusFirst: () -> Unit = {
+        runCatching {
+            when (page) {
+                PAGE_INFO -> infoFirst.requestFocus()
+                PAGE_HOME -> if (hasFavorites) dockFirst.requestFocus()
+                else -> if (hasApps) gridFirst.requestFocus()
+            }
+        }
+    }
+
+    // Whenever the page changes (or Home is pressed), put focus on its first tile.
     LaunchedEffect(page, resetSignal, hasFavorites, hasApps) {
-        if (page == 1) gridState.scrollToItem(0)
-        delay(90) // the screen that just became focusable needs a frame to say so
-        when (page) {
-            0 -> if (hasFavorites) runCatching { dockFirst.requestFocus() }
-            1 -> if (hasApps) runCatching { gridFirst.requestFocus() }
-            else -> runCatching { infoFirst.requestFocus() }
+        if (page == PAGE_APPS) gridState.scrollToItem(0)
+        if (page == PAGE_INFO) focusedInfoRow = 0
+        focusedGridIndex = 0
+        delay(90) // the page that just became focusable needs a frame to say so
+        focusFirst()
+    }
+
+    // Watchdog: if focus ends up nowhere (a tile scrolled away, a dialog closed...), D-pad keys
+    // would do nothing at all, so take it back after a moment.
+    LaunchedEffect(page, pageHasFocus, focusPaused) {
+        if (!pageHasFocus && !focusPaused) {
+            delay(400)
+            focusFirst()
         }
     }
 
@@ -129,21 +161,23 @@ fun HomeScreen(
         val screenSize = IntSize(widthPx, heightPx)
         val dockInsetPx = with(density) { DockBottomInset.toPx() }
 
+        // 0 = info, 1 = home, 2 = apps; every page sits at (its index - progress) screens down.
         val progress by animateFloatAsState(
             targetValue = page.toFloat(),
             animationSpec = spring(dampingRatio = 1f, stiffness = 200f),
             label = "screen",
         )
 
-        // ---- Screen 1: home -------------------------------------------------
+        // ---- Page 1: home ----------------------------------------------------
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    translationY = -progress * heightPx
-                    alpha = (1f - progress * 1.15f).coerceIn(0f, 1f)
+                    translationY = (1f - progress) * heightPx
+                    alpha = (1f - abs(progress - 1f) * 1.15f).coerceIn(0f, 1f)
                 }
-                .focusProperties { canFocus = page == 0 },
+                .focusProperties { canFocus = page == PAGE_HOME }
+                .onFocusChanged { if (page == PAGE_HOME) pageHasFocus = it.hasFocus },
         ) {
             Box(
                 modifier = Modifier
@@ -153,9 +187,9 @@ fun HomeScreen(
                         scaleX = zoom
                         scaleY = zoom
                         alpha = heroFade.value
-                        // Slides the other way while the screen moves up, so the photo
-                        // trails behind the dock instead of travelling with it.
-                        translationY = progress * heightPx * 0.45f
+                        // Slides against the page while it moves, so the photo trails behind
+                        // the dock instead of travelling with it.
+                        translationY = (progress - 1f) * heightPx * 0.45f
                     },
             ) {
                 // Cross-fade between wallpapers: the old one stays under the new one while it fades in.
@@ -180,6 +214,7 @@ fun HomeScreen(
             TopBar(
                 accountName = accountName,
                 updateAvailable = updateAvailable,
+                onUp = { onPage(PAGE_INFO) },
                 onOpenSettings = onOpenSettings,
                 onOpenAccount = onOpenAccount,
                 modifier = Modifier
@@ -200,7 +235,7 @@ fun HomeScreen(
                     firstTileFocus = dockFirst,
                     onLaunch = onLaunch,
                     onOpenMenu = onOpenMenu,
-                    onScrollDown = { if (hasApps) onPage(1) },
+                    onScrollDown = { if (hasApps) onPage(PAGE_APPS) },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = DockBottomInset),
@@ -208,27 +243,21 @@ fun HomeScreen(
             }
         }
 
-        // ---- Screen 2: all apps ---------------------------------------------
+        // ---- Page 2: all apps ------------------------------------------------
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { translationY = (1f - progress) * heightPx }
-                .focusProperties { canFocus = page == 1 }
+                .graphicsLayer { translationY = (2f - progress) * heightPx }
+                .focusProperties { canFocus = page == PAGE_APPS }
+                .onFocusChanged { if (page == PAGE_APPS) pageHasFocus = it.hasFocus }
                 .onPreviewKeyEvent { event ->
-                    if (page == 1 && event.type == KeyEventType.KeyDown) {
-                        // Up/Down inside the grid move focus. When there is nowhere left to go
-                        // (and the grid can't scroll that way either), go to the neighbouring page.
-                        when (event.key) {
-                            Key.DirectionUp -> {
-                                if (!focusManager.moveFocus(FocusDirection.Up) && !gridState.canScrollBackward) onPage(0)
-                                true
-                            }
-                            Key.DirectionDown -> {
-                                if (!focusManager.moveFocus(FocusDirection.Down) && !gridState.canScrollForward) onPage(2)
-                                true
-                            }
-                            else -> false
-                        }
+                    // Up from the first row goes back home. Anything else is left to the normal
+                    // D-pad focus movement (return false), which scrolls the grid as needed.
+                    if (page == PAGE_APPS && event.type == KeyEventType.KeyDown &&
+                        event.key == Key.DirectionUp && focusedGridIndex < GRID_COLUMNS
+                    ) {
+                        onPage(PAGE_HOME)
+                        true
                     } else {
                         false
                     }
@@ -254,7 +283,7 @@ fun HomeScreen(
 
             LazyVerticalGrid(
                 state = gridState,
-                columns = GridCells.Adaptive(minSize = 120.dp),
+                columns = GridCells.Fixed(GRID_COLUMNS),
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(start = 48.dp, end = 48.dp, top = 48.dp, bottom = 40.dp),
@@ -262,13 +291,14 @@ fun HomeScreen(
             ) {
                 itemsIndexed(allApps, key = { _, app -> app.key }) { index, app ->
                     // Row by row: each row starts a little later than the one above it.
-                    val row = (index / 6).coerceAtMost(4)
+                    val row = (index / GRID_COLUMNS).coerceAtMost(4)
                     AppTile(
                         label = app.label,
                         art = app.tile,
                         modifier = Modifier.fillMaxWidth(),
                         focusRequester = if (index == 0) gridFirst else null,
-                        enterProgress = { ((progress - 0.12f - row * 0.06f) / 0.5f).coerceIn(0f, 1f) },
+                        enterProgress = { ((progress - 1.12f - row * 0.06f) / 0.5f).coerceIn(0f, 1f) },
+                        onFocusChange = { if (it) focusedGridIndex = index },
                         onClick = { rect -> onLaunch(app, rect) },
                         onLongClick = { onOpenMenu(app) },
                     )
@@ -276,21 +306,26 @@ fun HomeScreen(
             }
         }
 
-        // ---- Screen 3: date and what to watch ---------------------------------
+        // ---- Page 0: date and what to watch (above home) -------------------------
         InfoPage(
             wallpaper = wallpaper,
             watchNext = watchNext,
             recents = recents,
-            entry = { ((progress - 1.05f) / 0.7f).coerceIn(0f, 1f) },
+            entry = { ((0.95f - progress) / 0.7f).coerceIn(0f, 1f) },
             firstFocus = infoFirst,
+            onFocusedRow = { focusedInfoRow = it },
             onLaunch = onLaunch,
             onOpenMenu = onOpenMenu,
             modifier = Modifier
-                .graphicsLayer { translationY = (2f - progress) * heightPx }
-                .focusProperties { canFocus = page == 2 }
+                .graphicsLayer { translationY = (0f - progress) * heightPx }
+                .focusProperties { canFocus = page == PAGE_INFO }
+                .onFocusChanged { if (page == PAGE_INFO) pageHasFocus = it.hasFocus }
                 .onPreviewKeyEvent { event ->
-                    if (page == 2 && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
-                        if (!focusManager.moveFocus(FocusDirection.Up)) onPage(1)
+                    // Down from the last row of tiles goes back to the home screen.
+                    if (page == PAGE_INFO && event.type == KeyEventType.KeyDown &&
+                        event.key == Key.DirectionDown && focusedInfoRow >= infoLastRow
+                    ) {
+                        onPage(PAGE_HOME)
                         true
                     } else {
                         false

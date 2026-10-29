@@ -115,14 +115,20 @@ object Updater {
             PackageInfoCompat.getLongVersionCode(info) > currentVersionCode(context)
     }
 
-    /** Opens the system installer for [file]; on Android 8+ first needs the "install unknown apps" switch. */
-    fun install(context: Context, file: File): InstallStart {
+    /**
+     * Opens the system installer for [file]; on Android 8+ first needs the "install unknown apps" switch.
+     * [askPermission] = false (the automatic path) reports the missing switch instead of
+     * throwing the settings screen at someone who is just watching TV.
+     */
+    fun install(context: Context, file: File, askPermission: Boolean = true): InstallStart {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
-                context.startActivity(
-                    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                )
+                if (askPermission) {
+                    context.startActivity(
+                        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
                 return InstallStart.NEEDS_PERMISSION
             }
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)

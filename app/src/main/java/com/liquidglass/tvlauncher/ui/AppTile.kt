@@ -74,6 +74,7 @@ private val GlowColor = Color(0xFF9DBBFF)
  * Width comes from [modifier]; the height follows from the 5:3 ratio.
  * [reserveLabelSpace] = false lets the name hang below the tile without taking space.
  * [enterProgress] (0..1) lets a screen fade/slide its tiles in as a cascade.
+ * [onFocusChange] tells a screen which tile has focus (used to find its edges).
  */
 @Composable
 fun AppTile(
@@ -83,6 +84,7 @@ fun AppTile(
     focusRequester: FocusRequester? = null,
     reserveLabelSpace: Boolean = true,
     enterProgress: (() -> Float)? = null,
+    onFocusChange: ((Boolean) -> Unit)? = null,
     onClick: (Rect) -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -120,7 +122,10 @@ fun AppTile(
                 scaleY = scale
                 alpha = enter
             }
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                onFocusChange?.invoke(it.isFocused)
+            }
             .onKeyEvent { event ->
                 if (event.key != Key.DirectionCenter && event.key != Key.Enter && event.key != Key.NumPadEnter) {
                     return@onKeyEvent false

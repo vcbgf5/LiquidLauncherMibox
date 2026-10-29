@@ -35,6 +35,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,6 +58,7 @@ import java.util.Locale
 fun TopBar(
     accountName: String?,
     updateAvailable: Boolean,
+    onUp: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAccount: () -> Unit,
     modifier: Modifier = Modifier,
@@ -66,7 +72,17 @@ fun TopBar(
     }
 
     Row(
-        modifier = modifier.padding(horizontal = 48.dp, vertical = 26.dp),
+        modifier = modifier
+            // Anything above the top bar is the info page: Up from here goes there.
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                    onUp()
+                    true
+                } else {
+                    false
+                }
+            }
+            .padding(horizontal = 48.dp, vertical = 26.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

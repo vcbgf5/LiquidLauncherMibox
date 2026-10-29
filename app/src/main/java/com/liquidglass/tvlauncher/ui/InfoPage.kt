@@ -54,6 +54,8 @@ private val WEEKDAYS = listOf("Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd")
  * apps opened most recently from this launcher.
  *
  * [entry] (0..1) is how far the page has slid in; the content fades up with it.
+ * [onFocusedRow] reports which row of tiles has focus, so the caller can tell when Down
+ * is pressed on the last one.
  * [firstFocus] goes to the first tile, or to the page itself when it has no tiles,
  * so there is always something focused to carry Up/Back.
  */
@@ -64,6 +66,7 @@ fun InfoPage(
     recents: List<AppInfo>,
     entry: () -> Float,
     firstFocus: FocusRequester,
+    onFocusedRow: (Int) -> Unit,
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
     modifier: Modifier = Modifier,
@@ -106,17 +109,18 @@ fun InfoPage(
                 ClockBlock(now.value)
                 CalendarCard(now.value)
             }
-            var focusAssigned = false
+            var rows = 0
             if (watchNext.isNotEmpty()) {
-                TileRow(stringResource(R.string.info_watch_next), watchNext, firstFocus, entry, onLaunch, onOpenMenu)
-                focusAssigned = true
+                TileRow(stringResource(R.string.info_watch_next), watchNext, firstFocus, rows, onFocusedRow, onLaunch, onOpenMenu)
+                rows++
             }
             if (recents.isNotEmpty()) {
                 TileRow(
                     title = stringResource(R.string.info_recent),
                     items = recents,
-                    firstFocus = if (focusAssigned) null else firstFocus,
-                    entry = entry,
+                    firstFocus = if (rows == 0) firstFocus else null,
+                    rowIndex = rows,
+                    onFocusedRow = onFocusedRow,
                     onLaunch = onLaunch,
                     onOpenMenu = onOpenMenu,
                 )
@@ -130,7 +134,8 @@ private fun TileRow(
     title: String,
     items: List<AppInfo>,
     firstFocus: FocusRequester?,
-    entry: () -> Float,
+    rowIndex: Int,
+    onFocusedRow: (Int) -> Unit,
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
 ) {
@@ -149,6 +154,7 @@ private fun TileRow(
                 art = app.tile,
                 modifier = Modifier.width(104.dp),
                 focusRequester = if (index == 0) firstFocus else null,
+                onFocusChange = { if (it) onFocusedRow(rowIndex) },
                 onClick = { rect -> onLaunch(app, rect) },
                 onLongClick = { onOpenMenu(app) },
             )
