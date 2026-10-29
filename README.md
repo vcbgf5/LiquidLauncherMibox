@@ -6,14 +6,26 @@ Natywna aplikacja: Kotlin + Jetpack Compose, bez WebView.
 Trzy osobne ekrany, jeden nad drugim:
 
 1. **Data** (na górze) — strzałka w górę z ikon u góry ekranu głównego: duży zegar, pełna data, kalendarz miesiąca,
-   rząd „Dalej oglądaj” i rząd ostatnio otwieranych aplikacji. Strzałka w dół z ostatniego rzędu, **Wstecz** albo **Home** wraca.
+   i rząd „Dalej oglądaj”. Strzałka w dół, **Wstecz** albo **Home** wraca.
 2. **Ekran główny** (środek, tu się startuje) — zdjęcie na cały ekran, u góry zegar, ustawienia i konto Google,
    na dole sam dok z ulubionymi (zaokrąglony „szklany” panel z rozmytym tłem, do 6 aplikacji).
 3. **Wszystkie aplikacje** (na dole) — strzałka w dół na doku przesuwa cały ekran w górę i wjeżdża pełnoekranowa siatka.
    Strzałka w górę z pierwszego rzędu, **Wstecz** albo **Home** wraca na ekran główny.
 
-Ikona zębatki otwiera **ustawienia launchera**: przezroczystość docka (strzałki w lewo/prawo, zmiana widoczna od razu)
-oraz przejście do **ustawień systemowych** Androida. Ikona obok pokazuje konto Google z urządzenia (pierwsza litera adresu).
+Ikona zębatki otwiera **ustawienia launchera**: przezroczystość docka i **rozmiar aplikacji na ekranie głównym**
+(strzałki w lewo/prawo, zmiana widoczna od razu), tapety, wygaszacz, aktualizacje oraz przejście do **ustawień systemowych** Androida. Ikona obok pokazuje konto Google z urządzenia (pierwsza litera adresu).
+
+**Rozmiar aplikacji** (70–140%) ma ograniczenie: dok nigdy nie wychodzi poza ekran. Przy sześciu ulubionych na ekranie
+1080p domyślny rozmiar już wypełnia szerokość, więc większe wartości działają dopiero przy mniejszej liczbie ulubionych
+(na przykład pięciu), a przy sześciu można je zmniejszać.
+
+**Wygaszacz.** Po kilku minutach bez naciskania pilota (ustawienie „Wygaszacz po”: wyłączony, 1, 3, 5, 10, 15 lub 30 min,
+domyślnie 3) na cały ekran wchodzi aktualna tapeta z bardzo powolnym zoomem, wielki zegar i data w „płynnym szkle”
+(przezroczyste litery z poświatą i cienką krawędzią). Zegar powoli wędruje po ekranie, żeby nic nie wypalało się w jednym
+miejscu. Dowolny przycisk budzi launcher (i nic poza tym nie robi). „Pokaż wygaszacz teraz” w ustawieniach pokazuje go od razu.
+To samo jest zarejestrowane jako **systemowy wygaszacz Androida**: Ustawienia → Preferencje urządzenia → Wygaszacz ekranu →
+**Liquid TV** (wtedy system sam go włącza po swoim czasie, także gdy launcher nie jest na wierzchu).
+
 
 Animacje: płynne przejście między ekranami (zdjęcie „zostaje w tyle", rzędy aplikacji wjeżdżają kaskadą),
 kafelki wchodzą jeden po drugim, zaznaczony kafelek unosi się, świeci i przebiega po nim połysk, wciśnięcie OK
@@ -50,6 +62,7 @@ Domyślne ulubione i zawsze pierwsze w siatce: YouTube, Netflix, YouTube Music, 
 ![Ekran główny](docs/preview-home.jpg)
 ![Wszystkie aplikacje](docs/preview-apps.jpg)
 ![Data i dalej oglądaj (strona nad ekranem głównym)](docs/preview-info.jpg)
+![Wygaszacz](docs/preview-screensaver.jpg)
 
 **Klikalny podgląd w przeglądarce: https://vcbgf5.github.io/LiquidLauncherMibox/preview.html**
 
