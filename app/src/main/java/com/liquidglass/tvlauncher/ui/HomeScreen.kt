@@ -159,6 +159,7 @@ fun HomeScreen(
     BoxWithConstraints(modifier = modifier.fillMaxSize().background(ShelfColor)) {
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.roundToPx() }
+        val screenWidth = maxWidth // a nested Box's scope can't reach maxWidth itself
         val heightPx = with(density) { maxHeight.roundToPx() }
         val screenSize = IntSize(widthPx, heightPx)
         val dockInsetPx = with(density) { DockBottomInset.toPx() }
@@ -212,7 +213,7 @@ fun HomeScreen(
                 // The big clock instead of the small one: in the middle of the photo, above the dock.
                 val now = rememberNow()
                 GlassClock(
-                    widthDp = maxWidth,
+                    widthDp = screenWidth,
                     nowMillis = now.value,
                     scale = 0.14f,
                     modifier = Modifier
