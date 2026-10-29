@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Liquid TV – launcher w stylu Apple TV</title>
+<meta name="description" content="Launcher na Android TV (Xiaomi Mi Box) w stylu Apple TV. Pobierz najnowszą wersję.">
+<style>
+:root{color-scheme:dark;--bg:#050608;--fg:#fff;--mut:rgba(255,255,255,.62);--glass:rgba(255,255,255,.07);--line:rgba(255,255,255,.18);--accent:#9dbbff}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#3a3a78 0%,#241d3d 35%,var(--bg) 70%) no-repeat,var(--bg);color:var(--fg);
+ font:17px/1.55 -apple-system,"Inter","Segoe UI",system-ui,sans-serif;min-height:100vh}
+main{max-width:760px;margin:0 auto;padding:56px 24px 72px}
+h1{font-size:clamp(34px,6vw,52px);margin:0 0 6px;letter-spacing:-.02em}
+.sub{color:var(--mut);margin:0 0 32px;font-size:19px}
+.btn{display:inline-flex;align-items:center;gap:12px;padding:20px 34px;border-radius:22px;background:#fff;color:#111;font-weight:650;font-size:21px;text-decoration:none;
+ box-shadow:0 14px 40px rgba(0,0,0,.45);transition:transform .2s cubic-bezier(.2,.9,.25,1.2),box-shadow .2s}
+.btn:hover,.btn:focus-visible{transform:translateY(-3px) scale(1.04);outline:none;box-shadow:0 20px 50px rgba(0,0,0,.55),0 0 0 3px rgba(255,255,255,.9),0 0 36px 6px rgba(157,187,255,.5)}
+#ver{margin:14px 0 0;color:var(--mut);font-size:15px;min-height:1.4em}
+.card{margin-top:34px;padding:22px 24px;border-radius:24px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.card h2{margin:0 0 10px;font-size:20px}
+ol,ul{margin:8px 0 0;padding-left:22px}li{margin:6px 0}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14.5px}
+code{background:rgba(255,255,255,.1);padding:2px 7px;border-radius:7px}
+pre{background:rgba(0,0,0,.45);border:1px solid var(--line);padding:12px 14px;border-radius:14px;overflow-x:auto;margin:10px 0}
+.addr{font-size:20px;font-weight:600;color:var(--accent);word-break:break-all}
+.warn{color:#ffd9a0;font-size:15px}
+a{color:var(--accent)}
+footer{margin-top:36px;color:var(--mut);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Liquid TV</h1>
+  <p class="sub">Launcher w stylu Apple TV dla Xiaomi Mi Box i innych Android TV.</p>
+
+  <a id="dl" class="btn" autofocus href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk">⬇ Pobierz najnowszą wersję (APK)</a>
+  <p id="ver"></p>
+
+  <section class="card">
+    <h2>Pobranie bezpośrednio na Mi Box</h2>
+    <ol>
+      <li>Zainstaluj ze Sklepu Play aplikację <b>Downloader</b> i zezwól jej na instalowanie aplikacji z nieznanych źródeł.</li>
+      <li>W Downloaderze wpisz adres:<br><span class="addr">vcbgf5.github.io/LiquidLauncherMibox/apk</span></li>
+      <li>Po pobraniu wybierz <b>Zainstaluj</b>.</li>
+    </ol>
+    <p>Adres zawsze pobiera <b>najnowszą</b> wersję.</p>
+  </section>
+
+  <section class="card">
+    <h2>Ustawienie jako ekran główny (zamiast fabrycznego)</h2>
+    <p><b>1. Zapytanie systemu.</b> Po instalacji naciśnij <b>Home</b>. Jeśli pojawi się wybór ekranu głównego, wskaż <b>Liquid TV</b> i <b>Zawsze</b>. Na części urządzeń to pytanie się nie pokazuje – wtedy użyj sposobu 2 lub 3.</p>
+    <p><b>2. Button Mapper (bez komputera).</b> Zainstaluj <b>Button Mapper</b> ze Sklepu Play, włącz jego usługę ułatwień dostępu, wybierz przycisk <b>Home</b> → <b>Customize</b> → <b>Single tap</b> → <b>Application</b> → <b>Liquid TV</b>. Fabryczny launcher zostaje w systemie, tylko go nie widać.</p>
+    <p><b>3. Na stałe przez ADB (z komputera).</b> Włącz opcje programisty i debugowanie sieciowe, potem:</p>
+<pre>adb connect 192.168.1.XX:5555
+adb shell pm list packages | grep -i launcher
+adb shell pm disable-user --user 0 com.google.android.tvlauncher</pre>
+    <p>Druga komenda pokazuje, jak nazywa się Twój fabryczny launcher. Na Mi Box S (Android TV) to zwykle <code>com.google.android.tvlauncher</code>, a na modelach z Google TV <code>com.google.android.apps.tv.launcherx</code>. Wyłącz pakiet, który faktycznie widzisz na liście.</p>
+    <p>Cofnięcie:</p>
+<pre>adb shell pm enable com.google.android.tvlauncher</pre>
+    <p class="warn">Najpierw zainstaluj i uruchom Liquid TV, dopiero potem wyłączaj stary launcher. Inaczej po naciśnięciu Home nie będzie żadnego ekranu głównego.</p>
+  </section>
+
+  <footer>Kod i wydania: <a href="https://github.com/vcbgf5/LiquidLauncherMibox">github.com/vcbgf5/LiquidLauncherMibox</a></footer>
+</main>
+<script>
+// Show which version "latest" currently is. The button works without this.
+fetch("https://api.github.com/repos/vcbgf5/LiquidLauncherMibox/releases/latest")
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(rel => {
+    const apk = (rel.assets || []).find(a => a.name === "LiquidTV.apk");
+    const mb = apk ? " · " + (apk.size / 1048576).toFixed(1) + " MB" : "";
+    const day = new Date(rel.published_at).toLocaleDateString("pl-PL", {day: "numeric", month: "long", year: "numeric"});
+    document.getElementById("ver").textContent = rel.tag_name + mb + " · " + day;
+  })
+  .catch(() => {});
+</script>
+</body>
+</html>
