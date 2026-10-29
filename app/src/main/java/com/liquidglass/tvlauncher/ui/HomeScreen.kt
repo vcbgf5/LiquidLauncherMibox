@@ -18,11 +18,14 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,12 +49,16 @@ import androidx.compose.ui.res.stringResource
 import com.liquidglass.tvlauncher.R
 import com.liquidglass.tvlauncher.data.Agenda
 import com.liquidglass.tvlauncher.data.AppInfo
+import com.liquidglass.tvlauncher.data.Performance
+import com.liquidglass.tvlauncher.data.isFolder
 import com.liquidglass.tvlauncher.data.WidgetData
 import com.liquidglass.tvlauncher.data.WidgetType
 import com.liquidglass.tvlauncher.data.NetworkKind
+import com.liquidglass.tvlauncher.data.NowPlayingState
 import com.liquidglass.tvlauncher.data.SystemStatus
 import com.liquidglass.tvlauncher.data.Weather
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 internal val ShelfColor = Color(0xFF050608)
@@ -73,6 +80,9 @@ const val PAGE_APPS = 2
 
 private val DockBottomInset = 32.dp
 private const val GRID_COLUMNS = 6
+
+/** The photo is always a little larger than the screen, so sliding it sideways never shows an edge. */
+private const val HERO_ZOOM = 1.04f
 
 /**
  * Three screens stacked vertically like pages of a pager ([page] is one of the PAGE_ constants):
@@ -103,7 +113,9 @@ fun HomeScreen(
     widgetData: WidgetData,
     agenda: Agenda,
     weather: Weather?,
+    nowPlaying: NowPlayingState,
     onWidget: (WidgetType) -> Unit,
+    onWidgetLong: (WidgetType) -> Unit,
     page: Int,
     onPage: (Int) -> Unit,
     resetSignal: Int,
@@ -122,17 +134,33 @@ fun HomeScreen(
     onOpenBluetooth: () -> Unit,
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
+    onOpenFolder: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPower: () -> Unit,
     onOpenAccount: () -> Unit,
+    restoreSignal: Int,
+    parallaxOn: Boolean,
+    idle: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val scope = rememberCoroutineScope()
     val hasFavorites = favorites.isNotEmpty()
     val hasApps = allApps.isNotEmpty()
     val gridState = rememberLazyGridState()
-    val dockFirst = remember { FocusRequester() }
-    val gridFirst = remember { FocusRequester() }
     val infoFirst = remember { FocusRequester() }
+
+    // One focus handle per tile, by app, so focus can be put back on the tile that was last used.
+    val dockRequesters = remember { HashMap<String, FocusRequester>() }
+    val gridRequesters = remember { HashMap<String, FocusRequester>() }
+    fun dockRequester(app: AppInfo) = dockRequesters.getOrPut(app.key) { FocusRequester() }
+    fun gridRequester(app: AppInfo) = gridRequesters.getOrPut(app.key) { FocusRequester() }
+
+    // The tile an app was last started from (dock or list), for coming back to it.
+    var lastUsedKey by remember { mutableStateOf<String?>(null) }
+    var lastUsedInDock by remember { mutableStateOf(true) }
+    // Where focus is along the dock, 0..1, which slides the photo a little the other way.
+    val parallax = remember { Animatable(0f) }
+    val currentIdle by rememberUpdatedState(idle)
 
     // Which tile / row has focus on the pages that need to know where their edges are.
     var focusedGridIndex by remember { mutableIntStateOf(0) }
@@ -144,8 +172,27 @@ fun HomeScreen(
         runCatching {
             when (page) {
                 PAGE_INFO -> infoFirst.requestFocus()
-                PAGE_HOME -> if (hasFavorites) dockFirst.requestFocus()
-                else -> if (hasApps) gridFirst.requestFocus()
+                PAGE_HOME -> if (hasFavorites) dockRequester(favorites.first()).requestFocus()
+                else -> if (hasApps) gridRequester(allApps.first()).requestFocus()
+            }
+        }
+    }
+
+    // Back from an app: focus returns to the tile it was started from, not to the first one.
+    LaunchedEffect(restoreSignal) {
+        val key = lastUsedKey
+        if (restoreSignal == 0 || key == null) return@LaunchedEffect
+        delay(280)
+        runCatching {
+            if (lastUsedInDock && page == PAGE_HOME) {
+                favorites.firstOrNull { it.key == key }?.let { dockRequester(it).requestFocus() }
+            } else if (!lastUsedInDock && page == PAGE_APPS) {
+                val index = allApps.indexOfFirst { it.key == key }
+                if (index >= 0) {
+                    gridState.scrollToItem(index)
+                    delay(60)
+                    gridRequester(allApps[index]).requestFocus()
+                }
             }
         }
     }
@@ -174,14 +221,17 @@ fun HomeScreen(
         label = "screen",
     )
 
-    // The photo breathes: a barely-there zoom, back and forth, forever. It is refreshed only
-    // 20 times a second and stands still while a page slides, so the slide gets all the GPU.
+    // The photo breathes: a barely-there zoom, back and forth. It is refreshed only 15 times a
+    // second, stands still while a page slides or a dialog is open, and is off in the light mode.
     val zoomState = rememberSlowOscillation(
-        from = 1f,
-        to = 1.06f,
+        from = HERO_ZOOM,
+        to = HERO_ZOOM + 0.06f,
         periodMillis = 26_000,
-        paused = { abs(progress - page) > 0.001f },
+        fps = 15,
+        enabled = !Performance.lite,
+        paused = { abs(progress - 1f) > 0.001f || currentIdle },
     )
+    LaunchedEffect(parallaxOn, favorites.size) { if (!parallaxOn || favorites.size < 2) parallax.animateTo(0f) }
     val heroFade = remember { Animatable(0f) }
     LaunchedEffect(Unit) { heroFade.animateTo(1f, tween(900)) }
 
@@ -216,8 +266,10 @@ fun HomeScreen(
                         scaleY = zoom
                         alpha = heroFade.value
                         // Slides against the page while it moves, so the photo trails behind
-                        // the dock instead of travelling with it.
+                        // the dock instead of travelling with it, and drifts the other way as
+                        // focus moves along the dock.
                         translationY = (progress - 1f) * heightPx * 0.45f
+                        translationX = -parallax.value * widthPx * 0.012f
                     },
             ) {
                 // Cross-fade between wallpapers: the old one stays under the new one while it fades in.
@@ -288,8 +340,18 @@ fun HomeScreen(
                     transparency = dockTransparency,
                     sizeFactor = dockSize,
                     zoom = { zoomState.floatValue },
-                    firstTileFocus = dockFirst,
-                    onLaunch = onLaunch,
+                    shiftX = { -parallax.value * widthPx * 0.012f },
+                    requesterFor = ::dockRequester,
+                    onFocusedIndex = { index ->
+                        if (parallaxOn && favorites.size > 1) {
+                            scope.launch { parallax.animateTo(index.toFloat() / (favorites.size - 1) * 2f - 1f, spring(dampingRatio = 1f, stiffness = 60f)) }
+                        }
+                    },
+                    onLaunch = { app, rect ->
+                        lastUsedKey = app.key
+                        lastUsedInDock = true
+                        onLaunch(app, rect)
+                    },
                     onOpenMenu = onOpenMenu,
                     onScrollDown = { if (hasApps) onPage(PAGE_APPS) },
                     modifier = Modifier
@@ -352,10 +414,18 @@ fun HomeScreen(
                         label = app.label,
                         art = app.tile,
                         modifier = Modifier.fillMaxWidth(),
-                        focusRequester = if (index == 0) gridFirst else null,
+                        focusRequester = gridRequester(app),
                         enterProgress = { ((progress - 1.12f - row * 0.06f) / 0.5f).coerceIn(0f, 1f) },
                         onFocusChange = { if (it) focusedGridIndex = index },
-                        onClick = { rect -> onLaunch(app, rect) },
+                        onClick = { rect ->
+                            if (app.isFolder) {
+                                onOpenFolder(app.className)
+                            } else {
+                                lastUsedKey = app.key
+                                lastUsedInDock = false
+                                onLaunch(app, rect)
+                            }
+                        },
                         onLongClick = { onOpenMenu(app) },
                     )
                 }
@@ -369,9 +439,11 @@ fun HomeScreen(
             data = widgetData,
             agenda = agenda,
             weather = weather,
+            nowPlaying = nowPlaying,
             entry = { ((0.95f - progress) / 0.7f).coerceIn(0f, 1f) },
             firstFocus = infoFirst,
             onWidget = onWidget,
+            onWidgetLong = onWidgetLong,
             modifier = Modifier
                 .graphicsLayer { translationY = (0f - progress) * heightPx }
                 .focusProperties { canFocus = page == PAGE_INFO }

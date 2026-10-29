@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import com.liquidglass.tvlauncher.data.Performance
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -51,9 +52,11 @@ fun Screensaver(wallpaper: WallpaperState, visible: Boolean, extraLine: String? 
     }
     if (!visible && shown.value <= 0f) return
 
-    val zoom = rememberSlowOscillation(from = 1.02f, to = 1.12f, periodMillis = 45_000)
-    val panX = rememberSlowOscillation(from = -1f, to = 1f, periodMillis = 60_000)
-    val panY = rememberSlowOscillation(from = -1f, to = 1f, periodMillis = 85_000)
+    // It moves a pixel or two a second, so a handful of updates a second look the same as sixty.
+    val fps = if (Performance.lite) 4 else 10
+    val zoom = rememberSlowOscillation(from = 1.02f, to = 1.12f, periodMillis = 45_000, fps = fps)
+    val panX = rememberSlowOscillation(from = -1f, to = 1f, periodMillis = 60_000, fps = fps)
+    val panY = rememberSlowOscillation(from = -1f, to = 1f, periodMillis = 85_000, fps = fps)
 
     BoxWithConstraints(
         modifier = modifier

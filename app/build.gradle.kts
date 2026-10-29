@@ -73,6 +73,8 @@ dependencies {
 
     // Dominant-colour backdrops for apps that only ship a square icon.
     implementation("androidx.palette:palette-ktx:1.0.0")
-    // Silent self-updates: talks to the box's own ADB service (see SilentInstaller).
+    // Talks to the box's own ADB service (see SelfAdb): silent updates, power, memory, permissions.
     implementation("dev.mobile:dadb:2.0.0")
+    // The QR code of the phone remote's address (pure Java, no camera or Google services).
+    implementation("com.google.zxing:core:3.5.3")
 }

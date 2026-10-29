@@ -12,6 +12,7 @@ object Net {
                 connectTimeout = 8_000
                 readTimeout = 20_000
                 instanceFollowRedirects = true
+                useCaches = false
             }
             try {
                 if (connection.responseCode != HttpURLConnection.HTTP_OK) return null

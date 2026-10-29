@@ -72,13 +72,53 @@ val WallpaperIntervals = listOf(1, 5, 10, 30, 60)
 /** Idle minutes before the screensaver starts; 0 = never. */
 val ScreensaverDelays = listOf(0, 1, 3, 5, 10, 15, 30)
 
-private val CardColor = Color(0xEB1C1E26)
+/** How often the launcher looks for a new version (seconds). */
+val UpdateIntervals = listOf(5, 30, 300, 3600)
+
+/** Speeds of Android's own animations offered in the tools (1 = normal). */
+val AnimationScales = listOf(1f, 0.5f, 0f)
+
+/**
+ * Everything the newer settings need, in one bundle so the dialog's own parameter list does not grow
+ * with every feature: looks (accent, glass tint, tilt, parallax, performance), updates, the tools
+ * that work through the box's own adb, and the phone remote.
+ */
+class SettingsExtras(
+    val accentIndex: Int,
+    val onAccent: (Int) -> Unit,
+    val glassIndex: Int,
+    val onGlass: (Int) -> Unit,
+    val tileTilt: Boolean,
+    val onTileTilt: (Boolean) -> Unit,
+    val parallax: Boolean,
+    val onParallax: (Boolean) -> Unit,
+    val performanceMode: Int,
+    val performanceNote: String,
+    val onPerformance: (Int) -> Unit,
+    val updateIntervalSeconds: Int,
+    val onUpdateInterval: (Int) -> Unit,
+    val onShowChangelog: () -> Unit,
+    val onAdbDiagnostics: () -> Unit,
+    val onSetupAdb: () -> Unit,
+    val onFreeMemory: () -> Unit,
+    val animationScale: Float,
+    val onAnimationScale: (Float) -> Unit,
+    val onDisableApps: () -> Unit,
+    val onRestoreApps: () -> Unit,
+    val onTvOn: () -> Unit,
+    val onTvToggle: () -> Unit,
+    val onRemote: () -> Unit,
+    val notificationAccessOn: Boolean,
+    val onNotificationAccess: () -> Unit,
+)
+
 private val GroupColor = Color.White.copy(alpha = 0.07f)
 private val Blue = Color(0xFF0A84FF)
 private val Purple = Color(0xFFAF52DE)
 private val Indigo = Color(0xFF5E5CE6)
 private val Green = Color(0xFF30D158)
 private val Gray = Color(0xFF8E8E93)
+private val Teal = Color(0xFF30B0C7)
 private val Orange = Color(0xFFFF9F0A)
 
 /**
@@ -152,6 +192,7 @@ fun SettingsDialog(
     onOpenPowerMenu: () -> Unit,
     systemShortcuts: List<Pair<String, () -> Unit>>,
     onOpenSystemSettings: () -> Unit,
+    extras: SettingsExtras,
     onDismiss: () -> Unit,
 ) {
     // The main screen is a list of categories; OK opens one, Back comes out of it (and closes the list).
@@ -176,7 +217,7 @@ fun SettingsDialog(
                 .width(620.dp)
                 .heightIn(max = 500.dp)
                 .clip(shape)
-                .background(CardColor)
+                .background(LocalTheme.current.glass.card)
                 .border(1.dp, Color.White.copy(alpha = 0.22f), shape),
         ) {
             Row(
@@ -215,6 +256,7 @@ fun SettingsDialog(
                             stringResource(R.string.minutes_short, screensaverMinutes)
                         },
                         SettingsCategory.UPDATES to if (installLabel != null) stringResource(R.string.update_badge) else "",
+                        SettingsCategory.TOOLS to "adb",
                         SettingsCategory.SYSTEM to networkStatus,
                     ),
                     focusOn = lastCategory,
@@ -268,6 +310,35 @@ fun SettingsDialog(
                     ToggleRow(stringResource(R.string.settings_status_icons), statusIcons, onStatusIconsChange)
                     Divider()
                     ToggleRow(stringResource(R.string.settings_tile_lighting), tileLighting, onTileLightingChange)
+                    Divider()
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_accent),
+                        value = stringResource(Accents[extras.accentIndex.coerceIn(0, Accents.lastIndex)].nameRes),
+                        onStep = { direction -> extras.onAccent((extras.accentIndex + direction).mod(Accents.size)) },
+                    )
+                    Divider()
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_glass_tint),
+                        value = stringResource(GlassTints[extras.glassIndex.coerceIn(0, GlassTints.lastIndex)].nameRes),
+                        onStep = { direction -> extras.onGlass((extras.glassIndex + direction).mod(GlassTints.size)) },
+                    )
+                    Divider()
+                    ToggleRow(stringResource(R.string.settings_tile_tilt), extras.tileTilt, extras.onTileTilt)
+                    Divider()
+                    ToggleRow(stringResource(R.string.settings_parallax), extras.parallax, extras.onParallax)
+                    Divider()
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_performance),
+                        value = stringResource(
+                            when (extras.performanceMode) {
+                                LauncherSettings.PERF_LITE -> R.string.performance_lite
+                                LauncherSettings.PERF_FULL -> R.string.performance_full
+                                else -> R.string.performance_auto
+                            },
+                        ),
+                        onStep = { direction -> extras.onPerformance((extras.performanceMode + direction).mod(3)) },
+                    )
+                    Note(extras.performanceNote)
                 }
 
                 SettingsCategory.WIDGETS -> Group {
@@ -279,6 +350,7 @@ fun SettingsDialog(
                                     WidgetType.CALENDAR -> R.string.widget_pick_calendar
                                     WidgetType.AGENDA -> R.string.widget_pick_agenda
                                     WidgetType.WEATHER -> R.string.widget_pick_weather
+                                    WidgetType.NOW_PLAYING -> R.string.widget_pick_now_playing
                                     WidgetType.NETWORK -> R.string.widget_pick_network
                                     WidgetType.BLUETOOTH -> R.string.widget_pick_bluetooth
                                     WidgetType.SYSTEM -> R.string.widget_pick_system
@@ -311,6 +383,11 @@ fun SettingsDialog(
                     }
                     Divider()
                     ActionRow(label = stringResource(R.string.widgets_request_permission), arrow = false, onClick = onRequestCalendarPermission)
+                    Divider()
+                    Note(stringResource(if (extras.notificationAccessOn) R.string.np_access_on else R.string.np_access_off), top = 10.dp)
+                    if (!extras.notificationAccessOn) {
+                        ActionRow(label = stringResource(R.string.np_grant_access), arrow = false, onClick = extras.onNotificationAccess)
+                    }
                 }
                 SettingsCategory.WALLPAPERS -> Group {
                     ChoiceRow(
@@ -373,6 +450,45 @@ fun SettingsDialog(
                     Note(stringResource(R.string.settings_silent_help))
                     ActionRow(label = stringResource(R.string.settings_connect_adb), arrow = false, onClick = onConnectAdb)
                     if (adbStatus.isNotEmpty()) Note(adbStatus)
+                    Divider()
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_update_interval),
+                        value = updateIntervalLabel(extras.updateIntervalSeconds),
+                        onStep = { direction ->
+                            val i = UpdateIntervals.indexOf(extras.updateIntervalSeconds).let { if (it < 0) 0 else it }
+                            extras.onUpdateInterval(UpdateIntervals[(i + direction).coerceIn(0, UpdateIntervals.lastIndex)])
+                        },
+                    )
+                    Divider()
+                    ActionRow(label = stringResource(R.string.settings_changelog), arrow = false, onClick = extras.onShowChangelog)
+                    Divider()
+                    ActionRow(label = stringResource(R.string.settings_adb_diagnostics), arrow = false, onClick = extras.onAdbDiagnostics)
+                }
+
+                SettingsCategory.TOOLS -> Group {
+                    Note(stringResource(R.string.tools_help), top = 10.dp)
+                    ActionRow(label = stringResource(R.string.tools_setup), arrow = false, autoFocus = true, onClick = extras.onSetupAdb)
+                    Divider()
+                    ActionRow(label = stringResource(R.string.tools_free_memory), arrow = false, onClick = extras.onFreeMemory)
+                    Divider()
+                    ChoiceRow(
+                        label = stringResource(R.string.tools_animations),
+                        value = animationLabel(extras.animationScale),
+                        onStep = { direction ->
+                            val i = AnimationScales.indexOfFirst { kotlin.math.abs(it - extras.animationScale) < 0.01f }.let { if (it < 0) 0 else it }
+                            extras.onAnimationScale(AnimationScales[(i + direction).mod(AnimationScales.size)])
+                        },
+                    )
+                    Divider()
+                    ActionRow(label = stringResource(R.string.tools_disable_apps), arrow = true, onClick = extras.onDisableApps)
+                    Divider()
+                    ActionRow(label = stringResource(R.string.tools_restore_apps), arrow = true, onClick = extras.onRestoreApps)
+                    Divider()
+                    ActionRow(label = stringResource(R.string.tools_tv_on), arrow = false, onClick = extras.onTvOn)
+                    Divider()
+                    ActionRow(label = stringResource(R.string.tools_tv_toggle), arrow = false, onClick = extras.onTvToggle)
+                    Divider()
+                    ActionRow(label = stringResource(R.string.tools_remote), arrow = true, onClick = extras.onRemote)
                 }
 
                 SettingsCategory.SYSTEM -> Group {
@@ -426,6 +542,20 @@ fun SettingsDialog(
 }
 
 @Composable
+private fun updateIntervalLabel(seconds: Int): String = when {
+    seconds >= 3600 -> stringResource(R.string.hour_short)
+    seconds >= 60 -> stringResource(R.string.minutes_short, seconds / 60)
+    else -> stringResource(R.string.seconds_short, seconds)
+}
+
+@Composable
+private fun animationLabel(scale: Float): String = when {
+    scale <= 0.01f -> stringResource(R.string.animations_off)
+    scale < 0.99f -> stringResource(R.string.animations_fast)
+    else -> stringResource(R.string.animations_normal)
+}
+
+@Composable
 private fun intervalLabel(minutes: Int): String =
     if (minutes >= 60) stringResource(R.string.hour_short) else stringResource(R.string.minutes_short, minutes)
 
@@ -436,6 +566,7 @@ private enum class SettingsCategory(val titleRes: Int, val tint: Color) {
     WALLPAPERS(R.string.group_wallpapers, Purple),
     SCREENSAVER(R.string.group_screensaver, Indigo),
     UPDATES(R.string.group_updates, Green),
+    TOOLS(R.string.group_tools, Teal),
     SYSTEM(R.string.group_system, Gray),
 }
 
@@ -504,6 +635,7 @@ private fun CategoryRow(category: SettingsCategory, summary: String, autoFocus: 
                 SettingsCategory.WALLPAPERS -> PhotoIcon(icon)
                 SettingsCategory.SCREENSAVER -> MoonIcon(icon)
                 SettingsCategory.UPDATES -> RefreshIcon(icon)
+                SettingsCategory.TOOLS -> TerminalIcon(icon)
                 SettingsCategory.SYSTEM -> GearIcon(icon)
             }
         }
@@ -653,7 +785,7 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
                 .width(46.dp)
                 .height(28.dp)
                 .clip(CircleShape)
-                .background(if (checked) Green else ink.copy(alpha = 0.25f)),
+                .background(if (checked) LocalTheme.current.accent else ink.copy(alpha = 0.25f)),
             contentAlignment = Alignment.CenterStart,
         ) {
             Box(
@@ -763,6 +895,22 @@ private fun MoonIcon(modifier: Modifier) {
         drawCircle(Color.White, radius = w * 0.42f, center = Offset(w * 0.46f, size.height * 0.52f))
         // A second circle in the badge's colour bites out the crescent.
         drawCircle(Indigo, radius = w * 0.36f, center = Offset(w * 0.64f, size.height * 0.4f))
+    }
+}
+
+/** A command prompt: a chevron and an underscore. */
+@Composable
+private fun TerminalIcon(modifier: Modifier) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val chevron = Path().apply {
+            moveTo(w * 0.12f, h * 0.22f)
+            lineTo(w * 0.46f, h * 0.5f)
+            lineTo(w * 0.12f, h * 0.78f)
+        }
+        drawPath(chevron, Color.White, style = Stroke(width = w * 0.13f, cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        drawLine(Color.White, Offset(w * 0.54f, h * 0.8f), Offset(w * 0.9f, h * 0.8f), strokeWidth = w * 0.13f, cap = StrokeCap.Round)
     }
 }
 

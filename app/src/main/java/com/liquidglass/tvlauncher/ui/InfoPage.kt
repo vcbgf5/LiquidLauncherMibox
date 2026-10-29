@@ -44,6 +44,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,6 +52,7 @@ import com.liquidglass.tvlauncher.R
 import com.liquidglass.tvlauncher.data.Agenda
 import com.liquidglass.tvlauncher.data.AgendaSource
 import com.liquidglass.tvlauncher.data.NetworkKind
+import com.liquidglass.tvlauncher.data.NowPlayingState
 import com.liquidglass.tvlauncher.data.Weather
 import com.liquidglass.tvlauncher.data.WidgetData
 import com.liquidglass.tvlauncher.data.WidgetType
@@ -80,9 +82,11 @@ fun InfoPage(
     data: WidgetData,
     agenda: Agenda,
     weather: Weather?,
+    nowPlaying: NowPlayingState,
     entry: () -> Float,
     firstFocus: FocusRequester,
     onWidget: (WidgetType) -> Unit,
+    onWidgetLong: (WidgetType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val now = rememberNow()
@@ -142,6 +146,15 @@ fun InfoPage(
                             ) {
                                 WeatherContent(weather)
                             }
+                            WidgetType.NOW_PLAYING -> WidgetCard(
+                                320.dp,
+                                stringResource(R.string.widget_now_playing),
+                                focus,
+                                onClick = { onWidget(type) },
+                                onLongClick = { onWidgetLong(type) },
+                            ) {
+                                NowPlayingContent(nowPlaying)
+                            }
                             WidgetType.NETWORK -> WidgetCard(270.dp, stringResource(R.string.widget_network_title), focus, onClick = { onWidget(type) }) {
                                 NetworkContent(data)
                             }
@@ -166,6 +179,7 @@ private fun WidgetCard(
     title: String,
     focusRequester: FocusRequester?,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -185,7 +199,7 @@ private fun WidgetCard(
             }
             .clip(shape)
             .onFocusChanged { focused = it.isFocused }
-            .okAction(onClick)
+            .then(if (onLongClick != null) Modifier.okOrLongAction(onClick, onLongClick) else Modifier.okAction(onClick))
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .focusable()
             .background(Color.White.copy(alpha = if (focused) 0.17f else 0.09f))
@@ -352,6 +366,58 @@ private fun WeatherContent(weather: Weather?) {
             }
         }
     }
+}
+
+// ---- Now playing -------------------------------------------------------------------------------------
+
+@Composable
+private fun NowPlayingContent(state: NowPlayingState) {
+    val item = state.item
+    if (!state.hasAccess) {
+        Muted(stringResource(R.string.np_no_access))
+        return
+    }
+    if (item == null) {
+        Muted(stringResource(R.string.np_nothing))
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(72.dp).clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.12f))) {
+            item.art?.let { Image(bitmap = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(item.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (item.artist.isNotEmpty()) {
+                Text(item.artist, color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text(
+                text = item.appLabel + " · " + stringResource(if (item.playing) R.string.np_playing else R.string.np_paused),
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 11.sp,
+                maxLines = 1,
+            )
+        }
+    }
+    if (item.durationMs > 0) {
+        Box(
+            modifier = Modifier
+                .padding(top = 12.dp)
+                .fillMaxWidth()
+                .height(5.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color.White.copy(alpha = 0.2f)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth((item.positionMs.toFloat() / item.durationMs).coerceIn(0f, 1f))
+                    .height(5.dp)
+                    .background(Color.White),
+            )
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    Muted(stringResource(R.string.np_hint))
 }
 
 // ---- Network, Bluetooth, system --------------------------------------------------------------------

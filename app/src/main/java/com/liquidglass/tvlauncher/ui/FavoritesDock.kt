@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.liquidglass.tvlauncher.data.AppInfo
+import com.liquidglass.tvlauncher.data.Performance
 
 private const val DockTileWidthDp = 128f
 private const val DockSideMarginDp = 24f
@@ -57,7 +58,7 @@ private val DockShape = RoundedCornerShape(32.dp)
  * Real backdrop blur isn't available on the Android versions most TV
  * boxes ship, so the blur is baked: [backdrop] is a pre-blurred copy of
  * the whole photo, drawn here at the spot where that photo really is
- * (including the photo's slow zoom, [zoom]). The tray is always
+ * (including the photo's slow zoom, [zoom], and its sideways drift, [shiftX]). The tray is always
  * [bottomInsetPx] above the bottom of a [screenSize] screen and
  * horizontally centred, so its position is worked out from its own size
  * instead of being measured on screen, which the slide animations would
@@ -74,7 +75,9 @@ fun FavoritesDock(
     transparency: Float,
     sizeFactor: Float,
     zoom: () -> Float,
-    firstTileFocus: FocusRequester,
+    shiftX: () -> Float,
+    requesterFor: (AppInfo) -> FocusRequester,
+    onFocusedIndex: (Int) -> Unit,
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
     onScrollDown: () -> Unit,
@@ -101,14 +104,16 @@ fun FavoritesDock(
                     false
                 }
             }
-            .shadow(28.dp, DockShape, clip = false)
+            // A big soft shadow is a lot of work for a weak GPU: the light mode has a small one.
+            .shadow(if (Performance.lite) 8.dp else 28.dp, DockShape, clip = false)
             .clip(DockShape)
             .drawBehind {
                 val origin = Offset(
                     x = (screenSize.width - size.width) / 2f,
                     y = screenSize.height - bottomInsetPx - size.height,
                 )
-                translate(left = -origin.x, top = -origin.y) {
+                // The photo may be drifting sideways with focus: the backdrop follows it exactly.
+                translate(left = -origin.x + shiftX(), top = -origin.y) {
                     scale(scale = zoom(), pivot = Offset(screenSize.width / 2f, screenSize.height / 2f)) {
                         val a = 1f - 0.6f * t
                         // While the wallpaper changes, the old backdrop stays underneath.
@@ -138,8 +143,9 @@ fun FavoritesDock(
                 modifier = Modifier
                     .width(tileWidth)
                     .riseIn(delayMillis = 220 + index * 70, distance = 28.dp, fromScale = 0.85f),
-                focusRequester = if (index == 0) firstTileFocus else null,
+                focusRequester = requesterFor(app),
                 reserveLabelSpace = false,
+                onFocusChange = { if (it) onFocusedIndex(index) },
                 onClick = { rect -> onLaunch(app, rect) },
                 onLongClick = { onOpenMenu(app) },
             )

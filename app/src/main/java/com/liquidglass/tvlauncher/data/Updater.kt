@@ -118,7 +118,7 @@ object Updater {
      * Unknown (the system gave no signatures) counts as the same, so nothing is blocked wrongly.
      */
     @Suppress("DEPRECATION")
-    private fun sameSigner(context: Context, file: File): Boolean {
+    fun sameSigner(context: Context, file: File): Boolean {
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             PackageManager.GET_SIGNING_CERTIFICATES
         } else {

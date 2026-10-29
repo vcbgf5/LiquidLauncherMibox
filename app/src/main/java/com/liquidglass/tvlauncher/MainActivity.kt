@@ -3,6 +3,7 @@ package com.liquidglass.tvlauncher
 import android.Manifest
 import android.accounts.AccountManager
 import android.app.ActivityOptions
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -10,16 +11,21 @@ import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.Window
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
@@ -30,30 +36,45 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlin.math.roundToInt
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.liquidglass.tvlauncher.data.AccountProvider
+import com.liquidglass.tvlauncher.data.AdbResult
+import com.liquidglass.tvlauncher.data.AppFolder
 import com.liquidglass.tvlauncher.data.AppInfo
 import com.liquidglass.tvlauncher.data.AppRepository
+import com.liquidglass.tvlauncher.data.Changelog
 import com.liquidglass.tvlauncher.data.FavoritesStore
+import com.liquidglass.tvlauncher.data.FolderArt
+import com.liquidglass.tvlauncher.data.FolderStore
+import com.liquidglass.tvlauncher.data.FrameMonitor
 import com.liquidglass.tvlauncher.data.IconOverrides
 import com.liquidglass.tvlauncher.data.IconPack
 import com.liquidglass.tvlauncher.data.IconPacks
 import com.liquidglass.tvlauncher.data.LauncherSettings
+import com.liquidglass.tvlauncher.data.NowPlayingReader
+import com.liquidglass.tvlauncher.data.NowPlayingState
+import com.liquidglass.tvlauncher.data.Performance
 import com.liquidglass.tvlauncher.data.PriorityApps
-import com.liquidglass.tvlauncher.data.SilentInstaller
+import com.liquidglass.tvlauncher.data.RemoteServer
+import com.liquidglass.tvlauncher.data.SelfAdb
 import com.liquidglass.tvlauncher.data.SystemStatus
-import com.liquidglass.tvlauncher.data.UpdateInfo
+import com.liquidglass.tvlauncher.data.SystemTools
+import com.liquidglass.tvlauncher.data.UpdateManager
+import com.liquidglass.tvlauncher.data.UpdateStatus
 import com.liquidglass.tvlauncher.data.Updater
 import com.liquidglass.tvlauncher.data.Agenda
 import com.liquidglass.tvlauncher.data.AgendaRepository
@@ -67,27 +88,44 @@ import com.liquidglass.tvlauncher.data.WidgetType
 import com.liquidglass.tvlauncher.data.WallpaperCatalog
 import com.liquidglass.tvlauncher.data.WallpaperImage
 import com.liquidglass.tvlauncher.data.WallpaperRepository
+import com.liquidglass.tvlauncher.data.isFolder
 import com.liquidglass.tvlauncher.ui.AppMenu
 import com.liquidglass.tvlauncher.ui.DiagnosticsDialog
+import com.liquidglass.tvlauncher.ui.FolderDialog
 import com.liquidglass.tvlauncher.ui.HomeScreen
 import com.liquidglass.tvlauncher.ui.IconPicker
+import com.liquidglass.tvlauncher.ui.LauncherTheme
+import com.liquidglass.tvlauncher.ui.LocalTheme
 import com.liquidglass.tvlauncher.ui.LocalTileLighting
+import com.liquidglass.tvlauncher.ui.LocalTileTilt
 import com.liquidglass.tvlauncher.ui.PAGE_HOME
 import com.liquidglass.tvlauncher.ui.PAGE_INFO
 import com.liquidglass.tvlauncher.ui.LaunchOverlay
 import com.liquidglass.tvlauncher.ui.LaunchRequest
 import com.liquidglass.tvlauncher.ui.MenuOption
+import com.liquidglass.tvlauncher.ui.QuickPanel
+import com.liquidglass.tvlauncher.ui.QuickTile
+import com.liquidglass.tvlauncher.ui.RemoteDialog
 import com.liquidglass.tvlauncher.ui.Screensaver
 import com.liquidglass.tvlauncher.ui.SettingsDialog
+import com.liquidglass.tvlauncher.ui.SettingsExtras
+import com.liquidglass.tvlauncher.ui.TileMotion
 import com.liquidglass.tvlauncher.ui.WallpaperState
 
 class MainActivity : ComponentActivity() {
+
+    /** Lives as long as the activity: adb tools and the phone remote run in it. */
+    private val appScope = MainScope()
 
     /** Bumped on every onResume so installs/uninstalls made elsewhere show up. */
     private var resumeSignal by mutableIntStateOf(0)
 
     /** Bumped on Home/Back: focus returns to the first favorite. */
     private var resetSignal by mutableIntStateOf(0)
+
+    /** Bumped when the launcher comes back from an app it started: focus returns to that app's tile. */
+    private var restoreSignal by mutableIntStateOf(0)
+    private var pendingRestore = false
 
     /** One of the PAGE_ constants: info (top), home (middle), the app list (bottom). */
     private var page by mutableIntStateOf(PAGE_HOME)
@@ -115,29 +153,51 @@ class MainActivity : ComponentActivity() {
     /** Bumped by "next wallpaper" in the settings. */
     private var skipSignal by mutableIntStateOf(0)
 
+    /** The quick settings (hold OK on the gear, or the Menu key). */
+    private var showQuick by mutableStateOf(false)
+
     // Bookkeeping for the rotation: what it last did, so coming back from an app doesn't reshuffle.
     private var lastRotationKey = ""
     private var lastWallpaperAt = 0L
 
     private lateinit var store: FavoritesStore
     private lateinit var settings: LauncherSettings
+    private lateinit var folderStore: FolderStore
+    private lateinit var updates: UpdateManager
+    private lateinit var remoteServer: RemoteServer
+    private var frameMonitor: FrameMonitor? = null
+
+    /** Bumped when the phone page asks for another mode, so the screen reads the setting again. */
+    private var performanceTick by mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = FavoritesStore(this)
         settings = LauncherSettings(this)
+        folderStore = FolderStore(this)
+        updates = UpdateManager(this, settings)
+        Performance.refresh(this, settings)
+        remoteServer = RemoteServer(token = { settings.remoteToken }, handle = ::handleRemote)
         handleIntent(intent)
 
         setContent {
             var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
             var favoriteKeys by remember { mutableStateOf(store.load()) }
+            var folders by remember { mutableStateOf(folderStore.load()) }
             var menuApp by remember { mutableStateOf<AppInfo?>(null) }
+            var folderPickApp by remember { mutableStateOf<AppInfo?>(null) }
+            var openFolder by remember { mutableStateOf<String?>(null) }
             var showSettings by remember { mutableStateOf(false) }
             var dockTransparency by remember { mutableIntStateOf(settings.dockTransparency) }
             var dockSize by remember { mutableIntStateOf(settings.dockSize) }
             var screensaverMinutes by remember { mutableIntStateOf(settings.screensaverMinutes) }
             var bigClock by remember { mutableStateOf(settings.bigClock) }
             var tileLighting by remember { mutableStateOf(settings.tileLighting) }
+            var tileTilt by remember { mutableStateOf(settings.tileTilt) }
+            var parallax by remember { mutableStateOf(settings.parallax) }
+            var accentIndex by remember { mutableIntStateOf(settings.accentIndex) }
+            var glassIndex by remember { mutableIntStateOf(settings.glassTintIndex) }
+            var performanceMode by remember(performanceTick) { mutableIntStateOf(settings.performanceMode) }
             var clockContent by remember { mutableIntStateOf(settings.clockContent) }
             var clockPosition by remember { mutableIntStateOf(settings.clockPosition) }
             var statusIcons by remember { mutableStateOf(settings.statusIcons) }
@@ -146,7 +206,11 @@ class MainActivity : ComponentActivity() {
             var showVolumeDiag by remember { mutableStateOf(false) }
             var diagTick by remember { mutableIntStateOf(0) }
             var accessibilityOn by remember { mutableStateOf(false) }
-            LaunchedEffect(showSettings, resumeSignal) { accessibilityOn = accessibilityServiceOn() }
+            var notificationAccessOn by remember { mutableStateOf(false) }
+            LaunchedEffect(showSettings, resumeSignal) {
+                accessibilityOn = SystemTools.accessibilityOn(this@MainActivity)
+                notificationAccessOn = SystemTools.notificationAccessOn(this@MainActivity)
+            }
             val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { calendarTick++ }
             var showPower by remember { mutableStateOf(false) }
             var iconPickerApp by remember { mutableStateOf<AppInfo?>(null) }
@@ -169,85 +233,52 @@ class MainActivity : ComponentActivity() {
             var agenda by remember { mutableStateOf(Agenda.EMPTY) }
             var weather by remember { mutableStateOf(WeatherRepository.cached(this@MainActivity)) }
             var weatherCity by remember { mutableStateOf(settings.weatherCity) }
+            var nowPlaying by remember { mutableStateOf(NowPlayingState.NONE) }
 
-            // In-app updates (see Updater): what the check found, and where the download is.
-            val scope = rememberCoroutineScope()
-            var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
-            var updateStatus by remember { mutableStateOf(UpdateStatus.IDLE) }
-            var downloadPercent by remember { mutableIntStateOf(0) }
-            var silentProblem by remember { mutableStateOf("") }
+            // Things the adb tools and the phone remote ask the screen to show.
+            var showRemote by remember { mutableStateOf(false) }
+            var remoteAlways by remember { mutableStateOf(settings.remoteAlways) }
+            var remotePort by remember { mutableIntStateOf(0) }
+            var remoteIp by remember { mutableStateOf<String?>(null) }
+            var remoteTokenVersion by remember { mutableIntStateOf(0) }
+            var showChangelog by remember { mutableStateOf(false) }
+            var reportDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+            var confirm by remember { mutableStateOf<ConfirmRequest?>(null) }
+            var disableList by remember { mutableStateOf(false) }
+            var restoreList by remember { mutableStateOf<List<String>?>(null) }
+            var showAdbDiag by remember { mutableStateOf(false) }
+            var adbDiagText by remember { mutableStateOf("") }
+
+            // In-app updates (see UpdateManager): the status, the version found and the download.
             var silentUpdates by remember { mutableStateOf(settings.silentUpdates) }
             var adbStatus by remember { mutableStateOf("") }
             var autoCheck by remember { mutableStateOf(settings.autoCheckUpdates) }
+            var updateInterval by remember { mutableIntStateOf(settings.updateIntervalSeconds) }
 
-            // [automatic] = nobody pressed anything: stay quiet about errors, only the red dot
-            // shows. Downloading and handing the APK to the installer is [installUpdate].
-            suspend fun installUpdate(automatic: Boolean) {
-                val info = updateInfo ?: return
-                if (updateStatus == UpdateStatus.DOWNLOADING) return
-                updateStatus = UpdateStatus.DOWNLOADING
-                downloadPercent = 0
-                val file = Updater.download(this@MainActivity, info) { downloadPercent = it }
-                if (file != null && settings.silentUpdates) {
-                    // No Android window: the box's own ADB installs it (the launcher is then restarted by the system).
-                    updateStatus = UpdateStatus.SILENT_INSTALLING
-                    when (val result = SilentInstaller.install(this@MainActivity, file)) {
-                        SilentInstaller.Result.Done -> {
-                            updateInfo = null
-                            updateStatus = UpdateStatus.UP_TO_DATE
-                            return
-                        }
-                        SilentInstaller.Result.NeedsApproval -> silentProblem = getString(R.string.update_silent_needs_approval)
-                        SilentInstaller.Result.NoAdb -> silentProblem = getString(R.string.update_silent_no_adb)
-                        is SilentInstaller.Result.Failed -> silentProblem = getString(R.string.update_silent_failed, result.reason)
-                    }
-                    updateStatus = UpdateStatus.SILENT_FAILED
-                    // Pressed by hand: still get the update, through the normal installer.
-                    if (automatic) return
-                }
-                if (file != null && updateStatus == UpdateStatus.SILENT_FAILED) {
-                    Updater.install(this@MainActivity, file, askPermission = true)
-                    return
-                }
-                updateStatus = if (file == null) {
-                    UpdateStatus.DOWNLOAD_FAILED
-                } else when (Updater.install(this@MainActivity, file, askPermission = !automatic)) {
-                    Updater.InstallStart.STARTED -> UpdateStatus.INSTALLING
-                    Updater.InstallStart.NEEDS_PERMISSION -> UpdateStatus.NEEDS_PERMISSION
-                    Updater.InstallStart.WRONG_SIGNATURE -> UpdateStatus.WRONG_SIGNATURE
-                    Updater.InstallStart.FAILED -> UpdateStatus.DOWNLOAD_FAILED
-                }
-            }
-
-            // Pings GitHub for the newest version.json. A newer one is installed right away when
-            // [thenInstall] says so (the check button, or the automatic path with the switch on).
-            suspend fun checkForUpdates(automatic: Boolean, thenInstall: Boolean) {
-                if (!automatic) updateStatus = UpdateStatus.CHECKING
-                when (val result = Updater.check(this@MainActivity)) {
-                    is Updater.CheckResult.Newer -> {
-                        updateInfo = result.info
-                        updateStatus = UpdateStatus.AVAILABLE
-                        // The automatic path offers each version once; a refused install is not repeated.
-                        val alreadyOffered = automatic && settings.lastAutoInstalled == result.info.versionCode
-                        if (thenInstall && !alreadyOffered) {
-                            if (automatic) settings.lastAutoInstalled = result.info.versionCode
-                            installUpdate(automatic)
-                        }
-                    }
-                    Updater.CheckResult.UpToDate -> {
-                        updateInfo = null
-                        if (!automatic) updateStatus = UpdateStatus.UP_TO_DATE
-                    }
-                    Updater.CheckResult.Failed -> if (!automatic) updateStatus = UpdateStatus.CHECK_FAILED
-                }
-                settings.lastUpdateCheck = System.currentTimeMillis()
-            }
-
-            // Automatic: whenever the launcher comes on screen, at most every 6 hours (one tiny
-            // request), and with the switch on a newer version is downloaded and offered to Android.
+            // Automatic: while the launcher is on screen it asks GitHub for the newest version every
+            // few seconds (5 by default; one tiny request), and installs a newer one as soon as the
+            // remote has been left alone for a moment.
             LaunchedEffect(inForeground, autoCheck) {
-                if (inForeground && autoCheck && System.currentTimeMillis() - settings.lastUpdateCheck > 6 * 3_600_000L) {
-                    checkForUpdates(automatic = true, thenInstall = true)
+                if (!inForeground || !autoCheck) return@LaunchedEffect
+                while (true) {
+                    val wait = updates.autoStep(userIdle = { System.currentTimeMillis() - lastInputAt > 4_000L })
+                    delay(wait)
+                }
+            }
+
+            // After an update: what is new, once.
+            LaunchedEffect(Unit) {
+                val current = Updater.currentVersionCode(this@MainActivity)
+                val seen = settings.lastSeenVersionCode
+                if (seen != current) {
+                    val fresh = try {
+                        val info = packageManager.getPackageInfo(packageName, 0)
+                        info.firstInstallTime == info.lastUpdateTime
+                    } catch (_: Exception) {
+                        true
+                    }
+                    if ((seen in 1 until current) || (seen == 0L && !fresh)) showChangelog = true
+                    settings.lastSeenVersionCode = current
                 }
             }
 
@@ -258,13 +289,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Anything on top of the home screen: while it is open the screensaver doesn't start and
+            // the breathing wallpaper stands still.
+            val dialogOpen = showSettings || menuApp != null || iconPickerApp != null || showPower || showQuick ||
+                openFolder != null || folderPickApp != null || showRemote || showChangelog || reportDialog != null ||
+                confirm != null || disableList || restoreList != null || showAdbDiag || showVolumeDiag || launchRequest != null
+
             // Screensaver: starts after the chosen time without any key press, while the launcher
             // is on screen and nothing (a dialog, an app opening) is going on. Every key press
             // (see dispatchKeyEvent) restarts the wait.
-            LaunchedEffect(inForeground, screensaverMinutes, showSettings, menuApp, iconPickerApp, launchRequest) {
-                if (!inForeground || screensaverMinutes <= 0 || showSettings || menuApp != null || iconPickerApp != null || showPower || launchRequest != null) {
-                    return@LaunchedEffect
-                }
+            LaunchedEffect(inForeground, screensaverMinutes, dialogOpen) {
+                if (!inForeground || screensaverMinutes <= 0 || dialogOpen) return@LaunchedEffect
                 snapshotFlow { lastInputAt }.collectLatest {
                     delay(screensaverMinutes * 60_000L)
                     screensaverShowing = true
@@ -301,6 +336,28 @@ class MainActivity : ComponentActivity() {
                         delay(8_000)
                         widgetData = withContext(Dispatchers.Default) { WidgetDataReader.read(this@MainActivity) }
                     }
+                }
+            }
+
+            // What is playing, for the "Now playing" widget: only while that page is shown.
+            LaunchedEffect(inForeground, page, widgetKeys) {
+                if (inForeground && page == PAGE_INFO && WidgetType.NOW_PLAYING.key in widgetKeys) {
+                    while (true) {
+                        nowPlaying = withContext(Dispatchers.Default) { NowPlayingReader.read(this@MainActivity) }
+                        delay(1_500)
+                    }
+                }
+            }
+
+            // The phone remote's web server runs while its window is open, or all the time when asked to.
+            LaunchedEffect(showRemote, remoteAlways) {
+                if (showRemote || remoteAlways) {
+                    withContext(Dispatchers.IO) { remoteServer.start() }
+                    remotePort = remoteServer.port
+                    remoteIp = withContext(Dispatchers.Default) { WidgetDataReader.localAddress() }
+                } else {
+                    remoteServer.stop()
+                    remotePort = 0
                 }
             }
 
@@ -382,9 +439,26 @@ class MainActivity : ComponentActivity() {
             val widgets = WidgetType.values().filter { it.key in widgetKeys }
             val weatherLine = weather?.let { "${it.city} · ${it.temperature.roundToInt()}° " + stringResource(Weather.textOf(it.code)) }
 
+            // The app list shows the folders first, then every app that isn't in one.
+            val folderTiles = remember(apps, folders) {
+                folders.mapNotNull { folder ->
+                    val members = folder.keys.mapNotNull { byKey[it] }
+                    if (members.isEmpty()) null else FolderArt.tile(folder.name, members)
+                }
+            }
+            val gridApps = remember(apps, folders, folderTiles) {
+                val inFolders = folders.flatMap { it.keys }.toSet()
+                folderTiles + apps.filter { it.key !in inFolders }
+            }
+
             fun saveKeys(updated: List<String>) {
                 favoriteKeys = updated
                 store.save(updated)
+            }
+
+            fun saveFolders(updated: List<AppFolder>) {
+                folders = updated
+                folderStore.save(updated)
             }
 
             // Back never leaves the launcher: from the info or app pages it returns to the home
@@ -394,16 +468,22 @@ class MainActivity : ComponentActivity() {
                 if (page != PAGE_HOME) page = PAGE_HOME else resetSignal++
             }
 
+            val theme = LauncherTheme.of(accentIndex, glassIndex)
+            CompositionLocalProvider(
+                LocalTheme provides theme,
+                LocalTileLighting provides tileLighting,
+                LocalTileTilt provides tileTilt,
+            ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                CompositionLocalProvider(LocalTileLighting provides tileLighting) {
                 HomeScreen(
                     favorites = favorites,
-                    allApps = apps,
+                    allApps = gridApps,
                     widgets = widgets,
                     widgetData = widgetData,
                     agenda = agenda,
                     weather = weather,
                     weatherLine = weatherLine,
+                    nowPlaying = nowPlaying,
                     onWidget = { type ->
                         when (type) {
                             WidgetType.AGENDA -> calendarTick++
@@ -411,15 +491,26 @@ class MainActivity : ComponentActivity() {
                             WidgetType.NETWORK -> openSystemScreen(Settings.ACTION_WIFI_SETTINGS)
                             WidgetType.BLUETOOTH -> openSystemScreen(Settings.ACTION_BLUETOOTH_SETTINGS)
                             WidgetType.SYSTEM -> openSystemScreen(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)
+                            WidgetType.NOW_PLAYING -> {
+                                val item = nowPlaying.item
+                                if (item != null) {
+                                    item.playPause()
+                                } else if (!nowPlaying.hasAccess) {
+                                    grantNotificationAccess()
+                                }
+                            }
                             WidgetType.CALENDAR -> Unit
                         }
+                    },
+                    onWidgetLong = { type ->
+                        if (type == WidgetType.NOW_PLAYING) nowPlaying.item?.next()
                     },
                     page = page,
                     onPage = { page = it },
                     resetSignal = resetSignal,
-                    focusPaused = showSettings || menuApp != null || iconPickerApp != null || showPower || launchRequest != null,
+                    focusPaused = dialogOpen,
                     accountName = accountName,
-                    updateAvailable = updateInfo != null,
+                    updateAvailable = updates.info != null,
                     wallpaper = wallpaper,
                     dockTransparency = dockTransparency / 100f,
                     dockSize = dockSize / 100f,
@@ -435,10 +526,11 @@ class MainActivity : ComponentActivity() {
                             launchExpanded = true
                         }
                     },
-                    // Titles and the system-home shortcut have no favorite/uninstall menu.
+                    // Titles, folders and the system-home shortcut have no favorite/uninstall menu.
                     onOpenMenu = { if (it.intentUri == null && it in apps) menuApp = it },
+                    onOpenFolder = { openFolder = it },
                     onOpenSettings = { showSettings = true },
-                    onOpenPower = { showPower = true },
+                    onOpenPower = { showQuick = true },
                     onOpenAccount = {
                         if (accountName == null) {
                             try {
@@ -450,9 +542,11 @@ class MainActivity : ComponentActivity() {
                             openAccountSettings()
                         }
                     },
+                    restoreSignal = restoreSignal,
+                    parallaxOn = parallax,
+                    idle = dialogOpen || screensaverShowing || !inForeground,
                     modifier = Modifier.fillMaxSize(),
                 )
-                }
 
                 // Draws over everything: the tile growing to fill the screen as the app opens.
                 LaunchOverlay(
@@ -480,26 +574,37 @@ class MainActivity : ComponentActivity() {
                         (WallpaperCatalog.OFF to offLabel)
                 }
                 val versionName = Updater.currentVersionName(this@MainActivity)
-                val newVersionName = updateInfo?.versionName ?: ""
-                val statusText = when (updateStatus) {
+                val newVersion = updates.info
+                val newVersionName = newVersion?.versionName ?: ""
+                val statusText = when (updates.status) {
                     UpdateStatus.IDLE -> stringResource(R.string.update_version, versionName)
                     UpdateStatus.CHECKING -> stringResource(R.string.update_checking, versionName)
                     UpdateStatus.UP_TO_DATE -> stringResource(R.string.update_latest, versionName)
                     UpdateStatus.AVAILABLE -> stringResource(R.string.update_available, versionName, newVersionName)
                     UpdateStatus.CHECK_FAILED -> stringResource(R.string.update_check_failed)
-                    UpdateStatus.DOWNLOADING -> stringResource(R.string.update_downloading, downloadPercent)
+                    UpdateStatus.DOWNLOADING -> stringResource(R.string.update_downloading, updates.percent)
                     UpdateStatus.DOWNLOAD_FAILED -> stringResource(R.string.update_download_failed)
                     UpdateStatus.NEEDS_PERMISSION -> stringResource(R.string.update_permission)
                     UpdateStatus.WRONG_SIGNATURE -> stringResource(R.string.update_wrong_key)
                     UpdateStatus.INSTALLING -> stringResource(R.string.update_installing)
                     UpdateStatus.SILENT_INSTALLING -> stringResource(R.string.update_silent_installing)
-                    UpdateStatus.SILENT_FAILED -> silentProblem
+                    UpdateStatus.SILENT_FAILED -> updates.problem
                 }
-                val installLabel = if (updateInfo != null && updateStatus != UpdateStatus.DOWNLOADING) {
+                val installLabel = if (newVersion != null && updates.status != UpdateStatus.DOWNLOADING) {
                     stringResource(R.string.settings_update_install, newVersionName)
                 } else {
                     null
                 }
+                val lite = Performance.lite
+                val performanceNote = stringResource(
+                    when {
+                        performanceMode == LauncherSettings.PERF_LITE -> R.string.performance_note_lite
+                        performanceMode == LauncherSettings.PERF_FULL -> R.string.performance_note_full
+                        lite -> R.string.performance_note_auto_on
+                        else -> R.string.performance_note_auto_off
+                    },
+                )
+                var animationScale by remember { mutableStateOf(SystemTools.animationScale(this@MainActivity)) }
                 SettingsDialog(
                     versionLabel = stringResource(R.string.settings_version_label, versionName),
                     transparencyPercent = dockTransparency,
@@ -561,8 +666,8 @@ class MainActivity : ComponentActivity() {
                     onNextWallpaper = { skipSignal++ },
                     updateStatus = statusText,
                     installLabel = installLabel,
-                    onCheckUpdates = { scope.launch { checkForUpdates(automatic = false, thenInstall = true) } },
-                    onInstallUpdate = { scope.launch { installUpdate(automatic = false) } },
+                    onCheckUpdates = { appScope.launch { updates.checkNow() } },
+                    onInstallUpdate = { appScope.launch { updates.install(automatic = false) } },
                     silentUpdates = silentUpdates,
                     onSilentUpdatesChange = {
                         silentUpdates = it
@@ -571,15 +676,11 @@ class MainActivity : ComponentActivity() {
                     adbStatus = adbStatus,
                     onConnectAdb = {
                         adbStatus = getString(R.string.adb_connecting)
-                        scope.launch {
-                            adbStatus = getString(
-                                when (SilentInstaller.check(this@MainActivity)) {
-                                    SilentInstaller.Result.Done -> R.string.adb_connected
-                                    SilentInstaller.Result.NeedsApproval -> R.string.update_silent_needs_approval
-                                    SilentInstaller.Result.NoAdb -> R.string.update_silent_no_adb
-                                    is SilentInstaller.Result.Failed -> R.string.adb_failed
-                                },
-                            )
+                        appScope.launch {
+                            adbStatus = when (val result = SelfAdb.shell(this@MainActivity, "id")) {
+                                is AdbResult.Ok -> getString(R.string.adb_connected)
+                                else -> adbProblem(result)
+                            }
                         }
                     },
                     autoCheckUpdates = autoCheck,
@@ -599,7 +700,7 @@ class MainActivity : ComponentActivity() {
                     },
                     accessibilityOn = accessibilityOn,
                     onOpenAccessibility = {
-                        if (enableAccessibilityDirectly()) {
+                        if (SystemTools.enableAccessibility(this@MainActivity)) {
                             accessibilityOn = true
                         } else {
                             showSettings = false
@@ -644,7 +745,196 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     onOpenSystemSettings = { openSettings() },
+                    extras = SettingsExtras(
+                        accentIndex = accentIndex,
+                        onAccent = {
+                            accentIndex = it
+                            settings.accentIndex = it
+                        },
+                        glassIndex = glassIndex,
+                        onGlass = {
+                            glassIndex = it
+                            settings.glassTintIndex = it
+                        },
+                        tileTilt = tileTilt,
+                        onTileTilt = {
+                            tileTilt = it
+                            settings.tileTilt = it
+                        },
+                        parallax = parallax,
+                        onParallax = {
+                            parallax = it
+                            settings.parallax = it
+                        },
+                        performanceMode = performanceMode,
+                        performanceNote = performanceNote,
+                        onPerformance = {
+                            performanceMode = it
+                            settings.performanceMode = it
+                            settings.autoLite = false
+                            Performance.refresh(this@MainActivity, settings)
+                        },
+                        updateIntervalSeconds = updateInterval,
+                        onUpdateInterval = {
+                            updateInterval = it
+                            settings.updateIntervalSeconds = it
+                        },
+                        onShowChangelog = {
+                            showSettings = false
+                            showChangelog = true
+                        },
+                        onAdbDiagnostics = {
+                            showSettings = false
+                            adbDiagText = getString(R.string.adb_diag_running)
+                            showAdbDiag = true
+                            appScope.launch { adbDiagText = SelfAdb.diagnose(this@MainActivity) }
+                        },
+                        onSetupAdb = {
+                            showSettings = false
+                            reportDialog = getString(R.string.tools_setup_title) to getString(R.string.tools_setup_running)
+                            appScope.launch {
+                                val result = SystemTools.grantPermissions(this@MainActivity)
+                                reportDialog = getString(R.string.tools_setup_title) to if (result is AdbResult.Ok) {
+                                    // The connection works, so the silent updates can be used.
+                                    settings.silentUpdates = true
+                                    silentUpdates = true
+                                    accessibilityOn = SystemTools.accessibilityOn(this@MainActivity)
+                                    notificationAccessOn = SystemTools.notificationAccessOn(this@MainActivity)
+                                    result.value.joinToString("\n") + "\n\n" + getString(R.string.tools_setup_done)
+                                } else {
+                                    adbProblem(result)
+                                }
+                            }
+                        },
+                        onFreeMemory = {
+                            toast(getString(R.string.tools_working))
+                            appScope.launch { reportAdb(SystemTools.freeMemory(this@MainActivity)) { it } }
+                        },
+                        animationScale = animationScale,
+                        onAnimationScale = { scale ->
+                            appScope.launch {
+                                val result = SystemTools.setAnimationScale(this@MainActivity, scale)
+                                if (result is AdbResult.Ok) animationScale = scale else toast(adbProblem(result))
+                            }
+                        },
+                        onDisableApps = {
+                            showSettings = false
+                            disableList = true
+                        },
+                        onRestoreApps = {
+                            showSettings = false
+                            appScope.launch {
+                                when (val result = SystemTools.disabledPackages(this@MainActivity)) {
+                                    is AdbResult.Ok -> if (result.value.isEmpty()) toast(getString(R.string.tools_nothing_disabled)) else restoreList = result.value
+                                    else -> toast(adbProblem(result))
+                                }
+                            }
+                        },
+                        onTvOn = { appScope.launch { reportAdb(SystemTools.tvOn(this@MainActivity)) { getString(R.string.tools_cec_sent) } } },
+                        onTvToggle = { appScope.launch { reportAdb(SystemTools.tvPowerToggle(this@MainActivity)) { getString(R.string.tools_cec_sent) } } },
+                        onRemote = {
+                            showSettings = false
+                            showRemote = true
+                        },
+                        notificationAccessOn = notificationAccessOn,
+                        onNotificationAccess = {
+                            grantNotificationAccess()
+                            notificationAccessOn = SystemTools.notificationAccessOn(this@MainActivity)
+                        },
+                    ),
                     onDismiss = { showSettings = false },
+                )
+            }
+
+            if (showQuick) {
+                val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val volumePercent = audio.getStreamVolume(AudioManager.STREAM_MUSIC) * 100 / audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                val lite = Performance.lite
+                val tiles = listOf(
+                    QuickTile(
+                        stringResource(R.string.shortcut_wifi),
+                        networkStatus(),
+                        systemStatus.network != com.liquidglass.tvlauncher.data.NetworkKind.OFFLINE,
+                    ) {
+                        showQuick = false
+                        openSystemScreen(Settings.ACTION_WIFI_SETTINGS)
+                    },
+                    QuickTile(
+                        stringResource(R.string.shortcut_bluetooth),
+                        stringResource(
+                            when (systemStatus.bluetooth) {
+                                true -> R.string.quick_on
+                                false -> R.string.quick_off
+                                null -> R.string.quick_none
+                            },
+                        ),
+                        systemStatus.bluetooth == true,
+                    ) {
+                        showQuick = false
+                        openSystemScreen(Settings.ACTION_BLUETOOTH_SETTINGS)
+                    },
+                    QuickTile(stringResource(R.string.shortcut_sound), "$volumePercent%", volumePercent > 0) {
+                        showQuick = false
+                        openSystemScreen(Settings.ACTION_SOUND_SETTINGS)
+                    },
+                    QuickTile(stringResource(R.string.power_screensaver), stringResource(R.string.quick_now), false) {
+                        showQuick = false
+                        screensaverShowing = true
+                    },
+                    QuickTile(
+                        stringResource(R.string.settings_performance),
+                        stringResource(
+                            when {
+                                performanceMode == LauncherSettings.PERF_AUTO && lite -> R.string.performance_quick_auto_lite
+                                performanceMode == LauncherSettings.PERF_AUTO -> R.string.performance_auto
+                                performanceMode == LauncherSettings.PERF_LITE -> R.string.performance_lite
+                                else -> R.string.performance_full
+                            },
+                        ),
+                        lite,
+                    ) {
+                        val next = (performanceMode + 1) % 3
+                        performanceMode = next
+                        settings.performanceMode = next
+                        settings.autoLite = false
+                        Performance.refresh(this@MainActivity, settings)
+                    },
+                    QuickTile(stringResource(R.string.tools_free_memory), stringResource(R.string.quick_adb), false) {
+                        showQuick = false
+                        toast(getString(R.string.tools_working))
+                        appScope.launch { reportAdb(SystemTools.freeMemory(this@MainActivity)) { it } }
+                    },
+                    QuickTile(stringResource(R.string.quick_standby), stringResource(R.string.quick_adb), false) {
+                        showQuick = false
+                        appScope.launch { reportAdb(SystemTools.standby(this@MainActivity)) { getString(R.string.quick_sent) } }
+                    },
+                    QuickTile(stringResource(R.string.quick_reboot), stringResource(R.string.quick_adb), false) {
+                        showQuick = false
+                        confirm = ConfirmRequest(getString(R.string.quick_reboot_ask), getString(R.string.quick_reboot)) {
+                            appScope.launch { reportAdb(SystemTools.reboot(this@MainActivity)) { getString(R.string.quick_sent) } }
+                        }
+                    },
+                    QuickTile(stringResource(R.string.tools_tv_on), "HDMI-CEC", false) {
+                        showQuick = false
+                        appScope.launch { reportAdb(SystemTools.tvOn(this@MainActivity)) { getString(R.string.tools_cec_sent) } }
+                    },
+                    QuickTile(stringResource(R.string.tools_tv_toggle), "HDMI-CEC", false) {
+                        showQuick = false
+                        appScope.launch { reportAdb(SystemTools.tvPowerToggle(this@MainActivity)) { getString(R.string.tools_cec_sent) } }
+                    },
+                    QuickTile(stringResource(R.string.quick_remote), stringResource(R.string.quick_qr), remoteAlways) {
+                        showQuick = false
+                        showRemote = true
+                    },
+                    QuickTile(stringResource(R.string.group_system), stringResource(R.string.quick_settings), false) {
+                        showQuick = false
+                        showSettings = true
+                    },
+                )
+                QuickPanel(
+                    title = stringResource(R.string.quick_title),
+                    tiles = tiles,
+                    onDismiss = { showQuick = false },
                 )
             }
 
@@ -652,6 +942,7 @@ class MainActivity : ComponentActivity() {
                 val shown = favorites.map { it.key }
                 val index = shown.indexOf(app.key)
                 val isFavorite = index >= 0
+                val folder = FolderStore.folderOf(folders, app.key)
                 val options = buildList {
                     if (isFavorite) {
                         add(MenuOption(stringResource(R.string.menu_remove_favorite)) {
@@ -672,6 +963,13 @@ class MainActivity : ComponentActivity() {
                             saveKeys(shown + app.key)
                         })
                     }
+                    if (folder == null) {
+                        add(MenuOption(stringResource(R.string.menu_add_to_folder)) { folderPickApp = app })
+                    } else {
+                        add(MenuOption(stringResource(R.string.menu_remove_from_folder, folder.name)) {
+                            saveFolders(FolderStore.remove(folders, app.key))
+                        })
+                    }
                     add(MenuOption(stringResource(R.string.menu_change_icon)) { iconPickerApp = app })
                     if (IconOverrides(this@MainActivity).get(app.key) != null) {
                         add(MenuOption(stringResource(R.string.menu_reset_icon)) {
@@ -680,9 +978,152 @@ class MainActivity : ComponentActivity() {
                         })
                     }
                     add(MenuOption(stringResource(R.string.menu_app_info)) { openAppInfo(app) })
+                    add(MenuOption(stringResource(R.string.menu_force_stop)) {
+                        appScope.launch { reportAdb(SystemTools.forceStop(this@MainActivity, app.packageName)) { getString(R.string.menu_force_stopped, app.label) } }
+                    })
+                    if (!SystemTools.isProtected(this@MainActivity, app.packageName)) {
+                        add(MenuOption(stringResource(R.string.menu_disable_app)) { confirm = disableRequest(app.packageName, app.label) { iconsVersion++ } })
+                    }
                     add(MenuOption(stringResource(R.string.menu_uninstall)) { uninstall(app) })
                 }
                 AppMenu(title = app.label, options = options, onDismiss = { menuApp = null })
+            }
+
+            folderPickApp?.let { app ->
+                val names = (FolderStore.PRESETS + folders.map { it.name }).distinct()
+                AppMenu(
+                    title = stringResource(R.string.menu_pick_folder),
+                    options = names.map { name ->
+                        MenuOption(name) { saveFolders(FolderStore.add(folders, name, app.key)) }
+                    },
+                    onDismiss = { folderPickApp = null },
+                )
+            }
+
+            openFolder?.let { name ->
+                val members = folders.firstOrNull { it.name == name }?.keys.orEmpty().mapNotNull { byKey[it] }
+                if (members.isEmpty()) {
+                    openFolder = null
+                } else {
+                    FolderDialog(
+                        name = name,
+                        apps = members,
+                        onLaunch = { app ->
+                            openFolder = null
+                            if (launchRequest == null) {
+                                // The dialog has its own window, so the tile's position there means nothing: grow from the middle.
+                                val metrics = resources.displayMetrics
+                                val cx = metrics.widthPixels / 2f
+                                val cy = metrics.heightPixels / 2f
+                                launchRequest = LaunchRequest(app, Rect(cx - 200f, cy - 120f, cx + 200f, cy + 120f))
+                                launchExpanded = true
+                            }
+                        },
+                        onMenu = { menuApp = it },
+                        onDismiss = { openFolder = null },
+                    )
+                }
+            }
+
+            if (disableList) {
+                val candidates = apps.filter { !it.isFolder && it.intentUri == null && !SystemTools.isProtected(this@MainActivity, it.packageName) }
+                    .distinctBy { it.packageName }
+                    .sortedBy { it.label.lowercase() }
+                AppMenu(
+                    title = stringResource(R.string.tools_disable_apps),
+                    options = candidates.map { app ->
+                        val suffix = if (SystemTools.isHomeApp(this@MainActivity, app.packageName)) " · " + stringResource(R.string.tools_home_app) else ""
+                        MenuOption(app.label + suffix) { confirm = disableRequest(app.packageName, app.label) { iconsVersion++ } }
+                    },
+                    onDismiss = { disableList = false },
+                )
+            }
+
+            restoreList?.let { packages ->
+                AppMenu(
+                    title = stringResource(R.string.tools_restore_apps),
+                    options = packages.map { pkg ->
+                        val label = SystemTools.labelOf(this@MainActivity, pkg)
+                        MenuOption(if (label == pkg) pkg else "$label ($pkg)") {
+                            appScope.launch {
+                                val result = SystemTools.setAppEnabled(this@MainActivity, pkg, true)
+                                if (result is AdbResult.Ok) {
+                                    toast(getString(R.string.tools_restored, label))
+                                    iconsVersion++
+                                } else {
+                                    toast(adbProblem(result))
+                                }
+                            }
+                        }
+                    },
+                    onDismiss = { restoreList = null },
+                )
+            }
+
+            confirm?.let { request ->
+                AppMenu(
+                    title = request.title,
+                    options = listOf(
+                        MenuOption(request.label) { request.action() },
+                        MenuOption(stringResource(R.string.cancel)) {},
+                    ),
+                    onDismiss = { confirm = null },
+                )
+            }
+
+            if (showRemote) {
+                val token = remember(remoteTokenVersion) { settings.remoteToken }
+                val url = if (remoteIp != null && remotePort > 0) "http://$remoteIp:$remotePort/?t=$token" else null
+                RemoteDialog(
+                    url = url,
+                    always = remoteAlways,
+                    onToggleAlways = {
+                        remoteAlways = !remoteAlways
+                        settings.remoteAlways = remoteAlways
+                    },
+                    onNewLink = {
+                        settings.newRemoteToken()
+                        remoteTokenVersion++
+                    },
+                    onDismiss = { showRemote = false },
+                )
+            }
+
+            if (showChangelog) {
+                DiagnosticsDialog(
+                    title = stringResource(R.string.changelog_title, Updater.currentVersionName(this@MainActivity)),
+                    text = Changelog.NEWEST.joinToString("\n\n") { "•  $it" },
+                    actions = emptyList(),
+                    closeLabel = stringResource(R.string.changelog_ok),
+                    onDismiss = { showChangelog = false },
+                    monospace = false,
+                )
+            }
+
+            reportDialog?.let { (title, text) ->
+                DiagnosticsDialog(
+                    title = title,
+                    text = text,
+                    actions = emptyList(),
+                    closeLabel = stringResource(R.string.diag_close),
+                    onDismiss = { reportDialog = null },
+                    monospace = false,
+                )
+            }
+
+            if (showAdbDiag) {
+                DiagnosticsDialog(
+                    title = stringResource(R.string.settings_adb_diagnostics),
+                    text = adbDiagText,
+                    actions = listOf(
+                        MenuOption(stringResource(R.string.diag_refresh)) {
+                            adbDiagText = getString(R.string.adb_diag_running)
+                            appScope.launch { adbDiagText = SelfAdb.diagnose(this@MainActivity) }
+                        },
+                    ),
+                    closeLabel = stringResource(R.string.diag_close),
+                    onDismiss = { showAdbDiag = false },
+                )
             }
 
             if (showVolumeDiag) {
@@ -713,6 +1154,19 @@ class MainActivity : ComponentActivity() {
                     title = stringResource(R.string.power_title),
                     options = listOf(
                         MenuOption(stringResource(R.string.power_screensaver)) { screensaverShowing = true },
+                        MenuOption(stringResource(R.string.power_standby)) {
+                            appScope.launch { reportAdb(SystemTools.standby(this@MainActivity)) { getString(R.string.quick_sent) } }
+                        },
+                        MenuOption(stringResource(R.string.quick_reboot)) {
+                            confirm = ConfirmRequest(getString(R.string.quick_reboot_ask), getString(R.string.quick_reboot)) {
+                                appScope.launch { reportAdb(SystemTools.reboot(this@MainActivity)) { getString(R.string.quick_sent) } }
+                            }
+                        },
+                        MenuOption(stringResource(R.string.power_shutdown)) {
+                            confirm = ConfirmRequest(getString(R.string.power_shutdown_ask), getString(R.string.power_shutdown)) {
+                                appScope.launch { reportAdb(SystemTools.shutdown(this@MainActivity)) { getString(R.string.quick_sent) } }
+                            }
+                        },
                         MenuOption(stringResource(R.string.power_off)) {
                             // Android only opens its power dialog for an accessibility service.
                             if (!SystemService.showPowerDialog()) {
@@ -746,15 +1200,39 @@ class MainActivity : ComponentActivity() {
                     onDismiss = { iconPickerApp = null },
                 )
             }
+            }
         }
+
+        if (Build.VERSION.SDK_INT >= 24 && settings.performanceMode == LauncherSettings.PERF_AUTO && !Performance.lite) startFrameMonitor()
+    }
+
+    /** Learns from the frames the launcher really draws whether this box can keep up (see [FrameMonitor]). */
+    @RequiresApi(24)
+    private fun startFrameMonitor() {
+        val monitor = FrameMonitor {
+            runOnUiThread {
+                settings.autoLite = true
+                Performance.refresh(this, settings)
+                Toast.makeText(this, getString(R.string.performance_detected), Toast.LENGTH_LONG).show()
+            }
+        }
+        frameMonitor = monitor
+        window.addOnFrameMetricsAvailableListener(
+            Window.OnFrameMetricsAvailableListener { _, metrics, _ -> monitor.onFrame(metrics) },
+            Handler(Looper.getMainLooper()),
+        )
     }
 
     override fun onResume() {
         super.onResume()
         inForeground = true
         resumeSignal++
-        // Back from an app: the opening animation plays in reverse.
+        // Back from an app: the opening animation plays in reverse and focus returns to its tile.
         launchExpanded = false
+        if (pendingRestore) {
+            pendingRestore = false
+            restoreSignal++
+        }
     }
 
     override fun onPause() {
@@ -763,9 +1241,16 @@ class MainActivity : ComponentActivity() {
         super.onPause()
     }
 
+    override fun onDestroy() {
+        remoteServer.stop()
+        appScope.cancel()
+        super.onDestroy()
+    }
+
     /** Any key wakes the screensaver (and is otherwise swallowed); any key also restarts the idle wait. */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         lastInputAt = System.currentTimeMillis()
+        if (event.action == KeyEvent.ACTION_DOWN) TileMotion.note(event.keyCode)
         if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || event.keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) {
             volumeKeysSeen++
             lastVolumeKey = KeyEvent.keyCodeToString(event.keyCode).removePrefix("KEYCODE_")
@@ -780,6 +1265,11 @@ class MainActivity : ComponentActivity() {
         }
         if (event.keyCode == wakeKeyCode) {
             if (event.action == KeyEvent.ACTION_UP) wakeKeyCode = -1
+            return true
+        }
+        // The Menu key opens the quick settings.
+        if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_SETTINGS) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && launchRequest == null) showQuick = !showQuick
             return true
         }
         return super.dispatchKeyEvent(event)
@@ -810,6 +1300,8 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         handleIntent(intent)
         screensaverShowing = false
+        showQuick = false
+        pendingRestore = false
         page = PAGE_HOME
         resetSignal++
     }
@@ -839,6 +1331,7 @@ class MainActivity : ComponentActivity() {
             // The screen is already black from the opening animation, so a plain fade hands over cleanly.
             val options = ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out)
             startActivity(intent, options.toBundle())
+            pendingRestore = true
             // If the app never actually takes over the screen, don't stay stuck on black.
             window.decorView.postDelayed({ if (inForeground) launchExpanded = false }, 2500)
         } catch (_: Exception) {
@@ -862,19 +1355,137 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Turns the accessibility service on without the system screens, when WRITE_SECURE_SETTINGS was granted over adb. */
-    private fun enableAccessibilityDirectly(): Boolean = try {
-        val service = "$packageName/${SystemService::class.java.name}"
-        val current = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
-        if (service !in current.split(':')) {
-            val updated = if (current.isEmpty()) service else "$current:$service"
-            Settings.Secure.putString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, updated)
-        }
-        Settings.Secure.putInt(contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
-        true
-    } catch (_: SecurityException) {
-        false
+    // ---- adb tools: results and messages -----------------------------------------------------------
+
+    private fun toast(text: String) {
+        Toast.makeText(this, text, Toast.LENGTH_LONG).show()
     }
+
+    /** What to tell the user when an adb tool could not run. */
+    private fun adbProblem(result: AdbResult<*>): String = when (result) {
+        AdbResult.NeedsApproval -> getString(R.string.update_silent_needs_approval)
+        AdbResult.NoAdb -> getString(R.string.update_silent_no_adb)
+        is AdbResult.Failed -> getString(R.string.adb_error, result.reason)
+        is AdbResult.Ok -> ""
+    }
+
+    /** Shows [ok] of a successful result, or why it didn't work, as a toast. */
+    private fun <T> reportAdb(result: AdbResult<T>, ok: (T) -> String) {
+        toast(if (result is AdbResult.Ok) ok(result.value) else adbProblem(result))
+    }
+
+    /** "Switch off <app>?": runs the switch-off through adb when confirmed. */
+    private fun disableRequest(packageName: String, label: String, done: () -> Unit): ConfirmRequest {
+        val home = SystemTools.isHomeApp(this, packageName)
+        return ConfirmRequest(
+            title = getString(if (home) R.string.tools_disable_home_ask else R.string.tools_disable_ask, label),
+            label = getString(R.string.tools_disable_do),
+        ) {
+            appScope.launch {
+                val result = SystemTools.setAppEnabled(this@MainActivity, packageName, false)
+                if (result is AdbResult.Ok) {
+                    toast(getString(R.string.tools_disabled, label))
+                    done()
+                } else {
+                    toast(adbProblem(result))
+                }
+            }
+        }
+    }
+
+    /** The widget's "allow access to notifications": directly when the permission was granted over adb, otherwise Android's screen. */
+    private fun grantNotificationAccess() {
+        if (!SystemTools.enableNotificationAccess(this)) {
+            openSystemScreen(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+        }
+    }
+
+    // ---- The phone remote ------------------------------------------------------------------------------
+
+    private val keyCodes = mapOf(
+        "UP" to 19, "DOWN" to 20, "LEFT" to 21, "RIGHT" to 22, "OK" to 23, "BACK" to 4, "HOME" to 3, "PLAYPAUSE" to 85,
+    )
+
+    /** Runs one button of the phone's web page; called on a server thread, returns the line the page shows. */
+    private fun handleRemote(action: String, value: String): String {
+        fun adb(result: AdbResult<*>, ok: String) = if (result is AdbResult.Ok) ok else adbProblem(result)
+        return when (action) {
+            "key" -> {
+                val code = keyCodes[value] ?: return "Nieznany przycisk"
+                // Through adb the key reaches whatever app is in front, not just the launcher.
+                adb(runBlocking { SelfAdb.shell(this@MainActivity, "input keyevent $code") }, "OK")
+            }
+            "vol_up", "vol_down", "mute" -> {
+                val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val direction = when (action) {
+                    "vol_up" -> AudioManager.ADJUST_RAISE
+                    "vol_down" -> AudioManager.ADJUST_LOWER
+                    else -> AudioManager.ADJUST_TOGGLE_MUTE
+                }
+                audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
+                val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                val now = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+                runOnUiThread { SystemService.testOverlay(now * 100 / max, audio.isStreamMute(AudioManager.STREAM_MUSIC)) }
+                "Głośność: ${now * 100 / max}%"
+            }
+            "standby" -> adb(runBlocking { SystemTools.standby(this@MainActivity) }, "Box idzie spać")
+            "reboot" -> adb(runBlocking { SystemTools.reboot(this@MainActivity) }, "Restartuję Box")
+            "tv_on" -> adb(runBlocking { SystemTools.tvOn(this@MainActivity) }, "Wysłano do telewizora (CEC)")
+            "tv_power" -> adb(runBlocking { SystemTools.tvPowerToggle(this@MainActivity) }, "Wysłano do telewizora (CEC)")
+            "memory" -> runBlocking { SystemTools.freeMemory(this@MainActivity) }.let { adb(it, (it as? AdbResult.Ok)?.value ?: "") }
+            "open" -> {
+                val uri = Uri.parse(value.trim())
+                if (uri.scheme != "http" && uri.scheme != "https") return "Podaj adres zaczynający się od https://"
+                val intent = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (intent.resolveActivity(packageManager) == null) return "Ten Box nie ma aplikacji, która otworzy ten adres"
+                runOnUiThread {
+                    try {
+                        startActivity(intent)
+                    } catch (_: ActivityNotFoundException) {
+                    }
+                }
+                "Wysłano na TV"
+            }
+            "ical" -> {
+                val link = value.trim()
+                if (link.isNotEmpty() && !link.startsWith("http")) return "To nie wygląda na adres iCal"
+                settings.icalUrl = link.takeIf { it.isNotEmpty() }
+                runOnUiThread { calendarTick++ }
+                if (link.isEmpty()) "Kalendarz odłączony" else "Kalendarz połączony"
+            }
+            "city" -> {
+                if (value.isBlank()) return "Wpisz nazwę miasta"
+                settings.pendingWeatherCity = value.trim()
+                runOnUiThread { weatherTick++ }
+                "Szukam: ${value.trim()}"
+            }
+            "wallpaper" -> {
+                runOnUiThread { skipSignal++ }
+                "Następna tapeta"
+            }
+            "screensaver" -> {
+                runOnUiThread { screensaverShowing = true }
+                "Wygaszacz"
+            }
+            "perf" -> {
+                val next = (settings.performanceMode + 1) % 3
+                settings.performanceMode = next
+                settings.autoLite = false
+                runOnUiThread {
+                    Performance.refresh(this, settings)
+                    performanceTick++
+                }
+                when (next) {
+                    LauncherSettings.PERF_LITE -> "Tryb wydajności: zawsze oszczędnie"
+                    LauncherSettings.PERF_FULL -> "Tryb wydajności: pełne efekty"
+                    else -> "Tryb wydajności: automatyczny"
+                }
+            }
+            else -> "Nieznane polecenie"
+        }
+    }
+
+    // ---- Volume diagnostics -------------------------------------------------------------------------------
 
     /** Volume keys the launcher itself received (only while it is in front), for the diagnostics. */
     private var volumeKeysSeen = 0
@@ -922,7 +1533,7 @@ class MainActivity : ComponentActivity() {
             else -> "obok systemowego"
         }
         return buildString {
-            appendLine("Usługa dostępności włączona w ustawieniach: ${yes(accessibilityServiceOn())}")
+            appendLine("Usługa dostępności włączona w ustawieniach: ${yes(SystemTools.accessibilityOn(this@MainActivity))}")
             appendLine("Usługa działa (połączona):                  ${yes(SystemService.connected)}")
             appendLine("Tryb paska Liquid TV:                       $mode")
             appendLine()
@@ -968,12 +1579,6 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    /** Whether the user has switched on this app's accessibility service. */
-    private fun accessibilityServiceOn(): Boolean {
-        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
-        return enabled?.contains("$packageName/") == true
-    }
-
     private fun openSettings() {
         try {
             startActivity(Intent(Settings.ACTION_SETTINGS))
@@ -1007,6 +1612,5 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class UpdateStatus {
-    IDLE, CHECKING, UP_TO_DATE, AVAILABLE, CHECK_FAILED, DOWNLOADING, DOWNLOAD_FAILED, NEEDS_PERMISSION, WRONG_SIGNATURE, INSTALLING, SILENT_INSTALLING, SILENT_FAILED,
-}
+/** A question with one action behind it ("Restart the box?"), shown as a small menu with "Cancel". */
+private class ConfirmRequest(val title: String, val label: String, val action: () -> Unit)

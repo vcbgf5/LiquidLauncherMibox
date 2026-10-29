@@ -45,6 +45,7 @@ fun DiagnosticsDialog(
     actions: List<MenuOption>,
     closeLabel: String,
     onDismiss: () -> Unit,
+    monospace: Boolean = true,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -56,7 +57,7 @@ fun DiagnosticsDialog(
                 .width(640.dp)
                 .heightIn(max = 500.dp)
                 .clip(shape)
-                .background(Color(0xEB1C1E26))
+                .background(LocalTheme.current.glass.card)
                 .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
                 .padding(20.dp),
         ) {
@@ -66,19 +67,20 @@ fun DiagnosticsDialog(
                     text = text,
                     color = Color.White.copy(alpha = 0.85f),
                     fontSize = 12.5.sp,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = if (monospace) FontFamily.Monospace else FontFamily.Default,
                     lineHeight = 18.sp,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                 )
             }
-            actions.forEachIndexed { index, option -> DiagRow(option.label, autoFocus = index == 0, onClick = option.action) }
-            DiagRow(closeLabel, autoFocus = actions.isEmpty(), onClick = onDismiss)
+            actions.forEachIndexed { index, option -> DialogButton(option.label, autoFocus = index == 0, onClick = option.action) }
+            DialogButton(closeLabel, autoFocus = actions.isEmpty(), onClick = onDismiss)
         }
     }
 }
 
+/** A full-width button row for the cards in this file and the other small dialogs. */
 @Composable
-private fun DiagRow(label: String, autoFocus: Boolean, onClick: () -> Unit) {
+internal fun DialogButton(label: String, autoFocus: Boolean, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val requester = remember { FocusRequester() }
     if (autoFocus) {

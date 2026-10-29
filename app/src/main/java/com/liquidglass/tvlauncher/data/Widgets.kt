@@ -17,13 +17,14 @@ enum class WidgetType(val key: String) {
     CALENDAR("calendar"),
     AGENDA("agenda"),
     WEATHER("weather"),
+    NOW_PLAYING("nowplaying"),
     NETWORK("network"),
     BLUETOOTH("bluetooth"),
     SYSTEM("system"),
     ;
 
     companion object {
-        val DEFAULT_KEYS = setOf(CALENDAR.key, AGENDA.key, WEATHER.key, NETWORK.key, BLUETOOTH.key)
+        val DEFAULT_KEYS = setOf(CALENDAR.key, AGENDA.key, WEATHER.key, NOW_PLAYING.key, NETWORK.key, BLUETOOTH.key)
     }
 }
 
@@ -76,7 +77,8 @@ object WidgetDataReader {
         return NetworkDetails(kind, signal, mbps, localAddress())
     }
 
-    private fun localAddress(): String? = try {
+    /** The box's address on the local network, or null when it has none. */
+    fun localAddress(): String? = try {
         Collections.list(NetworkInterface.getNetworkInterfaces())
             .filter { it.isUp && !it.isLoopback }
             .flatMap { Collections.list(it.inetAddresses) }

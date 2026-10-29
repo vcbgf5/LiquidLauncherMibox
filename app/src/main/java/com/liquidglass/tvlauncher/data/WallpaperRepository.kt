@@ -3,6 +3,11 @@ package com.liquidglass.tvlauncher.data
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Shader
 import android.net.Uri
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +23,7 @@ import java.io.File
 object WallpaperRepository {
     private const val BASE = "https://raw.githubusercontent.com/vcbgf5/LiquidLauncherMibox/main/wallpapers/"
     private const val TARGET_WIDTH = 1920
+    private const val TARGET_WIDTH_LITE = 1280
 
     suspend fun catalog(context: Context): WallpaperCatalog = withContext(Dispatchers.IO) {
         val cache = File(context.cacheDir, "wallpapers/index.json")
@@ -74,13 +80,58 @@ object WallpaperRepository {
                 file.delete()
                 return null
             }
+            val target = if (Performance.lite) TARGET_WIDTH_LITE else TARGET_WIDTH
             var sample = 1
-            while (bounds.outWidth / (sample * 2) >= TARGET_WIDTH) sample *= 2
-            val options = BitmapFactory.Options().apply { inSampleSize = sample }
+            while (bounds.outWidth / (sample * 2) >= target) sample *= 2
+            // Mutable, because the darkening for bright photos is painted into the picture itself.
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = sample
+                inMutable = true
+            }
             val bitmap = BitmapFactory.decodeFile(file.path, options) ?: return null
+            bakeScrim(bitmap)
             WallpaperImage(bitmap.asImageBitmap(), blurredCopy(bitmap).asImageBitmap())
         } catch (_: Throwable) {
             null // includes OutOfMemoryError on very small devices: keep the current wallpaper
+        }
+    }
+
+    /**
+     * Keeps the clock at the top and the app names at the bottom readable on bright photos: how
+     * bright those two bands are is measured on a tiny copy, and the picture is darkened towards its
+     * top and bottom edge by as much as it needs (dark photos are left alone). Painting it into the
+     * bitmap once means drawing it later costs nothing, unlike a gradient laid over the screen.
+     */
+    private fun bakeScrim(bitmap: Bitmap) {
+        val w = bitmap.width
+        val h = bitmap.height
+        val small = Bitmap.createScaledBitmap(bitmap, 64, 36, true)
+        fun brightness(fromRow: Int, toRow: Int): Float {
+            var sum = 0f
+            var count = 0
+            for (y in fromRow until toRow) {
+                for (x in 0 until 64) {
+                    val p = small.getPixel(x, y)
+                    sum += (0.299f * Color.red(p) + 0.587f * Color.green(p) + 0.114f * Color.blue(p)) / 255f
+                    count++
+                }
+            }
+            return if (count == 0) 0f else sum / count
+        }
+        fun strength(brightness: Float) = ((brightness - 0.30f) * 1.3f).coerceIn(0f, 0.55f)
+        val top = strength(brightness(0, 14))
+        val bottom = strength(brightness(22, 36))
+        small.recycle()
+        if (top < 0.02f && bottom < 0.02f) return
+        val canvas = Canvas(bitmap)
+        val paint = Paint()
+        if (top >= 0.02f) {
+            paint.shader = LinearGradient(0f, 0f, 0f, h * 0.45f, Color.argb((top * 255).toInt(), 0, 0, 0), Color.TRANSPARENT, Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, w.toFloat(), h * 0.45f, paint)
+        }
+        if (bottom >= 0.02f) {
+            paint.shader = LinearGradient(0f, h * 0.55f, 0f, h.toFloat(), Color.TRANSPARENT, Color.argb((bottom * 255).toInt(), 0, 0, 0), Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, h * 0.55f, w.toFloat(), h.toFloat(), paint)
         }
     }
 

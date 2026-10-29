@@ -177,7 +177,105 @@ class LauncherSettings(context: Context) {
             prefs.edit().putLong(KEY_LAST_AUTO_INSTALLED, value).apply()
         }
 
+
+    /** How often (seconds) the launcher asks GitHub whether a newer version exists while it is on screen. */
+    var updateIntervalSeconds: Int
+        get() = prefs.getInt(KEY_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL).coerceAtLeast(5)
+        set(value) {
+            prefs.edit().putInt(KEY_UPDATE_INTERVAL, value).apply()
+        }
+
+    /** When the launcher last started an automatic install (used to retry a failed silent one after a while). */
+    var lastAutoInstallAt: Long
+        get() = prefs.getLong(KEY_LAST_AUTO_INSTALL_AT, 0L)
+        set(value) {
+            prefs.edit().putLong(KEY_LAST_AUTO_INSTALL_AT, value).apply()
+        }
+
+    /** The versionCode whose "what's new" the user has seen, so it shows once after an update. */
+    var lastSeenVersionCode: Long
+        get() = prefs.getLong(KEY_LAST_SEEN_VERSION, 0L)
+        set(value) {
+            prefs.edit().putLong(KEY_LAST_SEEN_VERSION, value).apply()
+        }
+
+    /** [PERF_AUTO] decides by itself (and remembers it), [PERF_LITE] always saves effort, [PERF_FULL] never does. */
+    var performanceMode: Int
+        get() = prefs.getInt(KEY_PERFORMANCE, PERF_AUTO).coerceIn(PERF_AUTO, PERF_FULL)
+        set(value) {
+            prefs.edit().putInt(KEY_PERFORMANCE, value).apply()
+        }
+
+    /** Set when the frame monitor saw the launcher stutter: [PERF_AUTO] then keeps the light mode on. */
+    var autoLite: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_LITE, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AUTO_LITE, value).apply()
+        }
+
+    /** Index into the accent colours (see LauncherTheme). */
+    var accentIndex: Int
+        get() = prefs.getInt(KEY_ACCENT, 0)
+        set(value) {
+            prefs.edit().putInt(KEY_ACCENT, value).apply()
+        }
+
+    /** Index into the glass tints (see LauncherTheme). */
+    var glassTintIndex: Int
+        get() = prefs.getInt(KEY_GLASS_TINT, 0)
+        set(value) {
+            prefs.edit().putInt(KEY_GLASS_TINT, value).apply()
+        }
+
+    /** The wallpaper drifts a little sideways as focus moves along the dock. */
+    var parallax: Boolean
+        get() = prefs.getBoolean(KEY_PARALLAX, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_PARALLAX, value).apply()
+        }
+
+    /** App tiles lean towards the direction focus arrived from, like on tvOS. */
+    var tileTilt: Boolean
+        get() = prefs.getBoolean(KEY_TILE_TILT, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_TILE_TILT, value).apply()
+        }
+
+    /** Keep the "remote from the phone" web page available all the time, not just while its screen is open. */
+    var remoteAlways: Boolean
+        get() = prefs.getBoolean(KEY_REMOTE_ALWAYS, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_REMOTE_ALWAYS, value).apply()
+        }
+
+    /** The secret in the phone page's address; made on first use. */
+    val remoteToken: String
+        get() = prefs.getString(KEY_REMOTE_TOKEN, null) ?: newRemoteToken()
+
+    fun newRemoteToken(): String {
+        val alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
+        val random = java.security.SecureRandom()
+        val token = (1..10).map { alphabet[random.nextInt(alphabet.length)] }.joinToString("")
+        prefs.edit().putString(KEY_REMOTE_TOKEN, token).apply()
+        return token
+    }
+
     companion object {
+        const val DEFAULT_UPDATE_INTERVAL = 5
+        const val PERF_AUTO = 0
+        const val PERF_LITE = 1
+        const val PERF_FULL = 2
+        private const val KEY_UPDATE_INTERVAL = "update_interval"
+        private const val KEY_LAST_AUTO_INSTALL_AT = "last_auto_install_at"
+        private const val KEY_LAST_SEEN_VERSION = "last_seen_version"
+        private const val KEY_PERFORMANCE = "performance_mode"
+        private const val KEY_AUTO_LITE = "auto_lite"
+        private const val KEY_ACCENT = "accent"
+        private const val KEY_GLASS_TINT = "glass_tint"
+        private const val KEY_PARALLAX = "parallax"
+        private const val KEY_TILE_TILT = "tile_tilt"
+        private const val KEY_REMOTE_ALWAYS = "remote_always"
+        private const val KEY_REMOTE_TOKEN = "remote_token"
         private const val KEY_AUTO_UPDATES = "auto_updates"
         private const val KEY_LAST_UPDATE_CHECK = "last_update_check"
         private const val KEY_LAST_AUTO_INSTALLED = "last_auto_installed"

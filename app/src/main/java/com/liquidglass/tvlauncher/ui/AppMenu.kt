@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,7 +50,7 @@ fun AppMenu(title: String, options: List<MenuOption>, onDismiss: () -> Unit) {
             modifier = Modifier
                 .width(320.dp)
                 .clip(shape)
-                .background(Color(0xE62A2C36))
+                .background(LocalTheme.current.glass.menu)
                 .border(1.dp, Color.White.copy(alpha = 0.25f), shape)
                 .padding(14.dp),
         ) {
@@ -59,15 +62,18 @@ fun AppMenu(title: String, options: List<MenuOption>, onDismiss: () -> Unit) {
                 maxLines = 1,
                 modifier = Modifier.padding(start = 10.dp, top = 6.dp, bottom = 10.dp),
             )
-            options.forEachIndexed { index, option ->
-                MenuRow(
-                    label = option.label,
-                    autoFocus = index == 0,
-                    onClick = {
-                        onDismiss()
-                        option.action()
-                    },
-                )
+            // Long lists (every app that can be switched off) scroll; the focused row is kept in view.
+            Column(modifier = Modifier.heightIn(max = 430.dp).verticalScroll(rememberScrollState())) {
+                options.forEachIndexed { index, option ->
+                    MenuRow(
+                        label = option.label,
+                        autoFocus = index == 0,
+                        onClick = {
+                            onDismiss()
+                            option.action()
+                        },
+                    )
+                }
             }
         }
     }

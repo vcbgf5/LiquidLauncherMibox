@@ -7,6 +7,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.liquidglass.tvlauncher.data.Performance
 import com.liquidglass.tvlauncher.data.WallpaperImage
 
 /**
@@ -26,6 +27,13 @@ class WallpaperState(private val bundled: WallpaperImage) {
     suspend fun show(next: WallpaperImage?) {
         val target = next ?: bundled
         if (target === current) return
+        if (Performance.lite) {
+            // Two full-screen photos blended for over a second is too much for a weak box: just swap.
+            previous = null
+            current = target
+            fade.snapTo(1f)
+            return
+        }
         previous = current
         current = target
         fade.snapTo(0f)

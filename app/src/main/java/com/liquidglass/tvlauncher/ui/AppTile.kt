@@ -6,8 +6,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -29,16 +27,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.key.Key
@@ -57,21 +57,40 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.liquidglass.tvlauncher.data.Performance
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /** Whether tiles get the tvOS-style light (set from the launcher's settings). */
 val LocalTileLighting = compositionLocalOf { true }
 
 private val TileShape = RoundedCornerShape(12.dp)
-private val GlowColor = Color(0xFF9DBBFF)
+
+// Built once: gradients with open ends fit any tile size, so nothing is allocated while drawing.
+private val TileLightBrush = Brush.verticalGradient(
+    0f to Color.White.copy(alpha = 0.17f),
+    0.40f to Color.Transparent,
+    0.58f to Color.Transparent,
+    1f to Color.Black.copy(alpha = 0.36f),
+)
+private val TileSheenBrush = Brush.verticalGradient(
+    colors = listOf(Color.White.copy(alpha = 0.22f), Color.Transparent),
+    startY = 0f,
+    endY = 140f,
+)
+private val TiltSpring = spring<Float>(dampingRatio = 0.5f, stiffness = 90f)
 
 /**
  * One app tile: a wide 5:3 card that sits flat until it gets D-pad focus.
  *
- * On focus it springs up and out, picks up a white ring and a soft blue
- * glow, a band of light sweeps diagonally across it once, and its name
- * fades in underneath. Pressing OK squashes it back for a moment, like a
- * real button. All of it runs on springs, so moving focus around feels
- * like one continuous motion instead of a snap.
+ * On focus it springs up and out, picks up a white ring and a soft glow in the accent colour, and
+ * (unless the light mode is on) a band of light sweeps diagonally across it once while it leans
+ * towards the side focus came from and settles back, with the artwork sliding a little behind the
+ * frame, so the tile feels like a thing with depth. Its name fades in underneath. Pressing OK
+ * squashes it back for a moment, like a real button.
+ *
+ * Every animated value is read only while drawing, never while composing, so moving focus around
+ * costs no recomposition at all: that is what keeps it smooth on a slow box.
  *
  * OK = [onClick], told where the tile is on screen right now (so the
  * launch animation can start from exactly there). Holding OK, or
@@ -93,6 +112,10 @@ fun AppTile(
     onClick: (Rect) -> Unit,
     onLongClick: () -> Unit,
 ) {
+    val lite = Performance.lite
+    val lighting = LocalTileLighting.current
+    val tiltOn = LocalTileTilt.current && !lite
+    val glowColor = LocalTheme.current.glow
     var focused by remember { mutableStateOf(false) }
     var pressed by remember { mutableStateOf(false) }
     val longFired = remember { booleanArrayOf(false) }
@@ -102,31 +125,54 @@ fun AppTile(
     fun bounds(): Rect = artCoordinates[0]?.takeIf { it.isAttached }?.boundsInRoot() ?: Rect.Zero
 
     val motion = spring<Float>(dampingRatio = 0.62f, stiffness = 380f)
-    val scale by animateFloatAsState(
+    val scale = animateFloatAsState(
         targetValue = if (pressed) 1.06f else if (focused) 1.14f else 1f,
         animationSpec = motion,
         label = "scale",
     )
-    val lift by animateFloatAsState(if (focused) -8f else 0f, motion, label = "lift")
-    val glow by animateFloatAsState(if (focused) 1f else 0f, tween(200), label = "glow")
-    val labelAlpha by animateFloatAsState(if (focused) 1f else 0f, tween(160), label = "labelAlpha")
+    val lift = animateFloatAsState(if (focused) -8f else 0f, motion, label = "lift")
+    val glow = animateFloatAsState(if (focused) 1f else 0f, tween(200), label = "glow")
+    val labelAlpha = animateFloatAsState(if (focused) 1f else 0f, tween(160), label = "labelAlpha")
 
-    // 0 -> 1 once each time the tile gains focus; drives the sweeping highlight.
+    // 0 -> 1 once each time the tile gains focus drives the sweeping highlight; the tilt starts
+    // leaning towards the side focus arrived from and springs back to flat.
     val sheen = remember { Animatable(0f) }
+    val tiltX = remember { Animatable(0f) }
+    val tiltY = remember { Animatable(0f) }
     LaunchedEffect(focused) {
         sheen.snapTo(0f)
-        if (focused) sheen.animateTo(1f, tween(720, easing = FastOutSlowInEasing))
+        if (focused) {
+            if (tiltOn) {
+                tiltY.snapTo(TileMotion.dx * 9f)
+                tiltX.snapTo(-TileMotion.dy * 7f)
+            }
+            coroutineScope {
+                if (tiltOn) {
+                    launch { tiltY.animateTo(0f, TiltSpring) }
+                    launch { tiltX.animateTo(0f, TiltSpring) }
+                }
+                if (!lite) launch { sheen.animateTo(1f, tween(720, easing = FastOutSlowInEasing)) }
+            }
+        } else {
+            tiltX.snapTo(0f)
+            tiltY.snapTo(0f)
+        }
     }
 
     Column(
         modifier = modifier
             .graphicsLayer {
                 val enter = enterProgress?.invoke() ?: 1f
-                translationY = (lift + (1f - enter) * 36f) * density
-                scaleX = scale
-                scaleY = scale
+                translationY = (lift.value + (1f - enter) * 36f) * density
+                scaleX = scale.value
+                scaleY = scale.value
                 alpha = enter
                 compositingStrategy = CompositingStrategy.ModulateAlpha
+                if (tiltOn) {
+                    rotationX = tiltX.value
+                    rotationY = tiltY.value
+                    cameraDistance = 14f * density
+                }
             }
             .onFocusChanged {
                 focused = it.isFocused
@@ -172,53 +218,54 @@ fun AppTile(
                 .fillMaxWidth()
                 .aspectRatio(5f / 3f)
                 .onGloballyPositioned { artCoordinates[0] = it }
-                .shadow(
-                    elevation = (2f + 20f * glow).dp,
-                    shape = TileShape,
-                    clip = false,
-                    spotColor = lerp(Color.Black, GlowColor, glow),
-                )
-                .clip(TileShape)
-                .border(2.dp, Color.White.copy(alpha = 0.9f * glow), TileShape),
+                .graphicsLayer {
+                    // The shadow grows and takes the accent colour with focus (softer and cheaper in the light mode).
+                    val g = glow.value
+                    shadowElevation = (if (lite) 2f + 8f * g else 2f + 20f * g) * density
+                    shape = TileShape
+                    clip = false
+                    ambientShadowColor = Color.Black
+                    spotShadowColor = if (lite) Color.Black else lerp(Color.Black, glowColor, g)
+                }
+                .clip(TileShape),
         ) {
             Image(
                 bitmap = art,
                 contentDescription = label,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            // The tvOS look: light falls from above, so the top of a tile is a little brighter
-            // and the bottom a little darker, whatever artwork the app brought.
-            if (LocalTileLighting.current) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                0f to Color.White.copy(alpha = 0.17f),
-                                0.40f to Color.Transparent,
-                                0.58f to Color.Transparent,
-                                1f to Color.Black.copy(alpha = 0.36f),
-                            ),
-                        ),
-                )
-            }
-            // Soft sheen across the top edge, only while focused.
-            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.White.copy(alpha = 0.22f * glow), Color.Transparent),
-                            endY = 140f,
-                        ),
-                    ),
+                    .graphicsLayer {
+                        // The artwork sits a little behind the frame: it grows with focus and slides against the lean.
+                        val s = 1f + 0.05f * glow.value
+                        scaleX = s
+                        scaleY = s
+                        if (tiltOn) {
+                            translationX = -tiltY.value * 0.8f * density
+                            translationY = tiltX.value * 0.7f * density
+                        }
+                    },
             )
-            // The band of light that sweeps across once when focus arrives.
+            // One layer for everything drawn over the artwork: the tvOS light (the top of a tile a
+            // little brighter, the bottom a little darker, whatever artwork the app brought), the
+            // soft sheen along the top edge and the white ring while focused, and the sweeping band.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .drawBehind {
+                        if (lighting) drawRect(TileLightBrush)
+                        val g = glow.value
+                        if (g > 0.01f) {
+                            drawRect(TileSheenBrush, alpha = g)
+                            val ring = 2.dp.toPx()
+                            drawRoundRect(
+                                color = Color.White.copy(alpha = 0.9f * g),
+                                topLeft = Offset(ring / 2f, ring / 2f),
+                                size = Size(size.width - ring, size.height - ring),
+                                cornerRadius = CornerRadius(12.dp.toPx() - ring / 2f),
+                                style = Stroke(ring),
+                            )
+                        }
                         val t = sheen.value
                         if (t > 0f && t < 1f) {
                             val w = size.width
@@ -261,8 +308,8 @@ fun AppTile(
                 .padding(top = 8.dp)
                 .height(18.dp)
                 .graphicsLayer {
-                    alpha = labelAlpha
-                    translationY = (1f - labelAlpha) * -4f * density
+                    alpha = labelAlpha.value
+                    translationY = (1f - labelAlpha.value) * -4f * density
                 },
         )
     }

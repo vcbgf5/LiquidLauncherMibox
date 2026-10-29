@@ -48,3 +48,40 @@ fun Modifier.okAction(onClick: () -> Unit): Modifier = composed {
         }
         .pointerInput(Unit) { detectTapGestures(onTap = { onClick() }) }
 }
+
+/**
+ * Like [okAction], and holding OK (the first auto-repeat of the key) or long-pressing with a pointer
+ * calls [onLong] instead. Place it before `.focusable()` as well.
+ */
+fun Modifier.okOrLongAction(onClick: () -> Unit, onLong: () -> Unit): Modifier = composed {
+    val armed = remember { booleanArrayOf(false, false) } // [0] = pressed, [1] = long already fired
+    this
+        .onKeyEvent { event ->
+            if (event.key != Key.DirectionCenter && event.key != Key.Enter && event.key != Key.NumPadEnter) {
+                return@onKeyEvent false
+            }
+            when (event.type) {
+                KeyEventType.KeyDown -> {
+                    val repeats = event.nativeKeyEvent.repeatCount
+                    if (repeats == 0) {
+                        armed[0] = true
+                        armed[1] = false
+                    }
+                    if (repeats == 1 && armed[0] && !armed[1]) {
+                        armed[1] = true
+                        onLong()
+                    }
+                    true
+                }
+                KeyEventType.KeyUp -> {
+                    val fire = armed[0] && !armed[1]
+                    armed[0] = false
+                    armed[1] = false
+                    if (fire) onClick()
+                    true
+                }
+                else -> false
+            }
+        }
+        .pointerInput(Unit) { detectTapGestures(onTap = { onClick() }, onLongPress = { onLong() }) }
+}
