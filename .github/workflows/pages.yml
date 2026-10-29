@@ -9,6 +9,10 @@ on:
       - 'preview/preview.html'
       - 'docs/*.jpg'
       - '.github/workflows/pages.yml'
+  # A new build (and with it a new release) refreshes the version numbers on the page.
+  workflow_run:
+    workflows: ['Build APK']
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -20,18 +24,26 @@ concurrency:
 
 jobs:
   publish:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Assemble the site
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p out/img out/apk
           cp -r site/. out/
           cp preview/preview.html out/preview.html
           cp docs/preview-*.jpg out/img/
           touch out/.nojekyll
-          sed -i "s/__BUILT__/$(date -u +'%Y-%m-%d %H:%M UTC')/" out/index.html
+          sed -i "s/__BUILT__/$(date -u +'%Y-%m-%d')/" out/index.html
+          # A copy of the release list, so visitors do not depend on the GitHub API rate limit.
+          gh api "repos/${{ github.repository }}/releases?per_page=8" \
+            --jq '[.[] | select(.draft | not) | {tag_name, published_at, assets: [.assets[] | {name, size, browser_download_url}]}]' \
+            > out/releases.json || echo '[]' > out/releases.json
+          head -c 400 out/releases.json; echo
           find out -type f | sort
 
       - name: Publish to gh-pages
