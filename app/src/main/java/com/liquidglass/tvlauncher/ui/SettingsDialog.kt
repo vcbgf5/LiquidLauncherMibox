@@ -140,6 +140,9 @@ fun SettingsDialog(
     onRefreshCalendar: () -> Unit,
     onDisconnectCalendar: () -> Unit,
     onRequestCalendarPermission: () -> Unit,
+    weatherCities: List<String>,
+    weatherCity: String,
+    onWeatherCityChange: (String) -> Unit,
     networkStatus: String,
     volumeMode: Int,
     onVolumeModeChange: (Int) -> Unit,
@@ -249,10 +252,11 @@ fun SettingsDialog(
                             when (clockContent) {
                                 CLOCK_TIME_ONLY -> R.string.clock_content_time
                                 CLOCK_TIME_DATE_STATUS -> R.string.clock_content_status
+                                CLOCK_TIME_DATE_WEATHER -> R.string.clock_content_weather
                                 else -> R.string.clock_content_date
                             },
                         ),
-                        onStep = { direction -> onClockContentChange((clockContent + direction).mod(3)) },
+                        onStep = { direction -> onClockContentChange((clockContent + direction).mod(4)) },
                     )
                     Divider()
                     ChoiceRow(
@@ -274,6 +278,7 @@ fun SettingsDialog(
                                 when (type) {
                                     WidgetType.CALENDAR -> R.string.widget_pick_calendar
                                     WidgetType.AGENDA -> R.string.widget_pick_agenda
+                                    WidgetType.WEATHER -> R.string.widget_pick_weather
                                     WidgetType.NETWORK -> R.string.widget_pick_network
                                     WidgetType.BLUETOOTH -> R.string.widget_pick_bluetooth
                                     WidgetType.SYSTEM -> R.string.widget_pick_system
@@ -284,6 +289,18 @@ fun SettingsDialog(
                             autoFocus = index == 0,
                         )
                     }
+                    Divider()
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_weather_city),
+                        value = weatherCity,
+                        onStep = { direction ->
+                            if (weatherCities.isNotEmpty()) {
+                                val from = weatherCities.indexOf(weatherCity).coerceAtLeast(0)
+                                onWeatherCityChange(weatherCities[(from + direction).mod(weatherCities.size)])
+                            }
+                        },
+                    )
+                    Note(stringResource(R.string.settings_weather_help))
                     Divider()
                     Note(calendarStatus, top = 10.dp)
                     Note(stringResource(R.string.widgets_calendar_help))

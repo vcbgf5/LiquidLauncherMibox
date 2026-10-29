@@ -40,6 +40,18 @@ iCal” Twojego kalendarza Google (Kalendarz Google na komputerze → ustawienia
 także wydarzenia cykliczne. Rozumie typowe powtarzanie (codziennie, co tydzień z dniami, co miesiąc, co rok), ale nie wszystkie
 egzotyczne reguły. Bez linku próbuje kalendarza systemowego, jeśli Box go ma i dałeś zgodę.
 
+**Pogoda.** Widżet „Pogoda” pokazuje temperaturę, odczuwalną, wiatr, wilgotność i prognozę na kolejne dni (dane z Open-Meteo,
+darmowe, bez klucza). Miasto wybierasz w Ustawieniach → Widżety (lista polskich miast), a dowolne inne ustawisz skryptem
+`tools/tv_adb.py` („Ustaw miasto pogody”). Pogodę można też pokazać pod zegarem na ekranie głównym i na wygaszaczu.
+
+**Zmiana ikony jednej aplikacji.** Przytrzymaj OK na aplikacji → „Zmień ikonę…”. W launcherze są trzy paczki ikon (Apple TV,
+Liquid Glass, Minimal) dla 14 popularnych aplikacji; pojawiają się tam też paczki Nova/ADW zainstalowane na Boxie. Ikony paczek
+wbudowanych rysuje `tools/make_tvos_tiles.py` z otwartych kształtów logo (Simple Icons, CC0); nazwy i logo należą do ich właścicieli.
+
+**Głośność.** Pasek głośności Liquid TV (usługa dostępności) ma trzy tryby: wyłączony, „obok systemowego” (domyślny: Android
+obsługuje przyciski jak zawsze, a pasek pokazuje, co się stało; niczego nie psuje) i „zamiast systemowego” (usługa przejmuje
+przyciski). Gdy głośność nie działa: Ustawienia → System → „Diagnostyka głośności” pokazuje, czy klawisze w ogóle docierają do Boxa.
+
 **Uprawnienia.** Skrypt `tools/tv_adb.py` ma pozycję „Nadaj launcherowi uprawnienia”: zmiana ustawień systemowych (usługa
 dostępności włącza się wtedy sama z ustawień), sparowane urządzenia Bluetooth, kalendarz, rysowanie nad aplikacjami i praca w tle.
 Czego Android nie pozwala nadać żadnej zwykłej aplikacji, to uprawnień „systemowych” (podpis producenta): fabryczny launcher je

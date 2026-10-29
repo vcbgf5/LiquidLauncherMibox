@@ -37,6 +37,7 @@ import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.Dispatchers
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collectLatest
@@ -56,6 +57,10 @@ import com.liquidglass.tvlauncher.data.UpdateInfo
 import com.liquidglass.tvlauncher.data.Updater
 import com.liquidglass.tvlauncher.data.Agenda
 import com.liquidglass.tvlauncher.data.AgendaRepository
+import com.liquidglass.tvlauncher.data.Cities
+import com.liquidglass.tvlauncher.data.Weather
+import com.liquidglass.tvlauncher.data.WeatherCity
+import com.liquidglass.tvlauncher.data.WeatherRepository
 import com.liquidglass.tvlauncher.data.WidgetData
 import com.liquidglass.tvlauncher.data.WidgetDataReader
 import com.liquidglass.tvlauncher.data.WidgetType
@@ -100,6 +105,9 @@ class MainActivity : ComponentActivity() {
 
     /** The key that woke the screensaver: it does nothing else, not even when it is released. */
     private var wakeKeyCode = -1
+
+    /** Bumped to fetch the weather again (OK on the weather widget, or a new city from adb). */
+    private var weatherTick by mutableIntStateOf(0)
 
     /** Bumped to fetch the calendar again (a new link, or OK on the events widget). */
     private var calendarTick by mutableIntStateOf(0)
@@ -159,6 +167,8 @@ class MainActivity : ComponentActivity() {
             var widgetKeys by remember { mutableStateOf(settings.enabledWidgets) }
             var widgetData by remember { mutableStateOf(WidgetData.EMPTY) }
             var agenda by remember { mutableStateOf(Agenda.EMPTY) }
+            var weather by remember { mutableStateOf(WeatherRepository.cached(this@MainActivity)) }
+            var weatherCity by remember { mutableStateOf(settings.weatherCity) }
 
             // In-app updates (see Updater): what the check found, and where the download is.
             val scope = rememberCoroutineScope()
@@ -294,6 +304,24 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // The weather: for the chosen city, every half hour while the launcher is on screen. A city
+            // sent over adb by name is looked up first.
+            LaunchedEffect(inForeground, weatherTick, weatherCity.name) {
+                settings.pendingWeatherCity?.let { name ->
+                    settings.pendingWeatherCity = null
+                    WeatherRepository.geocode(name)?.let { found ->
+                        settings.customWeatherCity = found
+                        settings.weatherCity = found
+                        weatherCity = found
+                        return@LaunchedEffect // the changed city restarts this effect
+                    }
+                }
+                while (inForeground) {
+                    WeatherRepository.load(this@MainActivity, weatherCity)?.let { weather = it }
+                    delay(30 * 60_000L)
+                }
+            }
+
             // The calendar: fetched when the launcher comes up, when a link is set or refreshed, and
             // every 20 minutes after that.
             LaunchedEffect(inForeground, calendarTick) {
@@ -352,6 +380,7 @@ class MainActivity : ComponentActivity() {
             val byKey = remember(apps) { apps.associateBy { it.key } }
             val favorites = remember(apps, keys) { keys.mapNotNull { byKey[it] } }
             val widgets = WidgetType.values().filter { it.key in widgetKeys }
+            val weatherLine = weather?.let { "${it.city} · ${it.temperature.roundToInt()}° " + stringResource(Weather.textOf(it.code)) }
 
             fun saveKeys(updated: List<String>) {
                 favoriteKeys = updated
@@ -373,9 +402,12 @@ class MainActivity : ComponentActivity() {
                     widgets = widgets,
                     widgetData = widgetData,
                     agenda = agenda,
+                    weather = weather,
+                    weatherLine = weatherLine,
                     onWidget = { type ->
                         when (type) {
                             WidgetType.AGENDA -> calendarTick++
+                            WidgetType.WEATHER -> weatherTick++
                             WidgetType.NETWORK -> openSystemScreen(Settings.ACTION_WIFI_SETTINGS)
                             WidgetType.BLUETOOTH -> openSystemScreen(Settings.ACTION_BLUETOOTH_SETTINGS)
                             WidgetType.SYSTEM -> openSystemScreen(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)
@@ -430,7 +462,11 @@ class MainActivity : ComponentActivity() {
                     onCollapsed = { launchRequest = null },
                 )
 
-                Screensaver(wallpaper = wallpaper, visible = screensaverShowing)
+                Screensaver(
+                    wallpaper = wallpaper,
+                    visible = screensaverShowing,
+                    extraLine = if (WidgetType.WEATHER.key in widgetKeys) weatherLine else null,
+                )
             }
 
             if (showSettings) {
@@ -598,6 +634,15 @@ class MainActivity : ComponentActivity() {
                         calendarTick++
                     },
                     onRequestCalendarPermission = { calendarPermission.launch(Manifest.permission.READ_CALENDAR) },
+                    weatherCities = (Cities.BUILTIN + listOfNotNull(settings.customWeatherCity)).map { it.name }.distinct(),
+                    weatherCity = weatherCity.name,
+                    onWeatherCityChange = { name ->
+                        val chosen: WeatherCity? = (Cities.BUILTIN + listOfNotNull(settings.customWeatherCity)).firstOrNull { it.name == name }
+                        if (chosen != null) {
+                            settings.weatherCity = chosen
+                            weatherCity = chosen
+                        }
+                    },
                     onOpenSystemSettings = { openSettings() },
                     onDismiss = { showSettings = false },
                 )
@@ -809,6 +854,11 @@ class MainActivity : ComponentActivity() {
         if (intent?.hasExtra("ical_url") == true) {
             settings.icalUrl = intent.getStringExtra("ical_url")?.trim()?.takeIf { it.isNotEmpty() }
             calendarTick++
+        }
+        // `--es weather_city "Gdańsk"`: a city that is looked up by name and then used for the weather.
+        intent?.getStringExtra("weather_city")?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            settings.pendingWeatherCity = it
+            weatherTick++
         }
     }
 

@@ -242,6 +242,15 @@ def set_home(tv):
         say("Jeśli to nie zadziałało, wciśnij Home na pilocie i wybierz Liquid TV z listy „Zawsze”.")
 
 
+def set_weather_city(tv):
+    """Ustawia miasto pogody (dowolne: launcher znajdzie je po nazwie przez Open-Meteo)."""
+    name = input("Miasto (np. Gdańsk, Zakopane, Berlin): ").strip()
+    if not name:
+        return
+    code, out = tv.shell("am", "start", "-n", f"{PACKAGE}/.MainActivity", "--es", "weather_city", f"'{name}'")
+    say(out or f"Wysłano: {name}. Pogoda odświeży się za chwilę (jeśli miasta nie znajdzie, zostanie poprzednie).")
+
+
 def grant_permissions(tv):
     """Nadaje launcherowi wszystko, co Android pozwala nadać zwykłej aplikacji przez adb."""
     say("Nadaję uprawnienia ...")
@@ -334,6 +343,7 @@ MENU = [
     ("Uśpij Boxa", sleep_tv),
     ("Obudź Boxa", wake_tv),
     ("Podłącz kalendarz Google (link iCal) do widżetu wydarzeń", connect_calendar),
+    ("Ustaw miasto pogody", set_weather_city),
     ("Nadaj launcherowi uprawnienia (ustawienia, Bluetooth, kalendarz, tło)", grant_permissions),
     ("Diagnostyka głośności (usługa, audio, CEC, dziennik)", volume_diagnostics),
     ("Wyłącz usługę dostępności", disable_service),

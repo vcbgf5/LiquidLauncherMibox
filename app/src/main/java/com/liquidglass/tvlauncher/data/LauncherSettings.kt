@@ -40,7 +40,7 @@ class LauncherSettings(context: Context) {
 
     /** What the big clock shows: see the CLOCK_* constants in HomeScreen (0 = time and date). */
     var clockContent: Int
-        get() = prefs.getInt(KEY_CLOCK_CONTENT, 0).coerceIn(0, 2)
+        get() = prefs.getInt(KEY_CLOCK_CONTENT, 0).coerceIn(0, 3)
         set(value) {
             prefs.edit().putInt(KEY_CLOCK_CONTENT, value).apply()
         }
@@ -78,6 +78,45 @@ class LauncherSettings(context: Context) {
         get() = prefs.getBoolean(KEY_SILENT_UPDATES, false)
         set(value) {
             prefs.edit().putBoolean(KEY_SILENT_UPDATES, value).apply()
+        }
+
+    /** The city the weather is for (Warsaw until the user picks another). */
+    var weatherCity: WeatherCity
+        get() = WeatherCity(
+            prefs.getString(KEY_CITY_NAME, null) ?: Cities.BUILTIN.first().name,
+            Double.fromBits(prefs.getLong(KEY_CITY_LAT, Cities.BUILTIN.first().latitude.toRawBits())),
+            Double.fromBits(prefs.getLong(KEY_CITY_LON, Cities.BUILTIN.first().longitude.toRawBits())),
+        )
+        set(value) {
+            prefs.edit().putString(KEY_CITY_NAME, value.name)
+                .putLong(KEY_CITY_LAT, value.latitude.toRawBits()).putLong(KEY_CITY_LON, value.longitude.toRawBits()).apply()
+        }
+
+    /** A city looked up by name (over adb), offered in the city list next to the built-in ones. */
+    var customWeatherCity: WeatherCity?
+        get() = prefs.getString(KEY_CUSTOM_NAME, null)?.let {
+            WeatherCity(
+                it,
+                Double.fromBits(prefs.getLong(KEY_CUSTOM_LAT, 0L)),
+                Double.fromBits(prefs.getLong(KEY_CUSTOM_LON, 0L)),
+            )
+        }
+        set(value) {
+            val edit = prefs.edit()
+            if (value == null) {
+                edit.remove(KEY_CUSTOM_NAME)
+            } else {
+                edit.putString(KEY_CUSTOM_NAME, value.name)
+                    .putLong(KEY_CUSTOM_LAT, value.latitude.toRawBits()).putLong(KEY_CUSTOM_LON, value.longitude.toRawBits())
+            }
+            edit.apply()
+        }
+
+    /** A city name sent over adb that still has to be looked up. */
+    var pendingWeatherCity: String?
+        get() = prefs.getString(KEY_PENDING_CITY, null)?.takeIf { it.isNotBlank() }
+        set(value) {
+            prefs.edit().putString(KEY_PENDING_CITY, value ?: "").apply()
         }
 
     /** A big clock in the middle of the home screen instead of the small one in the corner. */
@@ -152,6 +191,13 @@ class LauncherSettings(context: Context) {
         const val DEFAULT_SCREENSAVER_MINUTES = 3
         private const val KEY_DOCK_SIZE = "dock_size"
         private const val KEY_BIG_CLOCK = "big_clock"
+        private const val KEY_CITY_NAME = "city_name"
+        private const val KEY_CITY_LAT = "city_lat"
+        private const val KEY_CITY_LON = "city_lon"
+        private const val KEY_CUSTOM_NAME = "custom_city_name"
+        private const val KEY_CUSTOM_LAT = "custom_city_lat"
+        private const val KEY_CUSTOM_LON = "custom_city_lon"
+        private const val KEY_PENDING_CITY = "pending_city"
         private const val KEY_SILENT_UPDATES = "silent_updates"
         private const val KEY_WIDGETS = "widgets"
         private const val KEY_ICAL_URL = "ical_url"

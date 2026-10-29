@@ -51,6 +51,7 @@ import com.liquidglass.tvlauncher.R
 import com.liquidglass.tvlauncher.data.Agenda
 import com.liquidglass.tvlauncher.data.AgendaSource
 import com.liquidglass.tvlauncher.data.NetworkKind
+import com.liquidglass.tvlauncher.data.Weather
 import com.liquidglass.tvlauncher.data.WidgetData
 import com.liquidglass.tvlauncher.data.WidgetType
 import kotlinx.coroutines.delay
@@ -58,6 +59,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 private val PL = Locale("pl", "PL")
 private val WEEKDAYS = listOf("Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd")
@@ -77,6 +79,7 @@ fun InfoPage(
     widgets: List<WidgetType>,
     data: WidgetData,
     agenda: Agenda,
+    weather: Weather?,
     entry: () -> Float,
     firstFocus: FocusRequester,
     onWidget: (WidgetType) -> Unit,
@@ -129,6 +132,15 @@ fun InfoPage(
                             }
                             WidgetType.AGENDA -> WidgetCard(330.dp, stringResource(R.string.widget_agenda_title), focus, onClick = { onWidget(type) }) {
                                 AgendaContent(agenda, now.value)
+                            }
+                            WidgetType.WEATHER -> WidgetCard(
+                                340.dp,
+                                weather?.city?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.widget_weather_title_city, it) }
+                                    ?: stringResource(R.string.widget_weather_title),
+                                focus,
+                                onClick = { onWidget(type) },
+                            ) {
+                                WeatherContent(weather)
                             }
                             WidgetType.NETWORK -> WidgetCard(270.dp, stringResource(R.string.widget_network_title), focus, onClick = { onWidget(type) }) {
                                 NetworkContent(data)
@@ -303,6 +315,44 @@ private fun AgendaContent(agenda: Agenda, nowMillis: Long) {
 
 private fun dayKey(millis: Long): String =
     SimpleDateFormat("yyyyMMdd", Locale.US).format(Date(millis))
+
+// ---- Weather ----------------------------------------------------------------------------------------
+
+@Composable
+private fun WeatherContent(weather: Weather?) {
+    if (weather == null) {
+        Muted(stringResource(R.string.weather_none))
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        WeatherIcon(weather.kind, weather.isDay, Modifier.size(58.dp))
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text("${weather.temperature.roundToInt()}°", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.Light)
+            Text(stringResource(Weather.textOf(weather.code)), color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp, maxLines = 1)
+        }
+    }
+    Spacer(Modifier.height(4.dp))
+    Text(
+        text = stringResource(R.string.weather_details, weather.feelsLike.roundToInt(), weather.windKmh.roundToInt(), weather.humidity),
+        color = Color.White.copy(alpha = 0.65f),
+        fontSize = 11.5.sp,
+        maxLines = 1,
+    )
+    Spacer(Modifier.height(8.dp))
+    val labels = remember { SimpleDateFormat("EEE", PL) }
+    val parser = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        weather.days.drop(1).take(4).forEach { day ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                val label = runCatching { labels.format(parser.parse(day.date)!!) }.getOrDefault("")
+                Text(label.replaceFirstChar { it.uppercase() }, color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                WeatherIcon(Weather.kindOf(day.code), true, Modifier.size(26.dp))
+                Text("${day.max.roundToInt()}° / ${day.min.roundToInt()}°", color = Color.White, fontSize = 11.sp)
+            }
+        }
+    }
+}
 
 // ---- Network, Bluetooth, system --------------------------------------------------------------------
 

@@ -44,7 +44,7 @@ private val ScreensaverLocale = Locale("pl", "PL")
  * when it turns false; while it is fully gone nothing of it is composed.
  */
 @Composable
-fun Screensaver(wallpaper: WallpaperState, visible: Boolean, modifier: Modifier = Modifier) {
+fun Screensaver(wallpaper: WallpaperState, visible: Boolean, extraLine: String? = null, modifier: Modifier = Modifier) {
     val shown = remember { Animatable(0f) }
     LaunchedEffect(visible) {
         shown.animateTo(if (visible) 1f else 0f, tween(if (visible) 1600 else 350))
@@ -107,7 +107,7 @@ fun Screensaver(wallpaper: WallpaperState, visible: Boolean, modifier: Modifier 
         )
 
         val now = rememberNow()
-        GlassClock(widthDp = maxWidth, nowMillis = now.value, scale = 0.2f, modifier = Modifier.align(Alignment.Center))
+        GlassClock(widthDp = maxWidth, nowMillis = now.value, scale = 0.2f, extraLine = extraLine, modifier = Modifier.align(Alignment.Center))
     }
 }
 

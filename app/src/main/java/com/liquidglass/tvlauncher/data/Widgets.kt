@@ -16,13 +16,14 @@ import java.util.Collections
 enum class WidgetType(val key: String) {
     CALENDAR("calendar"),
     AGENDA("agenda"),
+    WEATHER("weather"),
     NETWORK("network"),
     BLUETOOTH("bluetooth"),
     SYSTEM("system"),
     ;
 
     companion object {
-        val DEFAULT_KEYS = setOf(CALENDAR.key, AGENDA.key, NETWORK.key, BLUETOOTH.key)
+        val DEFAULT_KEYS = setOf(CALENDAR.key, AGENDA.key, WEATHER.key, NETWORK.key, BLUETOOTH.key)
     }
 }
 

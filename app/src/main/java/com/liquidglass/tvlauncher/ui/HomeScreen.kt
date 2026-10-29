@@ -50,6 +50,7 @@ import com.liquidglass.tvlauncher.data.WidgetData
 import com.liquidglass.tvlauncher.data.WidgetType
 import com.liquidglass.tvlauncher.data.NetworkKind
 import com.liquidglass.tvlauncher.data.SystemStatus
+import com.liquidglass.tvlauncher.data.Weather
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
@@ -59,6 +60,7 @@ internal val ShelfColor = Color(0xFF050608)
 const val CLOCK_TIME_DATE = 0
 const val CLOCK_TIME_ONLY = 1
 const val CLOCK_TIME_DATE_STATUS = 2
+const val CLOCK_TIME_DATE_WEATHER = 3
 
 /** Where the big clock sits on the photo. */
 const val CLOCK_POS_HIGH = 0
@@ -100,6 +102,7 @@ fun HomeScreen(
     widgets: List<WidgetType>,
     widgetData: WidgetData,
     agenda: Agenda,
+    weather: Weather?,
     onWidget: (WidgetType) -> Unit,
     page: Int,
     onPage: (Int) -> Unit,
@@ -114,6 +117,7 @@ fun HomeScreen(
     clockContent: Int,
     clockPosition: Int,
     status: SystemStatus?,
+    weatherLine: String?,
     onOpenWifi: () -> Unit,
     onOpenBluetooth: () -> Unit,
     onLaunch: (AppInfo, Rect) -> Unit,
@@ -238,7 +242,11 @@ fun HomeScreen(
             if (bigClock) {
                 // The big clock instead of the small one: in the middle of the photo, above the dock.
                 val now = rememberNow()
-                val extraLine = if (clockContent == CLOCK_TIME_DATE_STATUS) statusLine(status) else null
+                val extraLine = when (clockContent) {
+                    CLOCK_TIME_DATE_STATUS -> statusLine(status)
+                    CLOCK_TIME_DATE_WEATHER -> weatherLine
+                    else -> null
+                }
                 val high = clockPosition == CLOCK_POS_HIGH
                 GlassClock(
                     widthDp = screenWidth,
@@ -360,6 +368,7 @@ fun HomeScreen(
             widgets = widgets,
             data = widgetData,
             agenda = agenda,
+            weather = weather,
             entry = { ((0.95f - progress) / 0.7f).coerceIn(0f, 1f) },
             firstFocus = infoFirst,
             onWidget = onWidget,
