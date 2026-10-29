@@ -198,6 +198,7 @@ fun HomeScreen(
                 }
                 else -> Unit
             }
+            Unit // the result of the when above is not used
         }
     }
 
