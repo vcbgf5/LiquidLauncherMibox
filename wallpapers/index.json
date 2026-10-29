@@ -183,6 +183,200 @@
      "by": "Hugo Delauney"
     }
    ]
+  },
+  {
+   "id": "ocean",
+   "name": "Ocean i plaża",
+   "files": [
+    {
+     "p": "ocean/CXyz3qljaH8.jpg",
+     "by": "Ashutosh Saraswat"
+    },
+    {
+     "p": "ocean/DA_tplYgTow.jpg",
+     "by": "Yousef Espanioly"
+    },
+    {
+     "p": "ocean/I3-3_ZLKtTU.jpg",
+     "by": "Den Harrson"
+    },
+    {
+     "p": "ocean/KMn4VEeEPR8.jpg",
+     "by": "Sean Oulashin"
+    },
+    {
+     "p": "ocean/OD9EOzfSOh0.jpg",
+     "by": "frank mckenna"
+    },
+    {
+     "p": "ocean/Y0TnIJF3TQE.jpg",
+     "by": "World Wanderer"
+    },
+    {
+     "p": "ocean/a1sw1TdEP5g.jpg",
+     "by": "Süleyman Coskun"
+    },
+    {
+     "p": "ocean/fd1cQ3mmBTE.jpg",
+     "by": "Karsten Winegeart"
+    },
+    {
+     "p": "ocean/sGRMspZmfPE.jpg",
+     "by": "Jessica Pamp"
+    },
+    {
+     "p": "ocean/yG_8-55cXV4.jpg",
+     "by": "The DK Photography"
+    }
+   ]
+  },
+  {
+   "id": "kosmos",
+   "name": "Kosmos",
+   "files": [
+    {
+     "p": "kosmos/0o_GEzyargo.jpg",
+     "by": "Shot by Cerqueira"
+    },
+    {
+     "p": "kosmos/4dpAqfTbvKA.jpg",
+     "by": "Jeremy Thomas"
+    },
+    {
+     "p": "kosmos/Bolre_2dEZI.jpg",
+     "by": "Jacob Spence"
+    },
+    {
+     "p": "kosmos/E0AHdsENmDg.jpg",
+     "by": "Jeremy Thomas"
+    },
+    {
+     "p": "kosmos/LhDWW8PhPoE.jpg",
+     "by": "Cosmic Timetraveler"
+    },
+    {
+     "p": "kosmos/Z6EpCdMcoUU.jpg",
+     "by": "Aperture Vintage"
+    },
+    {
+     "p": "kosmos/aI1tDC8PaLM.jpg",
+     "by": "Blair Fraser"
+    },
+    {
+     "p": "kosmos/fUnfEz3VLv4.jpg",
+     "by": "Graham Holtshausen"
+    },
+    {
+     "p": "kosmos/fxrwJGMCz_g.jpg",
+     "by": "Alex"
+    },
+    {
+     "p": "kosmos/rCbdp8VCYhQ.jpg",
+     "by": "Andy Holmes"
+    }
+   ]
+  },
+  {
+   "id": "zima",
+   "name": "Zima",
+   "files": [
+    {
+     "p": "zima/FFUPFHcp2YU.jpg",
+     "by": "Jaanus Jagomägi"
+    },
+    {
+     "p": "zima/PzhmEp_aDU4.jpg",
+     "by": "Aditya Vyas"
+    },
+    {
+     "p": "zima/QLfjlyEamV4.jpg",
+     "by": "Stanley Dai"
+    },
+    {
+     "p": "zima/U9YwwN7Xr24.jpg",
+     "by": "geissht"
+    },
+    {
+     "p": "zima/WuVnejweXBw.jpg",
+     "by": "simon"
+    },
+    {
+     "p": "zima/dqMxDqdhg_4.jpg",
+     "by": "Ian Schneider"
+    },
+    {
+     "p": "zima/eQclhzSiRcw.jpg",
+     "by": "Nicholas Bartos"
+    },
+    {
+     "p": "zima/r53rNKb_7s8.jpg",
+     "by": "Bob Canning"
+    },
+    {
+     "p": "zima/scbYOgVyb8Q.jpg",
+     "by": "Nathan Fertig"
+    },
+    {
+     "p": "zima/w8hWTFpGtpY.jpg",
+     "by": "Chandler Cruttenden"
+    }
+   ]
+  },
+  {
+   "id": "niebo",
+   "name": "Niebo i zachody słońca",
+   "files": [
+    {
+     "p": "niebo/B1GMcmfDj-Q.jpg",
+     "by": "Chris Barbalis"
+    },
+    {
+     "p": "niebo/BCuxVP5WEsU.jpg",
+     "by": "Diego PH"
+    },
+    {
+     "p": "niebo/HcvtvZMo7Eg.jpg",
+     "by": "Rashed Ul Islam Chowdhory"
+    },
+    {
+     "p": "niebo/_UCVrH-ZIIg.jpg",
+     "by": "Davies Designs Studio"
+    },
+    {
+     "p": "niebo/ebHCU8n7G38.jpg",
+     "by": "Anton Darius"
+    },
+    {
+     "p": "niebo/iW1WzbuWMcA.jpg",
+     "by": "Fernando Strabuli"
+    },
+    {
+     "p": "niebo/nv7WX42LKjU.jpg",
+     "by": "Paxson Woelber"
+    },
+    {
+     "p": "niebo/q7z-AUlHPaw.jpg",
+     "by": "Łukasz Łada"
+    },
+    {
+     "p": "niebo/tPRFj3A1rxo.jpg",
+     "by": "Clint Patterson"
+    },
+    {
+     "p": "niebo/v8QdhKbOoC0.jpg",
+     "by": "Diego PH"
+    }
+   ]
+  },
+  {
+   "id": "abstrakcja",
+   "name": "Abstrakcja",
+   "files": [
+    {
+     "p": "abstrakcja/ix_kUDzCczo.jpg",
+     "by": "Codioful (Formerly Gradienta)"
+    }
+   ]
   }
  ]
 }
