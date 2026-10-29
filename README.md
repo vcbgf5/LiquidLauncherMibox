@@ -58,6 +58,34 @@ Czego Android nie pozwala nadać żadnej zwykłej aplikacji, to uprawnień „sy
 ma, bo jest częścią systemu, a Liquid TV nie. Dotyczy to m.in. list „Dalej oglądaj” innych aplikacji i wyłączania Boxa.
 Dlatego tej listy w launcherze już nie ma.
 
+**Szybkie ustawienia.** Przytrzymaj OK na zębatce (albo naciśnij Menu na pilocie): kafelki z Wi-Fi, Bluetooth, dźwiękiem,
+wygaszaczem, trybem wydajności, zwolnieniem pamięci, uśpieniem, restartem, włączaniem telewizora (HDMI-CEC), pilotem z telefonu i ustawieniami.
+
+**Narzędzia przez adb** (Ustawienia → Narzędzia): jednoklikowa konfiguracja (uprawnienia, usługa dostępności, dostęp do powiadomień,
+ciche aktualizacje), zwolnienie pamięci (zatrzymuje aplikacje w tle i czyści cache), szybsze animacje systemu (0,5× lub wyłączone),
+wyłączanie aplikacji (np. fabrycznych; z potwierdzeniem i listą do przywrócenia; wyłączenie fabrycznego ekranu głównego sprawia,
+że przycisk Home otwiera Liquid TV), uśpienie, restart i wyłączenie Boxa, włączanie i przełączanie telewizora przez HDMI-CEC
+(zależy od telewizora i jego ustawień CEC), a w menu aplikacji „Wymuś zatrzymanie”.
+
+**Foldery.** Przytrzymaj OK na aplikacji → „Dodaj do folderu” (Streaming, Gry, Muzyka, Narzędzia, Dla dzieci, Inne). Foldery
+są pierwsze na liście wszystkich aplikacji; aplikacja w folderze znika z głównej siatki.
+
+**Pilot z telefonu.** Ustawienia → Narzędzia → „Pilot z telefonu”: kod QR z adresem strony działającej w launcherze (ta sama sieć
+Wi-Fi). Na telefonie: pilot (strzałki, OK, wstecz, home), głośność, uśpienie/restart, pola na link kalendarza Google, miasto
+pogody i adres do otwarcia na TV. W adresie jest sekret; „Nowy link” unieważnia stary. Strona działa tylko przy otwartym oknie,
+chyba że włączysz „działa cały czas”.
+
+**Teraz gra.** Widżet pokazuje utwór, wykonawcę, okładkę i postęp z aplikacji muzycznych i wideo (Spotify, YouTube Music itd.);
+OK = odtwórz/pauza, przytrzymanie OK = następny utwór. Wymaga dostępu do powiadomień (nadawany przyciskiem w Narzędziach
+albo w ustawieniach Androida).
+
+**Wygląd i wydajność.** Kafelki pochylają się w stronę, z której przyszedł fokus, a grafika przesuwa się za ramką; tapeta
+lekko przesuwa się przy przechodzeniu po doku; kolor akcentu i odcień szkła okien (Ustawienia → Wygląd); na jasnych zdjęciach
+góra i dół są automatycznie przyciemniane, żeby zegar i nazwy aplikacji były czytelne. **Tryb wydajności** (automatyczny /
+zawsze oszczędnie / pełne efekty): w oszczędnym nie ma oddychającej tapety, błysków, pochylania ani płynnego przenikania tapet,
+tapeta jest mniejsza, a cienie lżejsze; automatyczny włącza go sam, gdy urządzenie jest słabe albo gdy zmierzone klatki
+launchera stale się spóźniają. Po powrocie z aplikacji fokus wraca na kafelek, z którego ją uruchomiono.
+
 **Tapety z Unsplash.** Launcher zmienia tapetę co kilka minut (z płynnym przenikaniem), losując z wybranej kategorii:
 zwierzęta, góry, miasto, las, ocean, kosmos, zima, niebo, abstrakcja, minimalizm (lub ze wszystkich).
 Kategorię i częstotliwość wybierasz w ustawieniach launchera (zębatka), tam też jest „Następna tapeta” i imię autora zdjęcia.
@@ -88,15 +116,20 @@ Plik źródłowy: [`preview/preview.html`](preview/preview.html).
 
 ## Aktualizacje w aplikacji
 
-Launcher **sam sprawdza**, czy w najnowszym wydaniu jest nowsza wersja (jedno malutkie zapytanie, gdy launcher pojawia się
-na ekranie, najwyżej raz na 6 godzin) i — gdy jest — **sam ją pobiera i otwiera systemowy instalator**. Zostaje Ci tylko
-zatwierdzić instalację (Android nigdy nie pozwala instalować po cichu). Tę samą wersję launcher proponuje samoczynnie tylko raz,
-więc jeśli odmówisz, nie będzie Cię nękał; wtedy przy zębatce świeci czerwona kropka.
+Gdy launcher jest na ekranie, **sam sprawdza co 5 sekund** (do zmiany: 5 s, 30 s, 5 min, 1 godz.; Ustawienia → Aktualizacje),
+czy w najnowszym wydaniu jest nowsza wersja. To jedno malutkie zapytanie; gdy się nie uda (brak internetu, GitHub odmawia),
+odstępy rosną do 5 minut, żeby nie zasypywać serwera. Nowa wersja instaluje się, gdy przez chwilę nie dotykasz pilota.
+Tę samą wersję launcher proponuje samoczynnie tylko raz (nieudaną cichą instalację ponawia po kwadransie), a przy zębatce
+świeci czerwona kropka, gdy nowa wersja czeka.
 
-W ustawieniach launchera (zębatka): **Sprawdź aktualizacje** (sprawdza od razu i jeśli jest nowa wersja, od razu ją pobiera),
-**Aktualizuj teraz** (gdy nowa wersja czeka) i przełącznik **Aktualizuj automatycznie** (domyślnie włączony).
-Przy pierwszej aktualizacji system zapyta o zgodę na „instalowanie nieznanych aplikacji” dla Liquid TV — włącz ją
-i wybierz Aktualizuj teraz jeszcze raz (samoczynna aktualizacja sama tego okna nie otwiera).
+**Ciche aktualizacje (bez okna Androida)** działają przez adb na samym Boxie. Jednorazowo: włącz debugowanie w Opcjach
+programisty, wejdź w Ustawienia → **Narzędzia (adb)** → **Skonfiguruj adb**, a na telewizorze zaznacz „Zawsze zezwalaj”.
+Instalacja wykonuje się w osobnej powłoce na Boxie (przeżywa restart launchera) i sama uruchamia launcher po zakończeniu;
+jeśli coś nie pójdzie, Ustawienia → Aktualizacje → **Diagnostyka adb** pokazuje krok po kroku, co zawiodło. Wymaga Androida 8+.
+Po aktualizacji pokazuje się okno **Co nowego** (ponownie: Ustawienia → Aktualizacje).
+
+W ustawieniach launchera (zębatka): **Sprawdź aktualizacje**, **Aktualizuj teraz**, przełącznik **Aktualizuj automatycznie**
+i **Ciche aktualizacje**. Bez adb system zapyta o zgodę na „instalowanie nieznanych aplikacji” i pokaże własne okno instalacji.
 
 **Żeby aktualizacje „na wierzchu” w ogóle działały, wersje muszą być podpisane tym samym kluczem.** Jednorazowo:
 
@@ -113,7 +146,7 @@ tym samym kluczem i trzeba zaczynać od nowa (z odinstalowaniem).
 ## Połączenie z Boxem przez ADB (skrypt na komputer)
 
 [`tools/tv_adb.py`](tools/tv_adb.py) łączy się z Boxem przez sieć (domyślnie port 5555) i ma menu najczęstszych czynności:
-instalacja i aktualizacja Liquid TV z GitHuba, włączenie usługi dostępności (pasek głośności, okno zasilania),
+instalacja i aktualizacja Liquid TV z GitHuba (większość tego umie już sam launcher: Ustawienia → Narzędzia), włączenie usługi dostępności (pasek głośności, okno zasilania),
 ustawienie domyślnego ekranu głównego, wpisanie linku w zaznaczone pole, zrzut ekranu, uśpienie i obudzenie Boxa.
 Potrzebuje tylko Pythona 3; jeśli nie ma `adb`, zaproponuje pobranie go od Google.
 
