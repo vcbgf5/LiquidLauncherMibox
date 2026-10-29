@@ -87,7 +87,9 @@ private val Gray = Color(0xFF8E8E93)
  *  - Screensaver: when it starts, and showing it right now,
  *  - Updates: the current version, "check now", "update now" (only when [installLabel] is set)
  *    and whether the launcher updates by itself,
- *  - System: a way into the Android system settings.
+ *  - System: whether the box is online, the volume bar and power menu (they need the launcher's
+ *    accessibility service), shortcuts to the Android screens (Wi-Fi, Bluetooth, display, sound...)
+ *    and the Android system settings.
  *
  * Up/Down moves between rows, Left/Right changes a value, OK presses an action or flips a
  * switch. [categoryOptions] is (id, display name) pairs in the order they are cycled through.
@@ -119,11 +121,22 @@ fun SettingsDialog(
     onInstallUpdate: () -> Unit,
     autoCheckUpdates: Boolean,
     onAutoCheckChange: (Boolean) -> Unit,
+    networkStatus: String,
+    customVolume: Boolean,
+    onCustomVolumeChange: (Boolean) -> Unit,
+    accessibilityOn: Boolean,
+    onOpenAccessibility: () -> Unit,
+    onOpenPowerMenu: () -> Unit,
+    systemShortcuts: List<Pair<String, () -> Unit>>,
     onOpenSystemSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    // The main screen is a list of categories; OK opens one, Back comes out of it (and closes the list).
+    var category by remember { mutableStateOf<SettingsCategory?>(null) }
+    var lastCategory by remember { mutableStateOf(SettingsCategory.APPEARANCE) }
+
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (category != null) category = null else onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         // Dim the screen only a little, so the dock and wallpaper stay visible while they are adjusted.
@@ -151,12 +164,14 @@ fun SettingsDialog(
                 verticalAlignment = Alignment.Bottom,
             ) {
                 Text(
-                    text = stringResource(R.string.settings_title),
+                    text = category?.let { "‹  " + stringResource(it.titleRes) } ?: stringResource(R.string.settings_title),
                     color = Color.White,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                 )
-                Text(text = versionLabel, color = Color.White.copy(alpha = 0.45f), fontSize = 12.sp)
+                if (category == null) {
+                    Text(text = versionLabel, color = Color.White.copy(alpha = 0.45f), fontSize = 12.sp)
+                }
             }
 
             Column(
@@ -165,7 +180,26 @@ fun SettingsDialog(
                     .verticalScroll(rememberScrollState())
                     .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             ) {
-                Section(stringResource(R.string.group_appearance), Blue, { SlidersIcon(it) }) {
+                when (category) {
+                null -> CategoryList(
+                    summaries = mapOf(
+                        SettingsCategory.APPEARANCE to "",
+                        SettingsCategory.WALLPAPERS to categoryLabel,
+                        SettingsCategory.SCREENSAVER to if (screensaverMinutes <= 0) {
+                            stringResource(R.string.screensaver_off)
+                        } else {
+                            stringResource(R.string.minutes_short, screensaverMinutes)
+                        },
+                        SettingsCategory.UPDATES to if (installLabel != null) stringResource(R.string.update_badge) else "",
+                        SettingsCategory.SYSTEM to networkStatus,
+                    ),
+                    focusOn = lastCategory,
+                    onOpen = {
+                        lastCategory = it
+                        category = it
+                    },
+                )
+                SettingsCategory.APPEARANCE -> Group {
                     AdjustRow(
                         label = stringResource(R.string.settings_dock_transparency),
                         percent = transparencyPercent,
@@ -191,10 +225,11 @@ fun SettingsDialog(
                     ToggleRow(stringResource(R.string.settings_tile_lighting), tileLighting, onTileLightingChange)
                 }
 
-                Section(stringResource(R.string.group_wallpapers), Purple, { PhotoIcon(it) }) {
+                SettingsCategory.WALLPAPERS -> Group {
                     ChoiceRow(
                         label = stringResource(R.string.settings_wallpaper),
                         value = categoryLabel,
+                        autoFocus = true,
                         onStep = { direction ->
                             if (categoryOptions.isNotEmpty()) {
                                 val from = if (categoryIndex < 0) 0 else categoryIndex
@@ -219,9 +254,10 @@ fun SettingsDialog(
                     }
                 }
 
-                Section(stringResource(R.string.group_screensaver), Indigo, { MoonIcon(it) }) {
+                SettingsCategory.SCREENSAVER -> Group {
                     ChoiceRow(
                         label = stringResource(R.string.settings_screensaver),
+                        autoFocus = true,
                         value = if (screensaverMinutes <= 0) {
                             stringResource(R.string.screensaver_off)
                         } else {
@@ -236,9 +272,9 @@ fun SettingsDialog(
                     ActionRow(label = stringResource(R.string.settings_screensaver_show), arrow = false, onClick = onShowScreensaver)
                 }
 
-                Section(stringResource(R.string.group_updates), Green, { RefreshIcon(it) }) {
+                SettingsCategory.UPDATES -> Group {
                     Note(updateStatus, top = 10.dp)
-                    ActionRow(label = stringResource(R.string.settings_update_check), arrow = false, onClick = onCheckUpdates)
+                    ActionRow(label = stringResource(R.string.settings_update_check), arrow = false, autoFocus = true, onClick = onCheckUpdates)
                     if (installLabel != null) {
                         Divider()
                         ActionRow(label = installLabel, arrow = false, onClick = onInstallUpdate)
@@ -247,7 +283,28 @@ fun SettingsDialog(
                     ToggleRow(stringResource(R.string.settings_update_auto), autoCheckUpdates, onAutoCheckChange)
                 }
 
-                Section(stringResource(R.string.group_system), Gray, { GearIcon(it) }) {
+                SettingsCategory.SYSTEM -> Group {
+                    Note(networkStatus, top = 10.dp)
+                    Note(stringResource(if (accessibilityOn) R.string.settings_a11y_on else R.string.settings_a11y_off))
+                    if (!accessibilityOn) {
+                        ActionRow(label = stringResource(R.string.settings_open_a11y), arrow = true, autoFocus = true, onClick = onOpenAccessibility)
+                        Divider()
+                    }
+                    ToggleRow(stringResource(R.string.settings_custom_volume), customVolume, onCustomVolumeChange, autoFocus = accessibilityOn)
+                    Divider()
+                    ActionRow(label = stringResource(R.string.settings_power_menu), arrow = false, onClick = onOpenPowerMenu)
+                    systemShortcuts.forEach { (label, open) ->
+                        Divider()
+                        ActionRow(
+                            label = label,
+                            arrow = true,
+                            onClick = {
+                                onDismiss()
+                                open()
+                            },
+                        )
+                    }
+                    Divider()
                     ActionRow(
                         label = stringResource(R.string.settings_system),
                         arrow = true,
@@ -256,6 +313,7 @@ fun SettingsDialog(
                             onOpenSystemSettings()
                         },
                     )
+                }
                 }
             }
         }
@@ -266,41 +324,96 @@ fun SettingsDialog(
 private fun intervalLabel(minutes: Int): String =
     if (minutes >= 60) stringResource(R.string.hour_short) else stringResource(R.string.minutes_short, minutes)
 
-/** A titled group: a small coloured badge with an icon, the name in capitals, and a rounded card of rows. */
+/** The settings are split into these categories; the main screen lists them. */
+private enum class SettingsCategory(val titleRes: Int, val tint: Color) {
+    APPEARANCE(R.string.group_appearance, Blue),
+    WALLPAPERS(R.string.group_wallpapers, Purple),
+    SCREENSAVER(R.string.group_screensaver, Indigo),
+    UPDATES(R.string.group_updates, Green),
+    SYSTEM(R.string.group_system, Gray),
+}
+
+/** A rounded card holding a category's rows. */
 @Composable
-private fun Section(
-    title: String,
-    tint: Color,
-    icon: @Composable (Modifier) -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Row(
-        modifier = Modifier.padding(start = 6.dp, top = 16.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.size(24.dp).clip(RoundedCornerShape(7.dp)).background(tint),
-            contentAlignment = Alignment.Center,
-        ) {
-            icon(Modifier.size(15.dp))
-        }
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text = title.uppercase(),
-            color = Color.White.copy(alpha = 0.6f),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.2.sp,
-        )
-    }
+private fun Group(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(top = 6.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(GroupColor)
             .padding(vertical = 4.dp),
         content = content,
     )
+}
+
+/** The main settings screen: one row per category, with the current state of it on the right. */
+@Composable
+private fun CategoryList(summaries: Map<SettingsCategory, String>, focusOn: SettingsCategory, onOpen: (SettingsCategory) -> Unit) {
+    Group {
+        SettingsCategory.values().forEachIndexed { index, category ->
+            if (index > 0) Divider()
+            CategoryRow(
+                category = category,
+                summary = summaries[category].orEmpty(),
+                autoFocus = category == focusOn,
+                onClick = { onOpen(category) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryRow(category: SettingsCategory, summary: String, autoFocus: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val requester = remember { FocusRequester() }
+    if (autoFocus) {
+        LaunchedEffect(Unit) {
+            delay(60)
+            runCatching { requester.requestFocus() }
+        }
+    }
+    val ink = if (focused) Color(0xFF111111) else Color.White.copy(alpha = 0.92f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 1.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .onFocusChanged { focused = it.isFocused }
+            .okAction(onClick)
+            .focusRequester(requester)
+            .focusable()
+            .background(if (focused) Color.White.copy(alpha = 0.92f) else Color.Transparent)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(category.tint),
+            contentAlignment = Alignment.Center,
+        ) {
+            val icon = Modifier.size(20.dp)
+            when (category) {
+                SettingsCategory.APPEARANCE -> SlidersIcon(icon)
+                SettingsCategory.WALLPAPERS -> PhotoIcon(icon)
+                SettingsCategory.SCREENSAVER -> MoonIcon(icon)
+                SettingsCategory.UPDATES -> RefreshIcon(icon)
+                SettingsCategory.SYSTEM -> GearIcon(icon)
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Text(
+            text = stringResource(category.titleRes),
+            color = ink,
+            fontSize = 17.sp,
+            fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
+            modifier = Modifier.weight(1f),
+        )
+        if (summary.isNotEmpty()) {
+            Text(text = summary, color = ink.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1)
+            Spacer(Modifier.width(10.dp))
+        }
+        Text("›", color = ink, fontSize = 20.sp)
+    }
 }
 
 @Composable
@@ -402,8 +515,8 @@ private fun AdjustRow(label: String, percent: Int, autoFocus: Boolean, onStep: (
 }
 
 @Composable
-private fun ChoiceRow(label: String, value: String, onStep: (Int) -> Unit) {
-    StepRow(label, autoFocus = false, onStep = onStep) { ink ->
+private fun ChoiceRow(label: String, value: String, autoFocus: Boolean = false, onStep: (Int) -> Unit) {
+    StepRow(label, autoFocus = autoFocus, onStep = onStep) { ink ->
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("‹", color = ink, fontSize = 18.sp)
             Text(
@@ -421,8 +534,8 @@ private fun ChoiceRow(label: String, value: String, onStep: (Int) -> Unit) {
 
 /** An on/off switch like the ones on iOS; OK, Left and Right all flip it. */
 @Composable
-private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    StepRow(label, autoFocus = false, onStep = { onChange(!checked) }, onOk = { onChange(!checked) }) { ink ->
+private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, autoFocus: Boolean = false) {
+    StepRow(label, autoFocus = autoFocus, onStep = { onChange(!checked) }, onOk = { onChange(!checked) }) { ink ->
         val knobX by animateDpAsState(
             targetValue = if (checked) 20.dp else 0.dp,
             animationSpec = spring(dampingRatio = 0.7f, stiffness = 500f),
@@ -448,8 +561,15 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
 }
 
 @Composable
-private fun ActionRow(label: String, arrow: Boolean, onClick: () -> Unit) {
+private fun ActionRow(label: String, arrow: Boolean, autoFocus: Boolean = false, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
+    val requester = remember { FocusRequester() }
+    if (autoFocus) {
+        LaunchedEffect(Unit) {
+            delay(60)
+            runCatching { requester.requestFocus() }
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -457,6 +577,7 @@ private fun ActionRow(label: String, arrow: Boolean, onClick: () -> Unit) {
             .clip(RoundedCornerShape(14.dp))
             .onFocusChanged { focused = it.isFocused }
             .okAction(onClick)
+            .focusRequester(requester)
             .focusable()
             .background(if (focused) Color.White.copy(alpha = 0.92f) else Color.Transparent)
             .padding(horizontal = 14.dp, vertical = 13.dp),

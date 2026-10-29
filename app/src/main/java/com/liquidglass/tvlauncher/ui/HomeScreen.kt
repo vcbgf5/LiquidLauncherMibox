@@ -95,6 +95,7 @@ fun HomeScreen(
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenPower: () -> Unit,
     onOpenAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -228,6 +229,7 @@ fun HomeScreen(
                 showClock = !bigClock,
                 onUp = { onPage(PAGE_INFO) },
                 onOpenSettings = onOpenSettings,
+                onOpenPower = onOpenPower,
                 onOpenAccount = onOpenAccount,
                 modifier = Modifier
                     .align(Alignment.TopEnd)

@@ -27,6 +27,13 @@ class LauncherSettings(context: Context) {
             prefs.edit().putBoolean(KEY_TILE_LIGHTING, value).apply()
         }
 
+    /** The launcher's own volume bar (needs its accessibility service) instead of Android's. */
+    var customVolume: Boolean
+        get() = prefs.getBoolean(KEY_CUSTOM_VOLUME, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_CUSTOM_VOLUME, value).apply()
+        }
+
     /** A big clock in the middle of the home screen instead of the small one in the corner. */
     var bigClock: Boolean
         get() = prefs.getBoolean(KEY_BIG_CLOCK, false)
@@ -99,6 +106,7 @@ class LauncherSettings(context: Context) {
         const val DEFAULT_SCREENSAVER_MINUTES = 3
         private const val KEY_DOCK_SIZE = "dock_size"
         private const val KEY_BIG_CLOCK = "big_clock"
+        private const val KEY_CUSTOM_VOLUME = "custom_volume"
         private const val KEY_TILE_LIGHTING = "tile_lighting"
         private const val KEY_SCREENSAVER = "screensaver_minutes"
         const val DEFAULT_DOCK_TRANSPARENCY = 60

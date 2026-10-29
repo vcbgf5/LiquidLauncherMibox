@@ -3,12 +3,16 @@ package com.liquidglass.tvlauncher
 import android.accounts.AccountManager
 import android.app.ActivityOptions
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -113,6 +117,8 @@ class MainActivity : ComponentActivity() {
             var screensaverMinutes by remember { mutableIntStateOf(settings.screensaverMinutes) }
             var bigClock by remember { mutableStateOf(settings.bigClock) }
             var tileLighting by remember { mutableStateOf(settings.tileLighting) }
+            var customVolume by remember { mutableStateOf(settings.customVolume) }
+            var showPower by remember { mutableStateOf(false) }
             var iconPickerApp by remember { mutableStateOf<AppInfo?>(null) }
             var iconsVersion by remember { mutableIntStateOf(0) }
             var iconPacks by remember { mutableStateOf<List<IconPack>>(emptyList()) }
@@ -199,7 +205,7 @@ class MainActivity : ComponentActivity() {
             // is on screen and nothing (a dialog, an app opening) is going on. Every key press
             // (see dispatchKeyEvent) restarts the wait.
             LaunchedEffect(inForeground, screensaverMinutes, showSettings, menuApp, iconPickerApp, launchRequest) {
-                if (!inForeground || screensaverMinutes <= 0 || showSettings || menuApp != null || iconPickerApp != null || launchRequest != null) {
+                if (!inForeground || screensaverMinutes <= 0 || showSettings || menuApp != null || iconPickerApp != null || showPower || launchRequest != null) {
                     return@LaunchedEffect
                 }
                 snapshotFlow { lastInputAt }.collectLatest {
@@ -299,7 +305,7 @@ class MainActivity : ComponentActivity() {
                     page = page,
                     onPage = { page = it },
                     resetSignal = resetSignal,
-                    focusPaused = showSettings || menuApp != null || iconPickerApp != null || launchRequest != null,
+                    focusPaused = showSettings || menuApp != null || iconPickerApp != null || showPower || launchRequest != null,
                     accountName = accountName,
                     updateAvailable = updateInfo != null,
                     wallpaper = wallpaper,
@@ -315,6 +321,7 @@ class MainActivity : ComponentActivity() {
                     // Titles and the system-home shortcut have no favorite/uninstall menu.
                     onOpenMenu = { if (it.intentUri == null && it in apps) menuApp = it },
                     onOpenSettings = { showSettings = true },
+                    onOpenPower = { showPower = true },
                     onOpenAccount = {
                         if (accountName == null) {
                             try {
@@ -423,6 +430,29 @@ class MainActivity : ComponentActivity() {
                         autoCheck = it
                         settings.autoCheckUpdates = it
                     },
+                    networkStatus = networkStatus(),
+                    customVolume = customVolume,
+                    onCustomVolumeChange = {
+                        customVolume = it
+                        settings.customVolume = it
+                    },
+                    accessibilityOn = accessibilityServiceOn(),
+                    onOpenAccessibility = {
+                        showSettings = false
+                        openSystemScreen(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    },
+                    onOpenPowerMenu = {
+                        showSettings = false
+                        showPower = true
+                    },
+                    systemShortcuts = listOf(
+                        stringResource(R.string.shortcut_wifi) to { openSystemScreen(Settings.ACTION_WIFI_SETTINGS) },
+                        stringResource(R.string.shortcut_bluetooth) to { openSystemScreen(Settings.ACTION_BLUETOOTH_SETTINGS) },
+                        stringResource(R.string.shortcut_display) to { openSystemScreen(Settings.ACTION_DISPLAY_SETTINGS) },
+                        stringResource(R.string.shortcut_sound) to { openSystemScreen(Settings.ACTION_SOUND_SETTINGS) },
+                        stringResource(R.string.shortcut_dream) to { openSystemScreen(Settings.ACTION_DREAM_SETTINGS) },
+                        stringResource(R.string.shortcut_a11y) to { openSystemScreen(Settings.ACTION_ACCESSIBILITY_SETTINGS) },
+                    ),
                     onOpenSystemSettings = { openSettings() },
                     onDismiss = { showSettings = false },
                 )
@@ -463,6 +493,26 @@ class MainActivity : ComponentActivity() {
                     add(MenuOption(stringResource(R.string.menu_uninstall)) { uninstall(app) })
                 }
                 AppMenu(title = app.label, options = options, onDismiss = { menuApp = null })
+            }
+
+            if (showPower) {
+                val needsService = stringResource(R.string.power_needs_service)
+                AppMenu(
+                    title = stringResource(R.string.power_title),
+                    options = listOf(
+                        MenuOption(stringResource(R.string.power_screensaver)) { screensaverShowing = true },
+                        MenuOption(stringResource(R.string.power_off)) {
+                            // Android only opens its power dialog for an accessibility service.
+                            if (!SystemService.showPowerDialog()) {
+                                Toast.makeText(this@MainActivity, needsService, Toast.LENGTH_LONG).show()
+                                openSystemScreen(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                            }
+                        },
+                        MenuOption(stringResource(R.string.power_sleep_settings)) { openSystemScreen(Settings.ACTION_DREAM_SETTINGS) },
+                        MenuOption(stringResource(R.string.power_display_settings)) { openSystemScreen(Settings.ACTION_DISPLAY_SETTINGS) },
+                    ),
+                    onDismiss = { showPower = false },
+                )
             }
 
             iconPickerApp?.let { app ->
@@ -576,6 +626,39 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
             launchExpanded = false // uninstalled since the list was loaded; the next resume refreshes it
         }
+    }
+
+    /** One of Android's own settings screens, or the main settings when this box doesn't have it. */
+    private fun openSystemScreen(action: String) {
+        try {
+            startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: Exception) {
+            openSettings()
+        }
+    }
+
+    /** Whether the box is online, and how, for the settings. */
+    private fun networkStatus(): String {
+        val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val capabilities = try {
+            manager?.getNetworkCapabilities(manager.activeNetwork)
+        } catch (_: Exception) {
+            null
+        }
+        return getString(
+            when {
+                capabilities == null -> R.string.net_none
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> R.string.net_wifi
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> R.string.net_ethernet
+                else -> R.string.net_other
+            },
+        )
+    }
+
+    /** Whether the user has switched on this app's accessibility service. */
+    private fun accessibilityServiceOn(): Boolean {
+        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        return enabled?.contains("$packageName/") == true
     }
 
     private fun openSettings() {

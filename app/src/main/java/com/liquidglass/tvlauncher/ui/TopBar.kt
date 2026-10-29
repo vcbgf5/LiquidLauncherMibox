@@ -6,8 +6,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -38,7 +38,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +63,7 @@ fun TopBar(
     showClock: Boolean,
     onUp: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenPower: () -> Unit,
     onOpenAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -96,7 +99,7 @@ fun TopBar(
                 style = TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.55f), blurRadius = 10f)),
             )
         }
-        TopBarButton(onClick = onOpenSettings) {
+        TopBarButton(onClick = onOpenSettings, onLongClick = onOpenPower) {
             Box(modifier = Modifier.size(24.dp)) {
                 GearIcon(Modifier.fillMaxSize())
                 if (updateAvailable) {
@@ -117,8 +120,9 @@ fun TopBar(
 }
 
 @Composable
-private fun TopBarButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+private fun TopBarButton(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
     var focused by remember { mutableStateOf(false) }
+    val longFired = remember { booleanArrayOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) 1.15f else 1f,
         animationSpec = spring(dampingRatio = 0.62f, stiffness = 380f),
@@ -137,11 +141,34 @@ private fun TopBarButton(onClick: () -> Unit, content: @Composable () -> Unit) {
             .background(Color.White.copy(alpha = 0.16f + 0.22f * glow))
             .border(1.5.dp, Color.White.copy(alpha = 0.25f + 0.65f * glow), CircleShape)
             .onFocusChanged { focused = it.isFocused }
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+            .onKeyEvent { event ->
+                if (event.key != Key.DirectionCenter && event.key != Key.Enter && event.key != Key.NumPadEnter) {
+                    return@onKeyEvent false
+                }
+                when (event.type) {
+                    KeyEventType.KeyDown -> {
+                        val repeats = event.nativeKeyEvent.repeatCount
+                        if (repeats == 0) longFired[0] = false
+                        // The first auto-repeat of a held key is the long press.
+                        if (repeats == 1 && !longFired[0] && onLongClick != null) {
+                            longFired[0] = true
+                            onLongClick()
+                        }
+                        true
+                    }
+                    KeyEventType.KeyUp -> {
+                        val wasLong = longFired[0]
+                        longFired[0] = false
+                        if (!wasLong) onClick()
+                        true
+                    }
+                    else -> false
+                }
+            }
+            .focusable()
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick?.invoke() })
+            },
         contentAlignment = Alignment.Center,
     ) {
         content()
