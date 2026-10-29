@@ -19,7 +19,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:
   radial-gradient(760px 480px at 8% 12%,rgba(10,132,255,.28),transparent 60%),
   radial-gradient(900px 600px at 50% 110%,rgba(175,82,222,.22),transparent 60%),var(--bg)}
 a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
-img{max-width:100%;display:block}
+img{max-width:100%;height:auto;display:block}
 .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
 
 /* top bar */
@@ -478,7 +478,7 @@ python tv_adb.py 192.168.0.170 --screenshot</pre></div>
 
 <footer><div class="wrap">
   Liquid TV · <a href="https://github.com/vcbgf5/LiquidLauncherMibox">kod na GitHubie</a> · <a href="preview.html">klikalny podgląd</a> · <a href="https://github.com/vcbgf5/LiquidLauncherMibox/releases">wydania</a><br>
-  Strona zaktualizowana: <span id="built">2026-10-29 22:38 UTC</span>. Logo i nazwy aplikacji na kafelkach należą do ich właścicieli; to niezależny projekt, niezwiązany z Apple.
+  Strona zaktualizowana: <span id="built">2026-10-29</span>. Logo i nazwy aplikacji na kafelkach należą do ich właścicieli; to niezależny projekt, niezwiązany z Apple.
 </div></footer>
 
 <script>
@@ -487,7 +487,7 @@ python tv_adb.py 192.168.0.170 --screenshot</pre></div>
   var repo="vcbgf5/LiquidLauncherMibox";
   function mb(n){return (n/1048576).toFixed(1)+" MB"}
   function day(s){return new Date(s).toLocaleDateString("pl-PL",{day:"numeric",month:"long",year:"numeric"})}
-  fetch("https://api.github.com/repos/"+repo+"/releases?per_page=8").then(function(r){return r.ok?r.json():Promise.reject()}).then(function(list){
+  function show(list){
     list=list.filter(function(r){return !r.draft});
     var latest=list[0]; if(!latest) return;
     var apk=(latest.assets||[]).find(function(a){return a.name==="LiquidTV.apk"});
@@ -504,7 +504,10 @@ python tv_adb.py 192.168.0.170 --screenshot</pre></div>
       row.innerHTML='<span class="tag">'+rel.tag_name+'</span><span class="day">'+day(rel.published_at)+'</span><span class="files">'+files+'</span>';
       box.appendChild(row);
     });
-  }).catch(function(){
+  }
+  function json(u){return fetch(u).then(function(r){return r.ok?r.json():Promise.reject()})}
+  // releases.json is a copy made when the site is published (no rate limit); the live API is the fallback.
+  json("releases.json").catch(function(){return json("https://api.github.com/repos/"+repo+"/releases?per_page=8")}).then(show).catch(function(){
     document.getElementById("ver").textContent="Najnowsza wersja: przycisk powyżej zawsze pobiera aktualną.";
     document.getElementById("rel").innerHTML='<p style="color:var(--mut);margin:6px 0 0">Nie udało się wczytać listy. <a href="https://github.com/'+repo+'/releases">Zobacz wydania na GitHubie.</a></p>';
   });
