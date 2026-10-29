@@ -1,12 +1,13 @@
 name: webOS package
 
-# Packs the clickable preview (preview/preview.html) as an LG webOS app, for testing the look on an LG TV.
+# Builds the clickable preview (preview/src, tools/build_preview.py) and packs it as an LG webOS app, for testing the look on an LG TV.
 on:
   workflow_dispatch:
   push:
     paths:
       - "webos/**"
-      - "preview/preview.html"
+      - "preview/**"
+      - "tools/build_preview.py"
       - ".github/workflows/webos.yml"
 
 jobs:
@@ -19,7 +20,7 @@ jobs:
           node-version: "20"
       - name: Package
         run: |
-          cp preview/preview.html webos/index.html
+          python3 tools/build_preview.py
           npm install -g @webos-tools/cli
           mkdir -p out
           ares-package webos --outdir out

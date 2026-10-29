@@ -1,7 +1,7 @@
 # Liquid TV na LG webOS (podgląd do testów)
 
 Prawdziwy launcher jest aplikacją na Androida i na webOS nie wystartuje. Telewizory LG uruchamiają za to aplikacje
-internetowe (HTML/JS), więc ten folder pakuje **klikalny podgląd** wyglądu Liquid TV (`preview/preview.html`) jako
+internetowe (HTML/JS), więc ten folder pakuje **klikalny podgląd** wyglądu Liquid TV (źródło: `preview/src/`, budowany poleceniem `python3 tools/build_preview.py` do `webos/index.html`) jako
 aplikację webOS. Przydaje się do obejrzenia i sprawdzenia wyglądu oraz nawigacji pilotem LG (strzałki, OK, Wstecz).
 To makieta z przykładowymi ikonami, nie działający launcher.
 

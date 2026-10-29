@@ -122,12 +122,26 @@ Domyślne ulubione i zawsze pierwsze w siatce: YouTube, Netflix, YouTube Music, 
 
 **Klikalny podgląd w przeglądarce: https://vcbgf5.github.io/LiquidLauncherMibox/preview.html**
 
-Możesz w nim klikać kafelki (pierwsze kliknięcie zaznacza, drugie „otwiera”), używać wirtualnego pilota pod ekranem
-albo strzałek, Enter i Esc na klawiaturze. Prawy przycisk myszy lub „Przytrzymaj OK (menu)” pokazuje menu aplikacji.
-Działa też na telefonie.
+Podgląd odtwarza aktualny wygląd (wersja i „Co nowego” są takie jak w wydaniu): ekran główny z dużym szklanym zegarem
+i minimalnym paskiem (☰ rozwija Wi-Fi, Bluetooth, konto, szybkie ustawienia, ustawienia), strona widżetów nad nim
+(kalendarz, pogoda, „Teraz gra”, sieć, Bluetooth, pamięć), wszystkie aplikacje z folderem, menu aplikacji (przytrzymaj
+OK albo prawy przycisk myszy), **szybkie ustawienia** (przycisk Menu / `M`), pasek głośności (`+` i `-`), ustawienia
+w kategoriach (kolor akcentu, odcień szkła, pasek u góry, zegar, paralaksa, tryb wydajności, widżety, tapety,
+wygaszacz, aktualizacje, narzędzia adb, system), kod QR pilota z telefonu i wygaszacz. Zmiany ustawień działają na
+żywo i zostają w przeglądarce.
 
-Zdjęcia powyżej to prawdziwe zrzuty ekranu z Mi Box S. Klikalny podgląd to makieta z przykładowymi ikonami — prawdziwa aplikacja pokazuje ikony zainstalowanych aplikacji.
-Plik źródłowy: [`preview/preview.html`](preview/preview.html).
+Sterowanie: strzałki, Enter (przytrzymaj = menu aplikacji), Esc (Wstecz), `H` (Home), `M` (szybkie ustawienia),
+`+`/`-` (głośność), `S` (wygaszacz), kółko myszy (góra/dół); albo wirtualny pilot pod ekranem. Najechanie myszą
+przesuwa zaznaczenie jak wskaźnik pilota Magic Remote, kliknięcie otwiera. Działa też na telefonie. Parametry
+adresu: `?s=settings`, `?s=quick`, `?s=apps`, `?s=info`, `?s=saver` otwierają dany ekran, `?embed` ukrywa pilota,
+`?lite` włącza tryb oszczędny.
+
+Zdjęcia powyżej to prawdziwe zrzuty ekranu z Mi Box S (kafelki w podglądzie są z nich wycięte). Podgląd to
+makieta: dane (pogoda, wydarzenia, sparowane urządzenia) są przykładowe, a przyciski adb tylko pokazują, co by się stało.
+
+Źródło podglądu: [`preview/src/`](preview/src/) (strona `preview.html`, obrazy w `assets/`). Gotowy plik
+(`preview/preview.html`, ten sam trafia do paczki webOS) powstaje poleceniem `python3 tools/build_preview.py`;
+wersja i „Co nowego” są brane z `preview/src/version.txt` i `Changelog.kt`.
 
 ## Aplikacja na telefon: Liquid TV Pilot
 

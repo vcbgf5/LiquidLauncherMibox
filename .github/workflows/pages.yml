@@ -6,7 +6,9 @@ on:
     branches: [main]
     paths:
       - 'site/**'
-      - 'preview/preview.html'
+      - 'preview/**'
+      - 'tools/build_preview.py'
+      - 'app/src/main/java/com/liquidglass/tvlauncher/data/Changelog.kt'
       - 'docs/*.jpg'
       - '.github/workflows/pages.yml'
   # A new build (and with it a new release) refreshes the version numbers on the page.
@@ -35,7 +37,6 @@ jobs:
         run: |
           mkdir -p out/img out/apk
           cp -r site/. out/
-          cp preview/preview.html out/preview.html
           cp docs/preview-*.jpg out/img/
           touch out/.nojekyll
           sed -i "s/__BUILT__/$(date -u +'%Y-%m-%d')/" out/index.html
@@ -44,6 +45,9 @@ jobs:
             --jq '[.[] | select(.draft | not) | {tag_name, published_at, assets: [.assets[] | {name, size, browser_download_url}]}]' \
             > out/releases.json || echo '[]' > out/releases.json
           head -c 400 out/releases.json; echo
+          # The clickable preview, showing the version of the newest release.
+          VER=$(python3 -c "import json;print(json.load(open('out/releases.json'))[0]['tag_name'])" 2>/dev/null || cat preview/src/version.txt)
+          python3 tools/build_preview.py --version "$VER" --out out/preview.html
           find out -type f | sort
 
       - name: Publish to gh-pages
