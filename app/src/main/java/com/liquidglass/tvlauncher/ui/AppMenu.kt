@@ -2,7 +2,7 @@ package com.liquidglass.tvlauncher.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -90,8 +90,9 @@ private fun MenuRow(label: String, autoFocus: Boolean, onClick: () -> Unit) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .onFocusChanged { focused = it.isFocused }
+            .okAction(onClick)
             .focusRequester(requester)
-            .clickable(onClick = onClick)
+            .focusable()
             .background(if (focused) Color.White.copy(alpha = 0.92f) else Color.Transparent)
             .padding(horizontal = 14.dp, vertical = 11.dp),
     ) {

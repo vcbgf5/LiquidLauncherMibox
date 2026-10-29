@@ -33,7 +33,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -43,11 +42,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.imageResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import com.liquidglass.tvlauncher.R
 import com.liquidglass.tvlauncher.data.AppInfo
 import kotlinx.coroutines.delay
 
@@ -83,6 +79,7 @@ fun HomeScreen(
     onShowApps: (Boolean) -> Unit,
     resetSignal: Int,
     accountName: String?,
+    wallpaper: WallpaperState,
     dockTransparency: Float,
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
@@ -96,8 +93,6 @@ fun HomeScreen(
     val dockFirst = remember { FocusRequester() }
     val gridFirst = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
-    val hero = painterResource(R.drawable.bg_hero)
-    val backdrop = ImageBitmap.imageResource(R.drawable.bg_hero_blur)
 
     // Whenever the screen changes (or Home is pressed), put focus on the
     // first tile of the screen that is now showing.
@@ -144,10 +139,7 @@ fun HomeScreen(
                 }
                 .focusProperties { canFocus = !showApps },
         ) {
-            Image(
-                painter = hero,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
@@ -159,7 +151,25 @@ fun HomeScreen(
                         // trails behind the dock instead of travelling with it.
                         translationY = progress * heightPx * 0.45f
                     },
-            )
+            ) {
+                // Cross-fade between wallpapers: the old one stays under the new one while it fades in.
+                wallpaper.previous?.let { old ->
+                    Image(
+                        bitmap = old.full,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Image(
+                    bitmap = wallpaper.current.full,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = if (wallpaper.previous != null) wallpaper.fade.value else 1f },
+                )
+            }
 
             TopBar(
                 accountName = accountName,
@@ -173,7 +183,9 @@ fun HomeScreen(
             if (hasFavorites) {
                 FavoritesDock(
                     apps = favorites,
-                    backdrop = backdrop,
+                    backdrop = wallpaper.current.blurred,
+                    previousBackdrop = wallpaper.previous?.blurred,
+                    backdropFade = { wallpaper.fade.value },
                     screenSize = screenSize,
                     bottomInsetPx = dockInsetPx,
                     transparency = dockTransparency,
@@ -206,11 +218,21 @@ fun HomeScreen(
                     }
                 },
         ) {
+            wallpaper.previous?.let { old ->
+                Image(
+                    bitmap = old.blurred,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
             Image(
-                bitmap = backdrop,
+                bitmap = wallpaper.current.blurred,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = if (wallpaper.previous != null) wallpaper.fade.value else 1f },
             )
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)))
 

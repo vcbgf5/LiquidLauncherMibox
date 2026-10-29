@@ -2,7 +2,6 @@ package com.liquidglass.tvlauncher.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,15 +45,30 @@ import kotlinx.coroutines.delay
 
 private const val STEP = 10
 
+/** How often the wallpaper can change, in minutes. */
+val WallpaperIntervals = listOf(1, 5, 10, 30, 60)
+
 /**
  * The launcher's own settings, opened from the gear in the top bar:
- * how transparent the dock is (Left/Right changes it, and the dock behind
- * the card updates live), and a way into the Android system settings.
+ *  - how transparent the dock is (the dock behind the card updates live),
+ *  - which wallpaper category to rotate through, and how often,
+ *  - skipping to the next wallpaper right now,
+ *  - a way into the Android system settings.
+ *
+ * Left/Right changes a value, OK presses an action. [categoryOptions] is
+ * (id, display name) pairs in the order they are cycled through.
  */
 @Composable
 fun SettingsDialog(
     transparencyPercent: Int,
     onTransparencyChange: (Int) -> Unit,
+    categoryOptions: List<Pair<String, String>>,
+    categoryId: String,
+    onCategoryChange: (String) -> Unit,
+    intervalMinutes: Int,
+    onIntervalChange: (Int) -> Unit,
+    photoCredit: String?,
+    onNextWallpaper: () -> Unit,
     onOpenSystemSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -62,14 +76,18 @@ fun SettingsDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        // Dim the screen only a little, so the dock stays visible while it is adjusted.
+        // Dim the screen only a little, so the dock and wallpaper stay visible while they are adjusted.
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect { window?.setDimAmount(0.2f) }
+
+        val noneLabel = stringResource(R.string.wallpaper_none)
+        val categoryIndex = categoryOptions.indexOfFirst { it.first == categoryId }
+        val categoryLabel = categoryOptions.getOrNull(categoryIndex)?.second ?: noneLabel
 
         val shape = RoundedCornerShape(22.dp)
         Column(
             modifier = Modifier
-                .width(460.dp)
+                .width(480.dp)
                 .clip(shape)
                 .background(Color(0xE62A2C36))
                 .border(1.dp, Color.White.copy(alpha = 0.25f), shape)
@@ -90,8 +108,37 @@ fun SettingsDialog(
                     onTransparencyChange((transparencyPercent + direction * STEP).coerceIn(0, 100))
                 },
             )
+            ChoiceRow(
+                label = stringResource(R.string.settings_wallpaper),
+                value = categoryLabel,
+                onStep = { direction ->
+                    if (categoryOptions.isNotEmpty()) {
+                        val from = if (categoryIndex < 0) 0 else categoryIndex
+                        val next = (from + direction).mod(categoryOptions.size)
+                        onCategoryChange(categoryOptions[next].first)
+                    }
+                },
+            )
+            ChoiceRow(
+                label = stringResource(R.string.settings_wallpaper_interval),
+                value = intervalLabel(intervalMinutes),
+                onStep = { direction ->
+                    val i = WallpaperIntervals.indexOf(intervalMinutes).let { if (it < 0) 2 else it }
+                    onIntervalChange(WallpaperIntervals[(i + direction).coerceIn(0, WallpaperIntervals.lastIndex)])
+                },
+            )
+            ActionRow(label = stringResource(R.string.settings_wallpaper_next), arrow = false, onClick = onNextWallpaper)
+            if (photoCredit != null) {
+                Text(
+                    text = stringResource(R.string.settings_photo_by, photoCredit),
+                    color = Color.White.copy(alpha = 0.55f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 14.dp, top = 2.dp, bottom = 6.dp),
+                )
+            }
             ActionRow(
                 label = stringResource(R.string.settings_system),
+                arrow = true,
                 onClick = {
                     onDismiss()
                     onOpenSystemSettings()
@@ -102,7 +149,17 @@ fun SettingsDialog(
 }
 
 @Composable
-private fun AdjustRow(label: String, percent: Int, autoFocus: Boolean, onStep: (Int) -> Unit) {
+private fun intervalLabel(minutes: Int): String =
+    if (minutes >= 60) stringResource(R.string.hour_short) else stringResource(R.string.minutes_short, minutes)
+
+/** A row where Left/Right steps a value; shared by the slider and the pick-from-a-list rows. */
+@Composable
+private fun StepRow(
+    label: String,
+    autoFocus: Boolean,
+    onStep: (Int) -> Unit,
+    control: @Composable (ink: Color) -> Unit,
+) {
     var focused by remember { mutableStateOf(false) }
     val requester = remember { FocusRequester() }
     if (autoFocus) {
@@ -135,6 +192,13 @@ private fun AdjustRow(label: String, percent: Int, autoFocus: Boolean, onStep: (
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, color = ink, fontSize = 14.sp, fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal)
+        control(ink)
+    }
+}
+
+@Composable
+private fun AdjustRow(label: String, percent: Int, autoFocus: Boolean, onStep: (Int) -> Unit) {
+    StepRow(label, autoFocus, onStep) { ink ->
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("‹", color = ink, fontSize = 18.sp)
             Box(
@@ -159,19 +223,38 @@ private fun AdjustRow(label: String, percent: Int, autoFocus: Boolean, onStep: (
 }
 
 @Composable
-private fun ActionRow(label: String, onClick: () -> Unit) {
+private fun ChoiceRow(label: String, value: String, onStep: (Int) -> Unit) {
+    StepRow(label, autoFocus = false, onStep = onStep) { ink ->
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("‹", color = ink, fontSize = 18.sp)
+            Text(
+                text = value,
+                color = ink,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 10.dp),
+            )
+            Text("›", color = ink, fontSize = 18.sp)
+        }
+    }
+}
+
+@Composable
+private fun ActionRow(label: String, arrow: Boolean, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .onFocusChanged { focused = it.isFocused }
-            .clickable(onClick = onClick)
+            .okAction(onClick)
+            .focusable()
             .background(if (focused) Color.White.copy(alpha = 0.92f) else Color.Transparent)
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
         Text(
-            text = "$label  ›",
+            text = if (arrow) "$label  ›" else label,
             fontSize = 14.sp,
             fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
             color = if (focused) Color(0xFF111111) else Color.White.copy(alpha = 0.9f),

@@ -21,19 +21,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.ImageBitmap
+import kotlinx.coroutines.delay
 import com.liquidglass.tvlauncher.data.AccountProvider
 import com.liquidglass.tvlauncher.data.AppInfo
 import com.liquidglass.tvlauncher.data.AppRepository
 import com.liquidglass.tvlauncher.data.FavoritesStore
 import com.liquidglass.tvlauncher.data.LauncherSettings
 import com.liquidglass.tvlauncher.data.PriorityApps
+import com.liquidglass.tvlauncher.data.WallpaperCatalog
+import com.liquidglass.tvlauncher.data.WallpaperImage
+import com.liquidglass.tvlauncher.data.WallpaperRepository
 import com.liquidglass.tvlauncher.ui.AppMenu
 import com.liquidglass.tvlauncher.ui.HomeScreen
 import com.liquidglass.tvlauncher.ui.LaunchOverlay
 import com.liquidglass.tvlauncher.ui.LaunchRequest
 import com.liquidglass.tvlauncher.ui.MenuOption
 import com.liquidglass.tvlauncher.ui.SettingsDialog
+import com.liquidglass.tvlauncher.ui.WallpaperState
 
 class MainActivity : ComponentActivity() {
 
@@ -50,7 +57,15 @@ class MainActivity : ComponentActivity() {
     private var launchRequest by mutableStateOf<LaunchRequest?>(null)
     private var launchExpanded by mutableStateOf(false)
 
-    private var inForeground = false
+    /** True while the launcher is on screen; wallpaper rotation only runs then. */
+    private var inForeground by mutableStateOf(false)
+
+    /** Bumped by "next wallpaper" in the settings. */
+    private var skipSignal by mutableIntStateOf(0)
+
+    // Bookkeeping for the rotation: what it last did, so coming back from an app doesn't reshuffle.
+    private var lastRotationKey = ""
+    private var lastWallpaperAt = 0L
 
     private lateinit var store: FavoritesStore
     private lateinit var settings: LauncherSettings
@@ -68,6 +83,17 @@ class MainActivity : ComponentActivity() {
             var dockTransparency by remember { mutableIntStateOf(settings.dockTransparency) }
             var accountName by remember { mutableStateOf(AccountProvider.googleAccountName(this@MainActivity)) }
 
+            val wallpaper = remember {
+                WallpaperState(WallpaperImage(
+                    ImageBitmap.imageResource(resources, R.drawable.bg_hero),
+                    ImageBitmap.imageResource(resources, R.drawable.bg_hero_blur),
+                ))
+            }
+            var catalog by remember { mutableStateOf(WallpaperCatalog.EMPTY) }
+            var wallpaperCategory by remember { mutableStateOf(settings.wallpaperCategory) }
+            var wallpaperInterval by remember { mutableIntStateOf(settings.wallpaperIntervalMinutes) }
+            var photoCredit by remember { mutableStateOf<String?>(null) }
+
             val accountPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 result.data?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)?.let { name ->
                     AccountProvider.save(this@MainActivity, name)
@@ -78,6 +104,43 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(resumeSignal) {
                 apps = AppRepository.load(this@MainActivity)
                 if (accountName == null) accountName = AccountProvider.googleAccountName(this@MainActivity)
+            }
+
+            LaunchedEffect(resumeSignal) {
+                if (catalog.isEmpty) catalog = WallpaperRepository.catalog(this@MainActivity)
+            }
+
+            // Wallpaper rotation. Restarts when the category, interval or "next" changes, and
+            // while the launcher is in the background it does nothing (no downloads for nobody).
+            LaunchedEffect(catalog, wallpaperCategory, wallpaperInterval, inForeground, skipSignal) {
+                if (!inForeground) return@LaunchedEffect
+                val files = catalog.filesFor(wallpaperCategory)
+                if (files.isEmpty()) {
+                    wallpaper.show(null)
+                    photoCredit = null
+                    return@LaunchedEffect
+                }
+                val key = "$wallpaperCategory/$skipSignal"
+                val changedByUser = key != lastRotationKey
+                lastRotationKey = key
+                if (!changedByUser) {
+                    // Back from an app: carry on with the old timer instead of changing at once.
+                    delay(maxOf(0L, lastWallpaperAt + wallpaperInterval * 60_000L - System.currentTimeMillis()))
+                }
+                while (true) {
+                    val pool = files.filter { it.path != settings.lastWallpaper }.ifEmpty { files }
+                    val pick = pool.random()
+                    val image = WallpaperRepository.load(this@MainActivity, pick.path)
+                    if (image != null) {
+                        wallpaper.show(image)
+                        settings.lastWallpaper = pick.path
+                        photoCredit = pick.credit
+                        lastWallpaperAt = System.currentTimeMillis()
+                        delay(wallpaperInterval * 60_000L)
+                    } else {
+                        delay(30_000L) // offline or a bad file: try again shortly
+                    }
+                }
             }
 
             // First run: YouTube, Netflix, YouTube Music, Play Store, Spotify and
@@ -116,6 +179,7 @@ class MainActivity : ComponentActivity() {
                     onShowApps = { showApps = it },
                     resetSignal = resetSignal,
                     accountName = accountName,
+                    wallpaper = wallpaper,
                     dockTransparency = dockTransparency / 100f,
                     onLaunch = { app, from ->
                         if (launchRequest == null) {
@@ -149,12 +213,34 @@ class MainActivity : ComponentActivity() {
             }
 
             if (showSettings) {
+                val offLabel = stringResource(R.string.wallpaper_off)
+                val allLabel = stringResource(R.string.wallpaper_all)
+                // Only "off" until the repo has photos; then "all" and every category.
+                val options = if (catalog.isEmpty) {
+                    listOf(WallpaperCatalog.OFF to offLabel)
+                } else {
+                    listOf(WallpaperCatalog.ALL to allLabel) + catalog.categories.map { it.id to it.name } +
+                        (WallpaperCatalog.OFF to offLabel)
+                }
                 SettingsDialog(
                     transparencyPercent = dockTransparency,
                     onTransparencyChange = {
                         dockTransparency = it
                         settings.dockTransparency = it
                     },
+                    categoryOptions = options,
+                    categoryId = wallpaperCategory,
+                    onCategoryChange = {
+                        wallpaperCategory = it
+                        settings.wallpaperCategory = it
+                    },
+                    intervalMinutes = wallpaperInterval,
+                    onIntervalChange = {
+                        wallpaperInterval = it
+                        settings.wallpaperIntervalMinutes = it
+                    },
+                    photoCredit = photoCredit,
+                    onNextWallpaper = { skipSignal++ },
                     onOpenSystemSettings = { openSettings() },
                     onDismiss = { showSettings = false },
                 )

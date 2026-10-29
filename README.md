@@ -18,6 +18,13 @@ kafelki wchodzą jeden po drugim, zaznaczony kafelek unosi się, świeci i przeb
 lekko go „dociska", a otwierana aplikacja wyrasta z własnego kafelka na cały ekran (po powrocie zwija się z powrotem).
 Zdjęcie bardzo powoli „oddycha".
 
+**Tapety z Unsplash.** Launcher zmienia tapetę co kilka minut (z płynnym przenikaniem), losując z wybranej kategorii:
+zwierzęta, góry, miasto, las, ocean, kosmos, zima, niebo, abstrakcja, minimalizm (lub ze wszystkich).
+Kategorię i częstotliwość wybierasz w ustawieniach launchera (zębatka), tam też jest „Następna tapeta” i imię autora zdjęcia.
+Zdjęcia leżą w folderze [`wallpapers/`](wallpapers/) tego repozytorium i są stamtąd pobierane — jak je tam wgrać
+(klucz Unsplash, jedno kliknięcie w Actions), opisuje [`wallpapers/README.md`](wallpapers/README.md).
+Dopóki zdjęć nie ma, działa wbudowana tapeta.
+
 Domyślne ulubione i zawsze pierwsze w siatce: YouTube, Netflix, YouTube Music, Sklep Play, Spotify, Disney+.
 
 - **Kafelki** jak w tvOS: szerokie prostokąty 5:3 (banner aplikacji TV, a dla zwykłych aplikacji ikona na kolorowym tle), po najechaniu unoszą się, rosną i świecą.

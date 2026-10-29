@@ -10,4 +10,13 @@
     <string name="settings_title">Ustawienia launchera</string>
     <string name="settings_dock_transparency">Przezroczystość docka</string>
     <string name="settings_system">Ustawienia systemowe</string>
+    <string name="settings_wallpaper">Tapeta</string>
+    <string name="settings_wallpaper_interval">Zmiana tapety co</string>
+    <string name="settings_wallpaper_next">Następna tapeta</string>
+    <string name="settings_photo_by">Zdjęcie: %1$s, Unsplash</string>
+    <string name="wallpaper_off">Wyłączona (wbudowana)</string>
+    <string name="wallpaper_all">Wszystkie kategorie</string>
+    <string name="wallpaper_none">Brak tapet w repozytorium</string>
+    <string name="minutes_short">%1$d min</string>
+    <string name="hour_short">1 godz.</string>
 </resources>

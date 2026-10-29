@@ -61,6 +61,8 @@ private val DockShape = RoundedCornerShape(32.dp)
 fun FavoritesDock(
     apps: List<AppInfo>,
     backdrop: ImageBitmap,
+    previousBackdrop: ImageBitmap?,
+    backdropFade: () -> Float,
     screenSize: IntSize,
     bottomInsetPx: Float,
     transparency: Float,
@@ -95,7 +97,11 @@ fun FavoritesDock(
                 )
                 translate(left = -origin.x, top = -origin.y) {
                     scale(scale = zoom(), pivot = Offset(screenSize.width / 2f, screenSize.height / 2f)) {
-                        drawImage(backdrop, dstSize = screenSize, alpha = 1f - 0.6f * t)
+                        val a = 1f - 0.6f * t
+                        // While the wallpaper changes, the old backdrop stays underneath.
+                        previousBackdrop?.let { drawImage(it, dstSize = screenSize, alpha = a) }
+                        val fade = if (previousBackdrop != null) backdropFade() else 1f
+                        drawImage(backdrop, dstSize = screenSize, alpha = a * fade)
                     }
                 }
             }
