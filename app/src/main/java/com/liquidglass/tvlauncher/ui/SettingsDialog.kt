@@ -141,8 +141,9 @@ fun SettingsDialog(
     onDisconnectCalendar: () -> Unit,
     onRequestCalendarPermission: () -> Unit,
     networkStatus: String,
-    customVolume: Boolean,
-    onCustomVolumeChange: (Boolean) -> Unit,
+    volumeMode: Int,
+    onVolumeModeChange: (Int) -> Unit,
+    onOpenVolumeDiagnostics: () -> Unit,
     accessibilityOn: Boolean,
     onOpenAccessibility: () -> Unit,
     onOpenPowerMenu: () -> Unit,
@@ -364,7 +365,20 @@ fun SettingsDialog(
                         ActionRow(label = stringResource(R.string.settings_open_a11y), arrow = true, autoFocus = true, onClick = onOpenAccessibility)
                         Divider()
                     }
-                    ToggleRow(stringResource(R.string.settings_custom_volume), customVolume, onCustomVolumeChange, autoFocus = accessibilityOn)
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_custom_volume),
+                        value = stringResource(
+                            when (volumeMode) {
+                                LauncherSettings.VOLUME_OFF -> R.string.volume_mode_off
+                                LauncherSettings.VOLUME_REPLACE -> R.string.volume_mode_replace
+                                else -> R.string.volume_mode_beside
+                            },
+                        ),
+                        autoFocus = accessibilityOn,
+                        onStep = { direction -> onVolumeModeChange((volumeMode + direction).mod(3)) },
+                    )
+                    Divider()
+                    ActionRow(label = stringResource(R.string.settings_volume_diagnostics), arrow = false, onClick = onOpenVolumeDiagnostics)
                     Divider()
                     ActionRow(label = stringResource(R.string.settings_power_menu), arrow = false, onClick = onOpenPowerMenu)
                     systemShortcuts.forEach { (label, open) ->

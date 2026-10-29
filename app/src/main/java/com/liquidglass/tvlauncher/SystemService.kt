@@ -13,6 +13,7 @@ import android.graphics.Typeface
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -24,20 +25,24 @@ import com.liquidglass.tvlauncher.data.LauncherSettings
  * Lets the launcher reach past its own screen, once the user switches it on in Android's
  * accessibility settings. It reads nothing from the screen; it does two things:
  *
- *  - Volume: the volume keys are taken here (whatever app is in front, Netflix included), the
- *    volume is changed, and the launcher's own bar slides in at the top instead of Android's.
- *    When the box has fixed volume (the TV controls it) the keys are left alone.
+ *  - Volume: shows the launcher's own bar at the top, above whatever app is in front, Netflix
+ *    included. By default ([LauncherSettings.VOLUME_BESIDE]) Android handles the volume keys exactly
+ *    as before and the bar only reports what happened, so volume can never stop working because of
+ *    it. In [LauncherSettings.VOLUME_REPLACE] the keys are taken here instead, so Android's own bar
+ *    doesn't show; that is the mode that can get in the way of a TV controlled over HDMI-CEC.
  *  - Power: [showPowerDialog] asks Android for its "power off / restart" dialog, which no ordinary
  *    app is allowed to do.
  */
 class SystemService : AccessibilityService() {
 
     private var overlay: VolumeOverlay? = null
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
         overlay = VolumeOverlay(this)
+        Log.i(TAG, "service connected")
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
@@ -45,10 +50,18 @@ class SystemService : AccessibilityService() {
         if (code != KeyEvent.KEYCODE_VOLUME_UP && code != KeyEvent.KEYCODE_VOLUME_DOWN && code != KeyEvent.KEYCODE_VOLUME_MUTE) {
             return false
         }
-        if (!LauncherSettings(this).customVolume) return false
+        keysSeen++
+        lastKey = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_") + if (event.action == KeyEvent.ACTION_UP) " (puszczony)" else ""
+        lastKeyAt = System.currentTimeMillis()
+        Log.i(TAG, "key $lastKey")
+
+        val mode = LauncherSettings(this).volumeMode
+        if (mode == LauncherSettings.VOLUME_OFF) return false
         val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (audio.isVolumeFixed) return false
-        if (event.action == KeyEvent.ACTION_DOWN) {
+        val replace = mode == LauncherSettings.VOLUME_REPLACE && !audio.isVolumeFixed
+        if (event.action != KeyEvent.ACTION_DOWN) return replace
+
+        if (replace) {
             val direction = when (code) {
                 KeyEvent.KEYCODE_VOLUME_UP -> AudioManager.ADJUST_RAISE
                 KeyEvent.KEYCODE_VOLUME_DOWN -> AudioManager.ADJUST_LOWER
@@ -56,11 +69,25 @@ class SystemService : AccessibilityService() {
             }
             // Flag 0: no system volume bar, ours is the one shown.
             audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
-            val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-            val percent = audio.getStreamVolume(AudioManager.STREAM_MUSIC) * 100 / max
-            overlay?.show(percent, audio.isStreamMute(AudioManager.STREAM_MUSIC))
+            showCurrent(audio)
+            return true
         }
-        return true
+
+        // The keys are left to Android; a moment later the bar shows what they did, if anything.
+        val before = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val mutedBefore = audio.isStreamMute(AudioManager.STREAM_MUSIC)
+        handler.postDelayed({
+            if (audio.getStreamVolume(AudioManager.STREAM_MUSIC) != before || audio.isStreamMute(AudioManager.STREAM_MUSIC) != mutedBefore) {
+                showCurrent(audio)
+            }
+        }, 220)
+        return false
+    }
+
+    private fun showCurrent(audio: AudioManager) {
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val percent = audio.getStreamVolume(AudioManager.STREAM_MUSIC) * 100 / max
+        overlay?.show(percent, audio.isStreamMute(AudioManager.STREAM_MUSIC))
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
@@ -70,17 +97,43 @@ class SystemService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         overlay?.release()
         overlay = null
+        handler.removeCallbacksAndMessages(null)
         if (instance === this) instance = null
+        Log.i(TAG, "service disconnected")
         return super.onUnbind(intent)
     }
 
     companion object {
+        private const val TAG = "LiquidTV"
+
         @Volatile
         private var instance: SystemService? = null
+
+        /** What the service has seen, for the volume diagnostics in the settings. */
+        @Volatile
+        var keysSeen = 0
+            private set
+
+        @Volatile
+        var lastKey = ""
+            private set
+
+        @Volatile
+        var lastKeyAt = 0L
+            private set
+
+        val connected: Boolean get() = instance != null
 
         /** Opens the system power dialog; false when the service isn't switched on. */
         fun showPowerDialog(): Boolean =
             instance?.performGlobalAction(GLOBAL_ACTION_POWER_DIALOG) ?: false
+
+        /** Draws the bar once with the given level, to test that it can be shown at all; false without the service. */
+        fun testOverlay(percent: Int, muted: Boolean = false): Boolean {
+            val service = instance ?: return false
+            service.overlay?.show(percent, muted)
+            return true
+        }
     }
 }
 

@@ -27,11 +27,15 @@ class LauncherSettings(context: Context) {
             prefs.edit().putBoolean(KEY_TILE_LIGHTING, value).apply()
         }
 
-    /** The launcher's own volume bar (needs its accessibility service) instead of Android's. */
-    var customVolume: Boolean
-        get() = prefs.getBoolean(KEY_CUSTOM_VOLUME, true)
+    /**
+     * The launcher's own volume bar (it needs its accessibility service): [VOLUME_OFF], [VOLUME_BESIDE]
+     * (Android handles the keys as always and the bar shows what happened; the safe default) or
+     * [VOLUME_REPLACE] (the service takes the keys itself, so only its bar shows).
+     */
+    var volumeMode: Int
+        get() = prefs.getInt(KEY_VOLUME_MODE, VOLUME_BESIDE).coerceIn(VOLUME_OFF, VOLUME_REPLACE)
         set(value) {
-            prefs.edit().putBoolean(KEY_CUSTOM_VOLUME, value).apply()
+            prefs.edit().putInt(KEY_VOLUME_MODE, value).apply()
         }
 
     /** What the big clock shows: see the CLOCK_* constants in HomeScreen (0 = time and date). */
@@ -154,7 +158,10 @@ class LauncherSettings(context: Context) {
         private const val KEY_CLOCK_CONTENT = "clock_content"
         private const val KEY_CLOCK_POSITION = "clock_position"
         private const val KEY_STATUS_ICONS = "status_icons"
-        private const val KEY_CUSTOM_VOLUME = "custom_volume"
+        const val VOLUME_OFF = 0
+        const val VOLUME_BESIDE = 1
+        const val VOLUME_REPLACE = 2
+        private const val KEY_VOLUME_MODE = "volume_mode"
         private const val KEY_TILE_LIGHTING = "tile_lighting"
         private const val KEY_SCREENSAVER = "screensaver_minutes"
         const val DEFAULT_DOCK_TRANSPARENCY = 60

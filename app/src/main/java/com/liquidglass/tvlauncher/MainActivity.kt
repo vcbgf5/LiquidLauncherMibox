@@ -6,6 +6,7 @@ import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -62,6 +63,7 @@ import com.liquidglass.tvlauncher.data.WallpaperCatalog
 import com.liquidglass.tvlauncher.data.WallpaperImage
 import com.liquidglass.tvlauncher.data.WallpaperRepository
 import com.liquidglass.tvlauncher.ui.AppMenu
+import com.liquidglass.tvlauncher.ui.DiagnosticsDialog
 import com.liquidglass.tvlauncher.ui.HomeScreen
 import com.liquidglass.tvlauncher.ui.IconPicker
 import com.liquidglass.tvlauncher.ui.LocalTileLighting
@@ -132,7 +134,9 @@ class MainActivity : ComponentActivity() {
             var clockPosition by remember { mutableIntStateOf(settings.clockPosition) }
             var statusIcons by remember { mutableStateOf(settings.statusIcons) }
             var systemStatus by remember { mutableStateOf(SystemStatus.UNKNOWN) }
-            var customVolume by remember { mutableStateOf(settings.customVolume) }
+            var volumeMode by remember { mutableIntStateOf(settings.volumeMode) }
+            var showVolumeDiag by remember { mutableStateOf(false) }
+            var diagTick by remember { mutableIntStateOf(0) }
             var accessibilityOn by remember { mutableStateOf(false) }
             LaunchedEffect(showSettings, resumeSignal) { accessibilityOn = accessibilityServiceOn() }
             val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { calendarTick++ }
@@ -548,10 +552,14 @@ class MainActivity : ComponentActivity() {
                         settings.autoCheckUpdates = it
                     },
                     networkStatus = networkStatus(),
-                    customVolume = customVolume,
-                    onCustomVolumeChange = {
-                        customVolume = it
-                        settings.customVolume = it
+                    volumeMode = volumeMode,
+                    onVolumeModeChange = {
+                        volumeMode = it
+                        settings.volumeMode = it
+                    },
+                    onOpenVolumeDiagnostics = {
+                        showSettings = false
+                        showVolumeDiag = true
                     },
                     accessibilityOn = accessibilityOn,
                     onOpenAccessibility = {
@@ -632,6 +640,28 @@ class MainActivity : ComponentActivity() {
                 AppMenu(title = app.label, options = options, onDismiss = { menuApp = null })
             }
 
+            if (showVolumeDiag) {
+                // diagTick only forces the text to be rebuilt after a test.
+                val text = remember(diagTick, volumeMode) { volumeDiagnostics() }
+                DiagnosticsDialog(
+                    title = stringResource(R.string.diag_title),
+                    text = text,
+                    actions = listOf(
+                        MenuOption(stringResource(R.string.diag_test_bar)) {
+                            if (!SystemService.testOverlay(55)) {
+                                Toast.makeText(this@MainActivity, getString(R.string.power_needs_service), Toast.LENGTH_LONG).show()
+                            }
+                            diagTick++
+                        },
+                        MenuOption(stringResource(R.string.diag_volume_up)) { testVolume(AudioManager.ADJUST_RAISE); diagTick++ },
+                        MenuOption(stringResource(R.string.diag_volume_down)) { testVolume(AudioManager.ADJUST_LOWER); diagTick++ },
+                        MenuOption(stringResource(R.string.diag_refresh)) { diagTick++ },
+                    ),
+                    closeLabel = stringResource(R.string.diag_close),
+                    onDismiss = { showVolumeDiag = false },
+                )
+            }
+
             if (showPower) {
                 val needsService = stringResource(R.string.power_needs_service)
                 AppMenu(
@@ -691,6 +721,11 @@ class MainActivity : ComponentActivity() {
     /** Any key wakes the screensaver (and is otherwise swallowed); any key also restarts the idle wait. */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         lastInputAt = System.currentTimeMillis()
+        if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || event.keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) {
+            volumeKeysSeen++
+            lastVolumeKey = KeyEvent.keyCodeToString(event.keyCode).removePrefix("KEYCODE_")
+            lastVolumeKeyAt = lastInputAt
+        }
         if (screensaverShowing) {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 wakeKeyCode = event.keyCode
@@ -789,6 +824,71 @@ class MainActivity : ComponentActivity() {
         true
     } catch (_: SecurityException) {
         false
+    }
+
+    /** Volume keys the launcher itself received (only while it is in front), for the diagnostics. */
+    private var volumeKeysSeen = 0
+    private var lastVolumeKey = ""
+    private var lastVolumeKeyAt = 0L
+
+    /** Changes the music volume the way a key would, and shows the bar: a test of the whole chain. */
+    private fun testVolume(direction: Int) {
+        val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        SystemService.testOverlay(audio.getStreamVolume(AudioManager.STREAM_MUSIC) * 100 / max, audio.isStreamMute(AudioManager.STREAM_MUSIC))
+    }
+
+    /** Everything that decides whether volume works, in plain text. */
+    private fun volumeDiagnostics(): String {
+        val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val format = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+        fun at(millis: Long) = if (millis == 0L) "—" else format.format(java.util.Date(millis))
+        fun yes(value: Boolean) = if (value) "tak" else "nie"
+        val outputs = try {
+            audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).joinToString(", ") {
+                when (it.type) {
+                    android.media.AudioDeviceInfo.TYPE_HDMI -> "HDMI"
+                    android.media.AudioDeviceInfo.TYPE_HDMI_ARC -> "HDMI ARC"
+                    android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "głośnik"
+                    android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth"
+                    android.media.AudioDeviceInfo.TYPE_USB_DEVICE, android.media.AudioDeviceInfo.TYPE_USB_HEADSET -> "USB"
+                    android.media.AudioDeviceInfo.TYPE_LINE_ANALOG, android.media.AudioDeviceInfo.TYPE_LINE_DIGITAL -> "line"
+                    else -> "typ ${it.type}"
+                }
+            }
+        } catch (_: Throwable) {
+            "?"
+        }
+        fun global(name: String) = try {
+            Settings.Global.getString(contentResolver, name) ?: "brak"
+        } catch (_: Throwable) {
+            "?"
+        }
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val mode = when (settings.volumeMode) {
+            LauncherSettings.VOLUME_OFF -> "wyłączony"
+            LauncherSettings.VOLUME_REPLACE -> "zamiast systemowego"
+            else -> "obok systemowego"
+        }
+        return buildString {
+            appendLine("Usługa dostępności włączona w ustawieniach: ${yes(accessibilityServiceOn())}")
+            appendLine("Usługa działa (połączona):                  ${yes(SystemService.connected)}")
+            appendLine("Tryb paska Liquid TV:                       $mode")
+            appendLine()
+            appendLine("Klawisze głośności widziane przez usługę:   ${SystemService.keysSeen} (ostatni: ${SystemService.lastKey.ifEmpty { "—" }} o ${at(SystemService.lastKeyAt)})")
+            appendLine("Klawisze widziane przez sam launcher:       $volumeKeysSeen (ostatni: ${lastVolumeKey.ifEmpty { "—" }} o ${at(lastVolumeKeyAt)})")
+            appendLine()
+            appendLine("Głośność multimediów: ${audio.getStreamVolume(AudioManager.STREAM_MUSIC)} z $max, wyciszenie: ${yes(audio.isStreamMute(AudioManager.STREAM_MUSIC))}")
+            appendLine("Stała głośność (telewizor steruje): ${yes(audio.isVolumeFixed)}")
+            appendLine("Wyjścia audio: $outputs")
+            appendLine("HDMI-CEC włączone: ${global("hdmi_control_enabled")}")
+            appendLine()
+            appendLine("Jak to czytać: naciśnij przycisk głośności na pilocie i wybierz Odśwież.")
+            appendLine("- Liczniki nie rosną: klawisz w ogóle nie dociera do Boxa (pilot wysyła go do telewizora).")
+            appendLine("- Rosną, a głośność stoi: steruje nią telewizor przez HDMI-CEC albo stała głośność.")
+            appendLine("- Usługa nie działa: włącz ją w ustawieniach dostępności (Ustawienia → System).")
+        }
     }
 
     /** One of Android's own settings screens, or the main settings when this box doesn't have it. */

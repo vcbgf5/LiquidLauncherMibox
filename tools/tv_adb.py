@@ -208,6 +208,32 @@ def disable_service(tv):
     say("Usługa dostępności Liquid TV wyłączona.")
 
 
+def volume_diagnostics(tv):
+    """Zbiera to, co decyduje o głośności: usługa dostępności, audio, CEC i dziennik Liquid TV."""
+    say("== Usługa dostępności Liquid TV ==")
+    code, out = tv.shell("settings", "get", "secure", "enabled_accessibility_services")
+    say(f"enabled_accessibility_services = {out}")
+    code, out = tv.shell("dumpsys", "accessibility")
+    lines = [l.strip() for l in out.splitlines() if "liquid" in l.lower() or "SystemService" in l]
+    say("\n".join(lines[:8]) or "(usługa nie występuje w dumpsys accessibility: nie jest włączona albo nie działa)")
+    say("\n== Audio ==")
+    code, out = tv.shell("dumpsys", "audio")
+    keep = [l.strip() for l in out.splitlines()
+            if any(k in l.lower() for k in ("fixed", "hdmi", "stream_music", "cec", "volume"))]
+    say("\n".join(keep[:25]) or "(brak danych)")
+    say("\n== HDMI-CEC ==")
+    for name in ("hdmi_control_enabled", "hdmi_control_auto_device_off_enabled", "hdmi_system_audio_control_enabled"):
+        say(f"{name} = {tv.shell('settings', 'get', 'global', name)[1]}")
+    say("\n== Dziennik Liquid TV (ostatnie wpisy) ==")
+    code, out = tv.run("logcat", "-d", "-s", "LiquidTV:I", timeout=30)
+    say("\n".join(out.splitlines()[-15:]) or "(pusto: usługa nie zapisała jeszcze żadnego klawisza)")
+    say("\n== Test ==")
+    say("Wysyłam klawisz głośności w górę przez adb i czytam dziennik jeszcze raz ...")
+    tv.shell("input", "keyevent", "KEYCODE_VOLUME_UP")
+    code, out = tv.run("logcat", "-d", "-s", "LiquidTV:I", timeout=30)
+    say("\n".join(out.splitlines()[-4:]) or "(usługa nie widzi klawisza)")
+
+
 def set_home(tv):
     say("Ustawiam Liquid TV jako domyślny ekran główny ...")
     code, out = tv.shell("cmd", "package", "set-home-activity", f"{PACKAGE}/.MainActivity")
@@ -309,6 +335,7 @@ MENU = [
     ("Obudź Boxa", wake_tv),
     ("Podłącz kalendarz Google (link iCal) do widżetu wydarzeń", connect_calendar),
     ("Nadaj launcherowi uprawnienia (ustawienia, Bluetooth, kalendarz, tło)", grant_permissions),
+    ("Diagnostyka głośności (usługa, audio, CEC, dziennik)", volume_diagnostics),
     ("Wyłącz usługę dostępności", disable_service),
     ("Odinstaluj Liquid TV", uninstall),
     ("Zrestartuj Boxa", reboot),

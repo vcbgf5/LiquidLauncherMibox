@@ -13,3 +13,6 @@ preview/__pycache__/
 # never commit signing keys
 *.jks
 *.keystore
+
+__pycache__/
+*.pyc

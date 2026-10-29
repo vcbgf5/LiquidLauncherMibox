@@ -42,6 +42,11 @@ object AppRepository {
     /** The icon the user picked for this app from an icon pack, if any (and if the pack is still there). */
     private fun withChosenIcon(context: Context, overrides: IconOverrides, app: AppInfo): AppInfo {
         val choice = overrides.get(app.key) ?: return app
+        if (BuiltinIconPacks.isBuiltin(choice.packageName)) {
+            // The packs that come with the launcher are ready-made 5:3 tiles.
+            val tile = BuiltinIconPacks.tile(context, choice.packageName, choice.drawable) ?: return app
+            return app.copy(tile = tile.asImageBitmap())
+        }
         val drawable = IconPacks.drawable(context, choice.packageName, choice.drawable) ?: return app
         return runCatching { app.copy(tile = TileArt.fromIcon(drawable).asImageBitmap()) }.getOrDefault(app)
     }

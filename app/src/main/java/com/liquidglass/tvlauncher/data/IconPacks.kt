@@ -47,7 +47,10 @@ object IconPacks {
 
     private val contentsCache = HashMap<String, Contents>()
 
-    fun installed(context: Context): List<IconPack> {
+    /** The packs that come with the launcher first, then the ones installed on the box. */
+    fun installed(context: Context): List<IconPack> = BuiltinIconPacks.packs(context) + installedOnBox(context)
+
+    private fun installedOnBox(context: Context): List<IconPack> {
         val pm = context.packageManager
         val found = LinkedHashMap<String, IconPack>()
         for (action in ACTIONS) {
@@ -66,6 +69,7 @@ object IconPacks {
     }
 
     suspend fun contents(context: Context, pack: IconPack): Contents = withContext(Dispatchers.Default) {
+        if (BuiltinIconPacks.isBuiltin(pack.packageName)) return@withContext BuiltinIconPacks.contents()
         synchronized(contentsCache) { contentsCache[pack.packageName] }
             ?: parse(context, pack).also { synchronized(contentsCache) { contentsCache[pack.packageName] = it } }
     }
@@ -82,6 +86,9 @@ object IconPacks {
     /** One icon of a pack as a bitmap [size] pixels square, for the picker. */
     suspend fun bitmap(context: Context, pack: IconPack, name: String, size: Int): ImageBitmap? =
         withContext(Dispatchers.Default) {
+            if (BuiltinIconPacks.isBuiltin(pack.packageName)) {
+                return@withContext BuiltinIconPacks.tile(context, pack.packageName, name)?.asImageBitmap()
+            }
             val drawable = drawable(context, pack.packageName, name) ?: return@withContext null
             try {
                 val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
