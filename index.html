@@ -3,78 +3,527 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Liquid TV – launcher w stylu Apple TV</title>
-<meta name="description" content="Launcher na Android TV (Xiaomi Mi Box) w stylu Apple TV. Pobierz najnowszą wersję.">
+<title>Liquid TV: launcher w stylu Apple TV dla Android TV</title>
+<meta name="description" content="Liquid TV: launcher w stylu Apple TV dla Xiaomi Mi Box i innych Android TV. Pobierz launcher i aplikację na telefon, zobacz poradniki: instalacja, adb, głośność, pilot z telefonu.">
+<meta property="og:title" content="Liquid TV">
+<meta property="og:description" content="Launcher w stylu Apple TV dla Android TV, z ciszą aktualizacją przez adb, pilotem z telefonu i widżetami.">
+<meta property="og:image" content="img/preview-home.jpg">
+<meta name="theme-color" content="#050608">
 <style>
-:root{color-scheme:dark;--bg:#050608;--fg:#fff;--mut:rgba(255,255,255,.62);--glass:rgba(255,255,255,.07);--line:rgba(255,255,255,.18);--accent:#9dbbff}
+:root{color-scheme:dark;--bg:#050608;--fg:#f5f6fa;--mut:rgba(245,246,250,.66);--dim:rgba(245,246,250,.42);--glass:rgba(255,255,255,.065);--glass2:rgba(255,255,255,.1);--line:rgba(255,255,255,.14);--accent:#9dbbff;--accent2:#c6a8ff;--ok:#7be0a5;--warn:#ffd9a0;--r:22px}
 *{box-sizing:border-box}
-body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#3a3a78 0%,#241d3d 35%,var(--bg) 70%) no-repeat,var(--bg);color:var(--fg);
- font:17px/1.55 -apple-system,"Inter","Segoe UI",system-ui,sans-serif;min-height:100vh}
-main{max-width:760px;margin:0 auto;padding:56px 24px 72px}
-h1{font-size:clamp(34px,6vw,52px);margin:0 0 6px;letter-spacing:-.02em}
-.sub{color:var(--mut);margin:0 0 32px;font-size:19px}
-.btn{display:inline-flex;align-items:center;gap:12px;padding:20px 34px;border-radius:22px;background:#fff;color:#111;font-weight:650;font-size:21px;text-decoration:none;
- box-shadow:0 14px 40px rgba(0,0,0,.45);transition:transform .2s cubic-bezier(.2,.9,.25,1.2),box-shadow .2s}
-.btn:hover,.btn:focus-visible{transform:translateY(-3px) scale(1.04);outline:none;box-shadow:0 20px 50px rgba(0,0,0,.55),0 0 0 3px rgba(255,255,255,.9),0 0 36px 6px rgba(157,187,255,.5)}
-#ver{margin:14px 0 0;color:var(--mut);font-size:15px;min-height:1.4em}
-.card{margin-top:34px;padding:22px 24px;border-radius:24px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
-.card h2{margin:0 0 10px;font-size:20px}
-ol,ul{margin:8px 0 0;padding-left:22px}li{margin:6px 0}
-code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14.5px}
-code{background:rgba(255,255,255,.1);padding:2px 7px;border-radius:7px}
-pre{background:rgba(0,0,0,.45);border:1px solid var(--line);padding:12px 14px;border-radius:14px;overflow-x:auto;margin:10px 0}
-.addr{font-size:20px;font-weight:600;color:var(--accent);word-break:break-all}
-.warn{color:#ffd9a0;font-size:15px}
-a{color:var(--accent)}
-footer{margin-top:36px;color:var(--mut);font-size:14px}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 -apple-system,"Inter","Segoe UI",system-ui,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(900px 520px at 78% -8%,rgba(98,92,230,.55),transparent 62%),
+  radial-gradient(760px 480px at 8% 12%,rgba(10,132,255,.28),transparent 60%),
+  radial-gradient(900px 600px at 50% 110%,rgba(175,82,222,.22),transparent 60%),var(--bg)}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+img{max-width:100%;display:block}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+/* top bar */
+nav.top{position:sticky;top:0;z-index:20;background:rgba(5,6,8,.62);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;align-items:center;gap:22px;height:60px;overflow-x:auto;scrollbar-width:none}
+nav.top .wrap::-webkit-scrollbar{display:none}
+.logo{font-weight:750;letter-spacing:-.01em;color:#fff;white-space:nowrap;display:flex;align-items:center;gap:10px}
+.logo i{display:inline-block;width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,#7c9cff,#b36bff)}
+nav.top a.l{color:var(--mut);font-size:15px;white-space:nowrap}nav.top a.l:hover{color:#fff;text-decoration:none}
+nav.top .sp{flex:1}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:99px;background:#fff;color:#111;font-weight:650;font-size:14.5px;white-space:nowrap}
+.pill:hover{text-decoration:none;transform:translateY(-1px)}
+
+/* hero */
+.hero{padding:70px 0 40px}
+.hero .wrap{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center}
+h1{font-size:clamp(40px,6.6vw,72px);line-height:1.02;letter-spacing:-.035em;margin:0 0 16px}
+h1 span{background:linear-gradient(120deg,#fff 10%,var(--accent) 55%,var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:20px;color:var(--mut);margin:0 0 28px;max-width:34em}
+.btns{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px}
+.btn{display:inline-flex;align-items:center;gap:12px;padding:17px 28px;border-radius:20px;font-weight:650;font-size:18px;color:#111;background:#fff;box-shadow:0 14px 40px rgba(0,0,0,.45);transition:transform .2s cubic-bezier(.2,.9,.25,1.2),box-shadow .2s}
+.btn.alt{background:var(--glass2);color:#fff;border:1px solid var(--line);box-shadow:none;backdrop-filter:blur(14px)}
+.btn:hover,.btn:focus-visible{text-decoration:none;transform:translateY(-3px) scale(1.03);outline:none;box-shadow:0 20px 50px rgba(0,0,0,.55),0 0 0 3px rgba(255,255,255,.85),0 0 36px 6px rgba(157,187,255,.45)}
+.btn small{display:block;font-weight:500;font-size:13px;opacity:.65;margin-top:1px}
+.chip{display:inline-flex;gap:8px;align-items:center;color:var(--mut);font-size:15px;min-height:1.6em}
+.chip b{color:#fff;font-weight:650}
+.dl-note{color:var(--dim);font-size:14.5px;margin:6px 0 0}
+.tv{position:relative;border-radius:26px;padding:10px;background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.05));box-shadow:0 40px 90px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.12)}
+.tv img{border-radius:18px;aspect-ratio:16/9;object-fit:cover;width:100%}
+.tv::after{content:"";position:absolute;left:12%;right:12%;bottom:-26px;height:14px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.6),transparent)}
+
+/* sections */
+section.s{padding:64px 0 8px}
+h2{font-size:clamp(28px,4vw,40px);letter-spacing:-.025em;margin:0 0 8px}
+.kicker{color:var(--accent);font-weight:650;font-size:14px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 8px}
+.sub{color:var(--mut);margin:0 0 30px;max-width:44em;font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.card{padding:22px 22px 20px;border-radius:var(--r);background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.card h3{margin:0 0 6px;font-size:18.5px;letter-spacing:-.01em}
+.card p{margin:0;color:var(--mut);font-size:15.5px}
+.ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:21px;margin-bottom:12px;background:linear-gradient(135deg,rgba(124,156,255,.35),rgba(179,107,255,.3));border:1px solid var(--line)}
+
+/* gallery */
+.gal{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px 24px 22px;margin:0 -24px;scrollbar-width:thin}
+.gal figure{flex:0 0 min(560px,86vw);margin:0;scroll-snap-align:center}
+.gal img{border-radius:18px;border:1px solid var(--line);box-shadow:0 18px 50px rgba(0,0,0,.5);aspect-ratio:16/9;object-fit:cover;width:100%}
+.gal figcaption{color:var(--mut);font-size:15px;margin-top:10px;text-align:center}
+
+/* tutorials */
+.steps{display:grid;gap:14px}
+details{border-radius:var(--r);background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);overflow:hidden}
+details[open]{background:rgba(255,255,255,.085)}
+summary{list-style:none;cursor:pointer;padding:19px 22px;font-weight:650;font-size:19px;display:flex;align-items:center;gap:14px}
+summary::-webkit-details-marker{display:none}
+summary .n{flex:0 0 34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:16px;background:linear-gradient(135deg,#7c9cff,#b36bff);color:#fff}
+summary .t{flex:1}
+summary small{display:block;font-weight:500;color:var(--mut);font-size:14.5px}
+summary::after{content:"+";font-size:26px;color:var(--mut);font-weight:300;transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+.body{padding:2px 22px 22px 70px}
+.body p{margin:10px 0}
+.body ol,.body ul{margin:8px 0 12px;padding-left:22px}.body li{margin:6px 0}
+.body h4{margin:20px 0 4px;font-size:16px;color:#fff}
+code,pre,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px}
+code{background:rgba(255,255,255,.11);padding:2px 7px;border-radius:7px;white-space:nowrap}
+kbd{background:rgba(255,255,255,.14);border:1px solid var(--line);border-bottom-width:2px;padding:1px 7px;border-radius:7px}
+.pre{position:relative;margin:12px 0}
+pre{margin:0;background:rgba(0,0,0,.5);border:1px solid var(--line);padding:14px 16px;border-radius:14px;overflow-x:auto;line-height:1.55}
+.copy{position:absolute;top:8px;right:8px;border:1px solid var(--line);background:rgba(255,255,255,.1);color:#fff;border-radius:9px;padding:4px 10px;font-size:12.5px;cursor:pointer}
+.copy:hover{background:rgba(255,255,255,.2)}
+.note,.warn,.tip{border-radius:14px;padding:12px 15px;margin:14px 0;font-size:15.5px;border:1px solid}
+.note{background:rgba(157,187,255,.09);border-color:rgba(157,187,255,.3)}
+.warn{background:rgba(255,217,160,.08);border-color:rgba(255,217,160,.3);color:var(--warn)}
+.tip{background:rgba(123,224,165,.08);border-color:rgba(123,224,165,.3)}
+.note b,.warn b,.tip b{color:#fff}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15.5px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:13.5px;letter-spacing:.06em;text-transform:uppercase}
+td:first-child{white-space:nowrap}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+/* downloads */
+.dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.dl .card h3{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.dl .card .meta{color:var(--dim);font-size:14px;margin-top:10px}
+.dl .card .go{display:inline-block;margin-top:14px;padding:11px 18px;border-radius:14px;background:#fff;color:#111;font-weight:650}
+.dl .card .go.alt{background:var(--glass2);color:#fff;border:1px solid var(--line)}
+.dl .card .go:hover{text-decoration:none;transform:translateY(-2px)}
+#rel .row{display:grid;grid-template-columns:110px 1fr auto;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);align-items:center}
+#rel .row:last-child{border:0}
+#rel .tag{font-weight:650}
+#rel .day{color:var(--mut);font-size:14.5px}
+#rel .files a{margin-left:14px;font-size:14.5px;white-space:nowrap}
+.faq details{border-radius:16px}
+.faq summary{font-size:17px;padding:15px 20px}
+.faq .body{padding:0 20px 18px}
+footer{padding:50px 0 70px;color:var(--dim);font-size:14.5px;text-align:center}
+footer .wrap{border-top:1px solid var(--line);padding-top:26px}
+
+@media(max-width:860px){
+  .hero .wrap{grid-template-columns:1fr;gap:36px}
+  .body{padding:2px 18px 20px}
+  .twocol{grid-template-columns:1fr}
+  #rel .row{grid-template-columns:1fr;gap:4px}
+  #rel .files a{margin:0 14px 0 0}
+  summary{padding:16px 16px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
-<main>
-  <h1>Liquid TV</h1>
-  <p class="sub">Launcher w stylu Apple TV dla Xiaomi Mi Box i innych Android TV.</p>
 
-  <a id="dl" class="btn" autofocus href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk">⬇ Pobierz najnowszą wersję (APK)</a>
-  <p id="ver"></p>
-  <p><a href="preview.html">Zobacz, jak to wygląda (klikalny podgląd) →</a></p>
+<nav class="top"><div class="wrap">
+  <a class="logo" href="#top"><i></i>Liquid TV</a>
+  <a class="l" href="#pobierz">Pobierz</a>
+  <a class="l" href="#funkcje">Funkcje</a>
+  <a class="l" href="#instalacja">Instalacja</a>
+  <a class="l" href="#adb">adb</a>
+  <a class="l" href="#skrypt">Skrypt na komputer</a>
+  <a class="l" href="#pilot">Pilot z telefonu</a>
+  <a class="l" href="#pomoc">Pomoc</a>
+  <span class="sp"></span>
+  <a class="pill" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk">⬇ Pobierz</a>
+</div></nav>
 
-  <section class="card">
-    <h2>Pobranie bezpośrednio na Mi Box</h2>
-    <ol>
-      <li>Zainstaluj ze Sklepu Play aplikację <b>Downloader</b> i zezwól jej na instalowanie aplikacji z nieznanych źródeł.</li>
-      <li>W Downloaderze wpisz adres:<br><span class="addr">vcbgf5.github.io/LiquidLauncherMibox/apk</span></li>
-      <li>Po pobraniu wybierz <b>Zainstaluj</b>.</li>
-    </ol>
-    <p>Adres zawsze pobiera <b>najnowszą</b> wersję.</p>
-  </section>
+<header class="hero" id="top"><div class="wrap">
+  <div>
+    <p class="kicker">Android TV · Xiaomi Mi Box</p>
+    <h1>Ekran główny jak z <span>Apple TV</span>.</h1>
+    <p class="lead">Szklany dok, wielkie kafelki, widżety, własne tapety i wygaszacz. Aktualizuje się sam, a z telefonu możesz sterować Boxem, wysyłać zdjęcia i pokazać swój ekran na telewizorze.</p>
+    <div class="btns">
+      <a id="dl" class="btn" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk" autofocus>⬇ <span>Pobierz launcher<small>LiquidTV.apk · na Boxa</small></span></a>
+      <a id="dlp" class="btn alt" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTVPilot.apk">📱 <span>Pilot na telefon<small>LiquidTVPilot.apk · Android 8+</small></span></a>
+    </div>
+    <div class="chip" id="ver">Sprawdzam najnowszą wersję…</div>
+    <p class="dl-note">Na Boxie wpisz w aplikacji <b>Downloader</b> adres <b style="color:var(--accent)">vcbgf5.github.io/LiquidLauncherMibox/apk</b>. Zawsze pobiera najnowszą wersję.</p>
+  </div>
+  <div class="tv"><img src="img/preview-home.jpg" alt="Ekran główny Liquid TV: zegar, dok z aplikacjami i minimalny pasek u góry" width="1920" height="1080"></div>
+</div></header>
 
-  <section class="card">
-    <h2>Ustawienie jako ekran główny (zamiast fabrycznego)</h2>
-    <p><b>1. Zapytanie systemu.</b> Po instalacji naciśnij <b>Home</b>. Jeśli pojawi się wybór ekranu głównego, wskaż <b>Liquid TV</b> i <b>Zawsze</b>. Na części urządzeń to pytanie się nie pokazuje – wtedy użyj sposobu 2 lub 3.</p>
-    <p><b>2. Button Mapper (bez komputera).</b> Zainstaluj <b>Button Mapper</b> ze Sklepu Play, włącz jego usługę ułatwień dostępu, wybierz przycisk <b>Home</b> → <b>Customize</b> → <b>Single tap</b> → <b>Application</b> → <b>Liquid TV</b>. Fabryczny launcher zostaje w systemie, tylko go nie widać.</p>
-    <p><b>3. Na stałe przez ADB (z komputera).</b> Włącz opcje programisty i debugowanie sieciowe, potem:</p>
-<pre>adb connect 192.168.1.XX:5555
-adb shell pm list packages | grep -i launcher
-adb shell pm disable-user --user 0 com.google.android.tvlauncher</pre>
-    <p>Druga komenda pokazuje, jak nazywa się Twój fabryczny launcher. Na Mi Box S (Android TV) to zwykle <code>com.google.android.tvlauncher</code>, a na modelach z Google TV <code>com.google.android.apps.tv.launcherx</code>. Wyłącz pakiet, który faktycznie widzisz na liście.</p>
-    <p>Cofnięcie:</p>
-<pre>adb shell pm enable com.google.android.tvlauncher</pre>
-    <p class="warn">Najpierw zainstaluj i uruchom Liquid TV, dopiero potem wyłączaj stary launcher. Inaczej po naciśnięciu Home nie będzie żadnego ekranu głównego.</p>
-  </section>
+<section class="s" id="galeria"><div class="wrap">
+  <div class="gal">
+    <figure><img loading="lazy" src="img/preview-home.jpg" alt="Ekran główny"><figcaption>Ekran główny: duży zegar, szklany dok, minimalny pasek (☰)</figcaption></figure>
+    <figure><img loading="lazy" src="img/preview-info.jpg" alt="Widżety"><figcaption>Strona widżetów: kalendarz, pogoda, „Teraz gra”, sieć</figcaption></figure>
+    <figure><img loading="lazy" src="img/preview-apps.jpg" alt="Wszystkie aplikacje"><figcaption>Wszystkie aplikacje jako duże kafelki, z folderami</figcaption></figure>
+    <figure><img loading="lazy" src="img/preview-settings.jpg" alt="Ustawienia"><figcaption>Ustawienia w kategoriach, w tym Narzędzia (adb)</figcaption></figure>
+    <figure><img loading="lazy" src="img/preview-screensaver.jpg" alt="Wygaszacz"><figcaption>Wygaszacz ze „szklanym” zegarem</figcaption></figure>
+  </div>
+  <p style="text-align:center;color:var(--mut);margin:4px 0 0">To prawdziwe zrzuty ekranu z Mi Box S. <a href="preview.html">Klikalny podgląd w przeglądarce →</a></p>
+</div></section>
 
-  <footer>Kod i wydania: <a href="https://github.com/vcbgf5/LiquidLauncherMibox">github.com/vcbgf5/LiquidLauncherMibox</a></footer>
-</main>
+<section class="s" id="pobierz"><div class="wrap">
+  <p class="kicker">Pobieranie</p>
+  <h2>Co pobrać</h2>
+  <p class="sub">Wszystko jest w jednym wydaniu na GitHubie. Pliki są podpisane tym samym kluczem, więc każda nowa wersja instaluje się na poprzedniej bez odinstalowywania.</p>
+  <div class="dl">
+    <div class="card"><div class="ic">📺</div><h3>Launcher <span class="chip" id="v1"></span></h3>
+      <p>Aplikacja na Boxa / Android TV. Po instalacji sama pilnuje aktualizacji (co 5 s sprawdza, czy jest nowa).</p>
+      <a class="go" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk">Pobierz LiquidTV.apk</a>
+      <div class="meta" id="m1">Android 6+ (zalecany 8+ dla cichych aktualizacji)</div></div>
+    <div class="card"><div class="ic">📱</div><h3>Liquid TV Pilot <span class="chip" id="v2"></span></h3>
+      <p>Aplikacja na telefon: pilot, wpisywanie tekstu, zdjęcia jako tapety, udostępnianie ekranu, „Udostępnij” z galerii.</p>
+      <a class="go" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTVPilot.apk">Pobierz LiquidTVPilot.apk</a>
+      <div class="meta" id="m2">Android 8+ · bez reklam i śledzenia</div></div>
+    <div class="card"><div class="ic">💻</div><h3>Skrypt na komputer</h3>
+      <p><code>tv_adb.py</code>: instalacja, uprawnienia, własne komendy adb, zrzut i podgląd ekranu na żywo. Potrzebny tylko Python 3.</p>
+      <a class="go" href="https://raw.githubusercontent.com/vcbgf5/LiquidLauncherMibox/main/tools/tv_adb.py" download>Pobierz tv_adb.py</a>
+      <div class="meta">Windows, macOS, Linux</div></div>
+    <div class="card"><div class="ic">🖥️</div><h3>LG webOS (test)</h3>
+      <p>Makieta wyglądu jako aplikacja na telewizory LG. Prawdziwy launcher działa tylko na Androidzie.</p>
+      <a class="go alt" href="https://github.com/vcbgf5/LiquidLauncherMibox/actions/workflows/webos.yml">Paczka .ipk w Actions</a>
+      <div class="meta">Wymaga trybu Developer Mode na LG</div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Starsze wersje</h3><div id="rel"><p style="color:var(--mut);margin:6px 0 0">Wczytuję listę wydań…</p></div>
+    <p style="margin:10px 0 0"><a href="https://github.com/vcbgf5/LiquidLauncherMibox/releases">Wszystkie wydania na GitHubie →</a></p></div>
+</div></section>
+
+<section class="s" id="funkcje"><div class="wrap">
+  <p class="kicker">Funkcje</p>
+  <h2>Dużo więcej niż ekran z ikonami</h2>
+  <p class="sub">Natywna aplikacja (Kotlin + Jetpack Compose), bez WebView. Płynna także na starszych urządzeniach dzięki trybowi wydajności.</p>
+  <div class="grid">
+    <div class="card"><div class="ic">🪟</div><h3>Szklany dok i kafelki jak tvOS</h3><p>Kafelki 5:3 z delikatnym światłem, pochylaniem i połyskiem, ruch tapety przy przesuwaniu, własne kolory akcentu.</p></div>
+    <div class="card"><div class="ic">🔄</div><h3>Aktualizacje bez okna Androida</h3><p>Co 5 s sprawdza nową wersję i instaluje ją przez adb na samym Boxie, po czym sam się uruchamia.</p></div>
+    <div class="card"><div class="ic">🧰</div><h3>Narzędzia przez adb</h3><p>Zasilanie, restart, zwolnienie pamięci, wyłączanie aplikacji, szybsze animacje, sterowanie telewizorem przez HDMI-CEC.</p></div>
+    <div class="card"><div class="ic">🔊</div><h3>Własny pasek głośności</h3><p>Nad każdą aplikacją, z poziomem albo kierunkiem (przy sterowaniu TV przez CEC). Systemowy pasek można schować.</p></div>
+    <div class="card"><div class="ic">📱</div><h3>Pilot i udostępnianie z telefonu</h3><p>Strona z kodem QR i aplikacja Pilot: sterowanie, wpisywanie, zdjęcia jako tapety, ekran telefonu na TV.</p></div>
+    <div class="card"><div class="ic">🧩</div><h3>Widżety</h3><p>Kalendarz Google (link iCal), pogoda, „Teraz gra” ze sterowaniem, sieć, Bluetooth, pamięć.</p></div>
+    <div class="card"><div class="ic">🖼️</div><h3>Tapety i wygaszacz</h3><p>Kategorie z Unsplash, własne zdjęcia z telefonu, wygaszacz z zegarem, automatyczne przyciemnianie jasnych tapet.</p></div>
+    <div class="card"><div class="ic">🗂️</div><h3>Foldery, ikony, szybkie ustawienia</h3><p>Foldery aplikacji, zmiana ikony jednej aplikacji, panel szybkich ustawień pod przyciskiem Menu.</p></div>
+    <div class="card"><div class="ic">⚡</div><h3>Tryb wydajności</h3><p>Sam wykrywa przycinanie i wyłącza efekty, a launcher rysuje tylko to, co się zmienia.</p></div>
+  </div>
+</div></section>
+
+<section class="s" id="instalacja"><div class="wrap">
+  <p class="kicker">Poradniki</p>
+  <h2>Instalacja krok po kroku</h2>
+  <p class="sub">Najprościej: Downloader na Boxie. Jeśli wolisz komputer, jest też adb. Cały proces to kilka minut.</p>
+  <div class="steps">
+
+    <details open><summary><span class="n">1</span><span class="t">Zainstaluj Liquid TV na Boxie<small>Trzy sposoby, wybierz jeden</small></span></summary><div class="body">
+      <h4>A. Downloader (bez komputera, polecany)</h4>
+      <ol>
+        <li>W Sklepie Play na Boxie zainstaluj aplikację <b>Downloader</b> (AFTVnews).</li>
+        <li>Uruchom ją. Gdy system zapyta o instalowanie z nieznanych źródeł, wejdź w ustawienia i <b>zezwól Downloaderowi</b> (przełącznik „Zezwalaj z tego źródła”), potem wróć.</li>
+        <li>W polu adresu wpisz: <code>vcbgf5.github.io/LiquidLauncherMibox/apk</code> i wybierz <b>Go</b>.</li>
+        <li>Po pobraniu wybierz <b>Zainstaluj</b>, a na końcu <b>Otwórz</b>.</li>
+      </ol>
+      <h4>B. Z komputera przez adb</h4>
+      <p>Najpierw włącz debugowanie (następny poradnik), potem:</p>
+      <div class="pre"><pre>adb connect 192.168.0.170:5555
+adb install -r LiquidTV.apk</pre></div>
+      <p>Albo uruchom skrypt <code>tv_adb.py</code> i wybierz „Zainstaluj / zaktualizuj Liquid TV” (pobierze najnowszą wersję sam).</p>
+      <h4>C. Z pendrive</h4>
+      <p>Skopiuj plik APK na pendrive, włóż go do Boxa i otwórz plik w menedżerze plików (np. <i>X-plore</i> albo <i>File Commander</i>). Tak samo zezwól na instalację z nieznanych źródeł.</p>
+      <div class="warn"><b>Pierwsza aktualizacja ze starej wersji (v1.0.3 lub starszej):</b> te wersje były podpisane innym kluczem, więc Android ich nie nadpisze. Jednorazowo odinstaluj Liquid TV i zainstaluj nowy plik. Od v1.0.4 każda wersja instaluje się na poprzedniej.</div>
+    </div></details>
+
+    <details open><summary><span class="n">2</span><span class="t">Włącz opcje programisty i debugowanie<small>Potrzebne do adb, ciszych aktualizacji i narzędzi</small></span></summary><div class="body">
+      <ol>
+        <li><b>Ustawienia → Preferencje urządzenia → Informacje</b>, a tam <b>Kompilacja</b> (albo „Wersja systemu”): naciśnij <kbd>OK</kbd> siedem razy. Pojawi się „Jesteś programistą”.</li>
+        <li>Wróć do <b>Preferencje urządzenia → Opcje programisty</b> i włącz <b>Debugowanie USB</b>. Na Mi Box S to właśnie ono otwiera adb przez sieć na porcie 5555. Jeśli widzisz też „Debugowanie przez sieć”, włącz i je.</li>
+        <li>Sprawdź adres IP Boxa: <b>Ustawienia → Sieć i Internet →</b> aktywna sieć, albo <b>Informacje → Stan</b>.</li>
+        <li>Box i komputer (albo telefon) muszą być w tej samej sieci.</li>
+      </ol>
+      <div class="tip"><b>Wskazówka:</b> ustaw w routerze stały adres IP dla Boxa, żeby nie zmieniał się po restarcie.</div>
+    </div></details>
+
+    <details><summary><span class="n">3</span><span class="t">Ustaw Liquid TV jako ekran główny<small>Żeby przycisk Home otwierał nasz launcher</small></span></summary><div class="body">
+      <p><b>1. Pytanie systemu.</b> Po instalacji naciśnij <kbd>Home</kbd>. Jeśli pojawi się wybór ekranu głównego, wskaż <b>Liquid TV</b> i <b>Zawsze</b>. Na części urządzeń to pytanie się nie pokazuje.</p>
+      <p><b>2. Przez launcher (adb).</b> Po „Skonfiguruj adb” (poradnik niżej) wejdź w <b>Ustawienia → Narzędzia (adb) → Wyłącz aplikację…</b> i wyłącz fabryczny ekran główny. Pozycja jest oznaczona „ekran główny”; launcher ostrzeże, że Home otworzy wtedy Liquid TV. Cofniesz to w <b>Przywróć wyłączone aplikacje…</b>.</p>
+      <p><b>3. Skrypt na komputerze.</b> Pozycja „Ustaw Liquid TV jako domyślny ekran główny”.</p>
+      <p><b>4. Ręcznie przez adb:</b></p>
+      <div class="pre"><pre>adb shell pm list packages | grep -i launcher
+adb shell pm disable-user --user 0 com.google.android.tvlauncher</pre></div>
+      <p>Pierwsza komenda pokazuje nazwę fabrycznego launchera (na Mi Box S zwykle <code>com.google.android.tvlauncher</code>, na modelach z Google TV <code>com.google.android.apps.tv.launcherx</code>). Cofnięcie:</p>
+      <div class="pre"><pre>adb shell pm enable com.google.android.tvlauncher</pre></div>
+      <div class="warn">Najpierw zainstaluj i uruchom Liquid TV, dopiero potem wyłączaj stary launcher. Inaczej po naciśnięciu Home nie będzie żadnego ekranu głównego.</div>
+    </div></details>
+  </div>
+</div></section>
+
+<section class="s" id="adb"><div class="wrap">
+  <p class="kicker">adb w samym launcherze</p>
+  <h2>Skonfiguruj adb: jedno kliknięcie</h2>
+  <p class="sub">Liquid TV potrafi rozmawiać z adb działającym na tym samym Boxie (adres <code>127.0.0.1:5555</code>), tak jak polecenia z komputera. Dzięki temu robi rzeczy, których zwykła aplikacja nie może: ciche aktualizacje, restart, uśpienie, wyłączanie aplikacji, nadawanie sobie uprawnień. Komputer nie jest potrzebny.</p>
+  <div class="steps">
+
+    <details open><summary><span class="n">1</span><span class="t">Jednorazowa konfiguracja<small>Ustawienia → Narzędzia (adb) → Skonfiguruj adb</small></span></summary><div class="body">
+      <ol>
+        <li>Włącz <b>Debugowanie USB</b> (poradnik „Opcje programisty” wyżej).</li>
+        <li>W launcherze otwórz <b>Ustawienia</b> (zębatka albo ikona ☰ → Ustawienia) → <b>Narzędzia (adb)</b> → <b>Skonfiguruj adb (jednorazowo)</b>.</li>
+        <li>Na telewizorze pojawi się pytanie <b>„Zezwolić na debugowanie USB?”</b> z odciskiem klucza. Zaznacz <b>„Zawsze zezwalaj z tego komputera”</b> i wybierz <b>OK</b>. Klucz jest własny dla launchera i zostaje tylko na Boxie.</li>
+        <li>Zobaczysz raport z ✓ i ✗: zapis ustawień zabezpieczonych, kalendarz systemowy, instalowanie aktualizacji, usługa dostępności Liquid TV i dostęp do powiadomień (dla widżetu „Teraz gra”). Na końcu launcher włącza <b>ciche aktualizacje</b>.</li>
+      </ol>
+      <div class="note"><b>Wymaga Androida 8.0+</b> (biblioteka adb używa kodowania, które Android ma od 8). Jeśli pytanie się nie pojawi, wejdź w <b>Aktualizacje → Diagnostyka adb</b> (opis niżej).</div>
+    </div></details>
+
+    <details><summary><span class="n">2</span><span class="t">Co dokładnie to daje<small>Narzędzia (adb) w ustawieniach</small></span></summary><div class="body">
+      <table>
+        <tr><th>Narzędzie</th><th>Co robi</th></tr>
+        <tr><td>Zwolnij pamięć</td><td>Zatrzymuje aplikacje w tle i czyści pamięć podręczną wszystkich aplikacji (<code>am kill-all</code>, <code>pm trim-caches</code>), pokazuje RAM przed i po.</td></tr>
+        <tr><td>Animacje systemu</td><td>Normalne / szybkie (0,5×) / wyłączone: system staje się szybszy w odczuciu.</td></tr>
+        <tr><td>Wyłącz aplikację…</td><td>Wyłącza wybraną aplikację dla użytkownika (<code>pm disable-user</code>), z potwierdzeniem. Aplikacje systemowe kluczowe dla działania Boxa są chronione.</td></tr>
+        <tr><td>Przywróć wyłączone aplikacje…</td><td>Lista wyłączonych (<code>pm list packages -d</code>) i włączenie z powrotem jednym kliknięciem.</td></tr>
+        <tr><td>Włącz telewizor (HDMI-CEC)</td><td>Wysyła „One Touch Play”; zależy od ustawień CEC telewizora.</td></tr>
+        <tr><td>Włącz lub wyłącz telewizor (CEC)</td><td>Klawisz „TV power”, który Android zamienia w komunikat CEC.</td></tr>
+        <tr><td>Pilot z telefonu (kod QR)</td><td>Włącza stronę sterowania z telefonu, patrz poradnik „Pilot z telefonu”.</td></tr>
+        <tr><td>Menu zasilania</td><td>Uśpij, Restart, Wyłącz Box (z potwierdzeniem) oraz okno zasilania Androida.</td></tr>
+        <tr><td>Menu aplikacji (przytrzymaj OK)</td><td>„Wymuś zatrzymanie”, „Wyłącz aplikację…”.</td></tr>
+      </table>
+    </div></details>
+
+    <details><summary><span class="n">3</span><span class="t">Ciche aktualizacje i sprawdzanie co 5 sekund<small>Ustawienia → Aktualizacje</small></span></summary><div class="body">
+      <ul>
+        <li>Gdy launcher jest na ekranie, co <b>5 sekund</b> pyta GitHub, czy jest nowsza wersja (zmienisz to na 30 s, 5 min albo 1 godz.). To jedno malutkie zapytanie; gdy się nie uda, odstępy rosną do 5 minut.</li>
+        <li>Nową wersję instaluje, gdy przez chwilę (4 s) nie naciskasz pilota. Z włączonymi <b>cichymi aktualizacjami</b> robi to przez adb, więc <b>okno instalatora Androida się nie pokazuje</b>: launcher pobiera plik, wysyła go do Boxa, instaluje w osobnej powłoce i sam się uruchamia po instalacji.</li>
+        <li>Bez adb system zapyta o zgodę i pokaże własne okno instalacji.</li>
+        <li>Po aktualizacji pojawia się okno <b>„Co nowego”</b> (znajdziesz je też w <b>Aktualizacje → Co nowego w tej wersji</b>).</li>
+      </ul>
+      <h4>Diagnostyka adb: gdy coś nie działa</h4>
+      <p><b>Ustawienia → Aktualizacje → Diagnostyka adb…</b> sprawdza po kolei: wersję Androida, czy jest klucz adb, czy porty (<code>127.0.0.1:5555</code> i adres w sieci) są otwarte, wartość <code>adb_enabled</code>, a potem łączy się i wykonuje <code>id</code>, <code>getprop</code>, <code>pm path</code>. Wynik mówi, czy brakuje debugowania, zgody na ekranie TV, czy jest błąd.</p>
+      <table>
+        <tr><th>Komunikat</th><th>Znaczenie</th></tr>
+        <tr><td>Port … otwarty: nie</td><td>Debugowanie wyłączone albo adb nie nasłuchuje w sieci: włącz „Debugowanie USB”.</td></tr>
+        <tr><td>Czeka na zgodę na ekranie telewizora</td><td>Zaakceptuj pytanie z pilota (zaznacz „Zawsze zezwalaj”) i powtórz.</td></tr>
+        <tr><td>Połączenie i autoryzacja: działa</td><td>Wszystko gotowe, ciche aktualizacje będą działać.</td></tr>
+      </table>
+    </div></details>
+  </div>
+</div></section>
+
+<section class="s" id="skrypt"><div class="wrap">
+  <p class="kicker">Z komputera</p>
+  <h2>Skrypt tv_adb.py</h2>
+  <p class="sub">Jeden plik w Pythonie. Łączy się z Boxem przez sieć i ma menu najczęstszych czynności. Jeśli na komputerze nie ma programu <code>adb</code>, sam proponuje pobranie go od Google.</p>
+  <div class="steps">
+    <details open><summary><span class="n">1</span><span class="t">Uruchomienie<small>Windows, macOS, Linux</small></span></summary><div class="body">
+      <ol>
+        <li>Zainstaluj <b>Python 3.8+</b> z <a href="https://www.python.org/downloads/">python.org</a> (na Windows zaznacz <i>Add python.exe to PATH</i>).</li>
+        <li>Pobierz <a href="https://raw.githubusercontent.com/vcbgf5/LiquidLauncherMibox/main/tools/tv_adb.py" download>tv_adb.py</a> i zapisz w zwykłym folderze (np. <code>Dokumenty\liquidtv</code>).</li>
+        <li>Otwórz w tym folderze wiersz poleceń (Windows: wpisz <code>cmd</code> w pasku adresu Eksploratora) i uruchom:</li>
+      </ol>
+      <div class="pre"><pre>python tv_adb.py 192.168.0.170</pre></div>
+      <p>Zamiast przykładowego adresu wpisz IP swojego Boxa. Przy pierwszym połączeniu zaakceptuj pytanie na TV. Skrypt pokaże menu; wpisz numer pozycji i Enter.</p>
+    </div></details>
+
+    <details><summary><span class="n">2</span><span class="t">Menu skryptu<small>Co robi każda pozycja</small></span></summary><div class="body">
+      <table>
+        <tr><th>#</th><th>Pozycja</th></tr>
+        <tr><td>1</td><td>Stan: wersja Liquid TV, usługa dostępności, domyślny launcher</td></tr>
+        <tr><td>2</td><td>Zainstaluj / zaktualizuj Liquid TV (pobiera najnowszą wersję z GitHuba)</td></tr>
+        <tr><td>3</td><td>Włącz usługę dostępności (pasek głośności, okno zasilania)</td></tr>
+        <tr><td>4</td><td>Ustaw Liquid TV jako domyślny ekran główny</td></tr>
+        <tr><td>5</td><td>Wpisz link do pobrania w zaznaczone pole na Boxie (np. w Downloaderze)</td></tr>
+        <tr><td>6</td><td>Otwórz Liquid TV na Boxie</td></tr>
+        <tr><td>7</td><td>Zrzut ekranu Boxa (zapisuje w Obrazach lub na Pulpicie)</td></tr>
+        <tr><td>8</td><td><b>Podgląd ekranu Boxa na żywo</b> (scrcpy, a bez niego okno z odświeżaniem i sterowaniem klawiaturą)</td></tr>
+        <tr><td>9, 10</td><td>Uśpij / obudź Boxa</td></tr>
+        <tr><td>11</td><td>Podłącz kalendarz Google (link iCal)</td></tr>
+        <tr><td>12</td><td>Ustaw miasto pogody (dowolne)</td></tr>
+        <tr><td>13</td><td>Nadaj launcherowi uprawnienia (ustawienia, Bluetooth, kalendarz, tło)</td></tr>
+        <tr><td>14</td><td><b>Nadaj WSZYSTKIE uprawnienia</b> (także niepotrzebne; każde zadeklarowane + appops + praca w tle + usługi, z raportem)</td></tr>
+        <tr><td>15</td><td><b>Własna komenda</b> (dowolna komenda <code>adb shell</code>; zaczynając od <code>adb </code> zwykłe polecenie adb)</td></tr>
+        <tr><td>16</td><td>Diagnostyka głośności (usługa, audio, CEC, dziennik)</td></tr>
+        <tr><td>17, 18, 19</td><td>Wyłącz usługę dostępności / Odinstaluj Liquid TV / Zrestartuj Boxa</td></tr>
+      </table>
+      <div class="note">Numery mogą się przesunąć w nowszych wersjach skryptu, ale każda pozycja ma pełną nazwę w menu.</div>
+    </div></details>
+
+    <details><summary><span class="n">3</span><span class="t">Własne komendy i tryb jednej komendy<small>Pozycja 15, opcje --shell i --grant-all</small></span></summary><div class="body">
+      <p>Pozycja <b>Własna komenda</b> pyta o linię i wykonuje ją na Boxie, aż wpiszesz pustą. Przykłady:</p>
+      <div class="pre"><pre>pm list packages -d                       # wyłączone aplikacje
+dumpsys audio                             # stan dźwięku
+settings get global hdmi_control_enabled  # czy CEC jest włączone
+input keyevent 24                         # głośność w górę
+media volume --stream 3 --set 8           # głośność 8, bez paska
+am start -n com.liquidglass.tvlauncher/.MainActivity
+adb logcat -d -s LiquidTV                 # zwykłe polecenie adb (przedrostek „adb ”)</pre></div>
+      <p>Bez menu, z poziomu skryptu:</p>
+      <div class="pre"><pre>python tv_adb.py 192.168.0.170 --status
+python tv_adb.py 192.168.0.170 --install --enable-service
+python tv_adb.py 192.168.0.170 --shell "dumpsys battery"
+python tv_adb.py 192.168.0.170 --grant-all
+python tv_adb.py 192.168.0.170 --live
+python tv_adb.py 192.168.0.170 --screenshot</pre></div>
+      <div class="warn">„Własna komenda” i „Nadaj WSZYSTKIE uprawnienia” działają z pełnymi uprawnieniami powłoki adb. Wpisuj tylko komendy, które rozumiesz.</div>
+    </div></details>
+
+    <details><summary><span class="n">4</span><span class="t">Podgląd ekranu Boxa na żywo<small>scrcpy albo proste okno</small></span></summary><div class="body">
+      <p>Pozycja <b>Podgląd ekranu Boxa NA ŻYWO</b> (albo <code>--live</code>) otwiera obraz z Boxa na komputerze.</p>
+      <ul>
+        <li><b>scrcpy</b> (płynnie, ze sterowaniem myszą): skrypt używa go, jeśli jest zainstalowany, a na Windowsie potrafi go sam pobrać z oficjalnego GitHuba.</li>
+        <li>Bez scrcpy: okno z obrazem odświeżanym około raz na sekundę (zwykły Python z tkinter). Sterowanie klawiaturą: strzałki, <kbd>Enter</kbd>, <kbd>Esc</kbd> = wstecz, <kbd>H</kbd> = Home, <kbd>+</kbd>/<kbd>−</kbd> = głośność, <kbd>Q</kbd> = zamknij.</li>
+      </ul>
+    </div></details>
+  </div>
+</div></section>
+
+<section class="s" id="pilot"><div class="wrap">
+  <p class="kicker">Telefon</p>
+  <h2>Pilot, zdjęcia i ekran z telefonu</h2>
+  <p class="sub">Dwa sposoby: strona w przeglądarce (bez instalacji) albo aplikacja <b>Liquid TV Pilot</b>. Oba łączą się z Boxem przez Wi-Fi.</p>
+  <div class="steps">
+    <details open><summary><span class="n">1</span><span class="t">Połącz telefon z Boxem<small>Kod QR na telewizorze</small></span></summary><div class="body">
+      <ol>
+        <li>Na Boxie: <b>Ustawienia → Narzędzia (adb) → Pilot z telefonu (kod QR)…</b> (albo kafelek „Pilot z telefonu” w Szybkich ustawieniach).</li>
+        <li><b>Przeglądarka:</b> zeskanuj kod aparatem telefonu. Otworzy się strona z pilotem, głośnością, zasilaniem i polami na link kalendarza, miasto, adres do otwarcia i zdjęcia.</li>
+        <li><b>Aplikacja Pilot:</b> zainstaluj <a href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTVPilot.apk">LiquidTVPilot.apk</a> (zezwól na instalację z nieznanych źródeł), w zakładce <b>Box</b> wybierz <b>Skanuj kod QR z telewizora</b>. Można też wpisać IP i kod ręcznie.</li>
+      </ol>
+      <div class="note">W adresie jest sekretny kod, więc strona jest zabezpieczona. <b>Nowy link</b> w tym samym oknie unieważnia stary. Strona działa tylko przy otwartym oknie, chyba że włączysz „działa cały czas”. Telefon i Box muszą być w tej samej sieci.</div>
+    </div></details>
+
+    <details><summary><span class="n">2</span><span class="t">Co potrafi aplikacja Pilot<small>Cztery zakładki</small></span></summary><div class="body">
+      <table>
+        <tr><th>Zakładka</th><th>Funkcje</th></tr>
+        <tr><td>Pilot</td><td>Strzałki, OK, Wstecz, Home, odtwórz/pauza, głośność, wyciszenie, uśpienie, włączenie TV, wpisywanie tekstu, otwieranie adresu na TV.</td></tr>
+        <tr><td>Zdjęcia</td><td>Wybierasz zdjęcia z telefonu: są zmniejszane i obracane do pionu, trafiają do kategorii „Moje zdjęcia” i od razu stają się tapetą. Przycisk „Usuń moje zdjęcia z Boksa”.</td></tr>
+        <tr><td>Ekran</td><td>Pokazuje ekran telefonu na telewizorze (obraz bez dźwięku, kilka klatek na sekundę). Na TV przycisk Wstecz kończy udostępnianie.</td></tr>
+        <tr><td>Box</td><td>Skanowanie kodu QR, adres i kod ręcznie, sprawdzenie połączenia.</td></tr>
+      </table>
+      <p><b>„Udostępnij” z innych aplikacji:</b> w galerii wybierz zdjęcia → <i>Udostępnij</i> → <b>Liquid TV Pilot</b>: zostaną tapetami. W przeglądarce lub YouTube udostępnij link: otworzy się na TV. Zwykły tekst jest wpisywany w zaznaczone na TV pole.</p>
+      <div class="tip"><b>Filmy i muzyka z telefonu:</b> Mi Box S ma wbudowany Chromecast, więc najlepiej użyć ikony „Prześlij” w aplikacji. Udostępnianie ekranu pokazuje tylko obraz.</div>
+      <div class="note">Pilot poza launcherem i wpisywanie tekstu działają przez adb na Boxie, więc wymagają skonfigurowanego adb. Android zna przy wpisywaniu tylko znaki ASCII (bez polskich liter).</div>
+    </div></details>
+
+    <details><summary><span class="n">3</span><span class="t">Własne tapety<small>Zdjęcia z telefonu</small></span></summary><div class="body">
+      <ol>
+        <li>Wyślij zdjęcia ze strony z kodem QR (sekcja „Własne tapety”) albo z aplikacji Pilot.</li>
+        <li>Powstaje kategoria <b>„Moje zdjęcia”</b> i zostaje od razu wybrana. Kategorię zmienisz w <b>Ustawienia → Tapety</b>, a częstotliwość zmiany tam samo.</li>
+        <li>Limit to 60 zdjęć po 25 MB. Zdjęcia leżą w pamięci aplikacji i nie znikają po wyczyszczeniu pamięci podręcznej.</li>
+      </ol>
+    </div></details>
+
+    <details><summary><span class="n">4</span><span class="t">Kalendarz Google, pogoda, „Teraz gra”<small>Widżety na stronie nad ekranem głównym</small></span></summary><div class="body">
+      <h4>Kalendarz Google</h4>
+      <ol>
+        <li>W Kalendarzu Google na komputerze: <b>Ustawienia → (wybierz kalendarz) → Integruj kalendarz</b> i skopiuj <b>„Tajny adres w formacie iCal”</b>.</li>
+        <li>Wklej go w polu „Kalendarz Google” na stronie z telefonu (albo w aplikacji skryptem, pozycja 11).</li>
+      </ol>
+      <p>Launcher odświeża kalendarz co 20 minut i pokazuje najbliższe dwa tygodnie, także wydarzenia cykliczne.</p>
+      <h4>Pogoda</h4>
+      <p>Miasto z listy: <b>Ustawienia → Widżety</b>. Dowolne inne: pole „Pogoda” na stronie z telefonu. Dane z Open-Meteo.</p>
+      <h4>Teraz gra</h4>
+      <p>Pokazuje utwór, wykonawcę, okładkę i postęp z aplikacji muzycznych i wideo. <kbd>OK</kbd> = odtwórz/pauza, przytrzymanie <kbd>OK</kbd> = następny utwór. Wymaga dostępu do powiadomień, który nadaje „Skonfiguruj adb” (albo przycisk w <b>Widżety</b>).</p>
+    </div></details>
+  </div>
+</div></section>
+
+<section class="s" id="glosnosc"><div class="wrap">
+  <p class="kicker">Dźwięk i przyciski</p>
+  <h2>Głośność i przycisk Menu</h2>
+  <div class="steps">
+    <details><summary><span class="n">1</span><span class="t">Własny pasek głośności<small>Ustawienia → System, tryb w Szybkich ustawieniach</small></span></summary><div class="body">
+      <ol>
+        <li>Potrzebna jest <b>usługa dostępności Liquid TV</b> (włącza ją „Skonfiguruj adb”; ręcznie: Ustawienia Androida → Dostępność).</li>
+        <li>Pasek pokazuje się nad każdą aplikacją. Przy prawdziwym poziomie (Box, głośnik Bluetooth) pokazuje procent, a gdy głośnością steruje telewizor przez HDMI-CEC (Box nie zna jej poziomu), kierunek ▲ ▼.</li>
+        <li>Tryby: <b>wyłączony</b>, <b>oba paski</b> (systemowy zostaje) i <b>tylko nasz</b> (domyślny). W „tylko nasz” launcher odbiera przyciski + i − i ustawia głośność przez adb (<code>media volume --stream 3 --set N</code> bez <code>--show</code>), więc system nie rysuje swojego paska. Gdyby to nie działało, oddaje przyciski systemowi.</li>
+        <li>Tryb przełączysz w <b>Szybkich ustawieniach</b> (kafelek „Pasek głośności Liquid TV”).</li>
+      </ol>
+      <h4>Gdy głośność nie działa albo są dwa paski</h4>
+      <p><b>Ustawienia → System → Diagnostyka głośności…</b> pokazuje: czy usługa działa, ostatnie przyciski z pilota (z nazwą urządzenia), wykryte zmiany głośności, dokąd idzie dźwięk (HDMI, Bluetooth), czy poziom uznano za prawdziwy. Przycisk <b>Okna systemowe i audio (adb)</b> pokazuje, które okno Androida jest paskiem głośności. W skrypcie ta sama diagnostyka to pozycja 16.</p>
+      <div class="note">Klawisz wysłany przez <code>adb shell input keyevent</code> omija usługę dostępności, więc przy testach naciskaj prawdziwy przycisk na pilocie.</div>
+    </div></details>
+
+    <details><summary><span class="n">2</span><span class="t">Przycisk Menu i szybkie ustawienia<small>Panel z kafelkami</small></span></summary><div class="body">
+      <p>Przycisk <b>Menu</b> na pilocie otwiera <b>Szybkie ustawienia</b>: Wi-Fi, Bluetooth, dźwięk, wygaszacz, tryb wydajności, zwolnienie pamięci, uśpienie, restart, telewizor (CEC), pilot z telefonu i tryb głośności. To samo otworzy się po przytrzymaniu zębatki w górnym pasku.</p>
+      <p>Jeśli Twój pilot nie ma Menu albo wysyła inny kod: <b>Ustawienia → System → Przycisk szybkich ustawień</b>, naciśnij wybrany przycisk, a launcher go zapamięta. Przy włączonej usłudze dostępności zadziała w każdej aplikacji.</p>
+    </div></details>
+  </div>
+</div></section>
+
+<section class="s" id="pomoc"><div class="wrap">
+  <p class="kicker">Pomoc</p>
+  <h2>Najczęstsze problemy</h2>
+  <div class="steps faq">
+    <details><summary>„Nie można zainstalować aplikacji” przy aktualizacji</summary><div class="body"><p>Zainstalowana wersja jest podpisana innym kluczem (dotyczy v1.0.3 i starszych). Odinstaluj Liquid TV raz (Ustawienia → Aplikacje) i zainstaluj nowy plik. Kolejne wersje będą się aktualizować normalnie. Launcher sam wykrywa ten przypadek i pokazuje komunikat.</p></div></details>
+    <details><summary><code>adb connect</code> mówi „connection refused” albo „timed out”</summary><div class="body"><ul><li>Sprawdź, czy włączone jest <b>Debugowanie USB</b> i czy to ten adres IP (Ustawienia → Sieć).</li><li>Box w czuwaniu często zamyka połączenie: obudź go pilotem i spróbuj jeszcze raz.</li><li>Komputer i Box w jednej sieci (nie „sieć gościnna”). Port to zwykle 5555.</li></ul></div></details>
+    <details><summary>Box nie pyta „Zezwolić na debugowanie USB?”</summary><div class="body"><ul><li>W Opcjach programisty wybierz <b>Cofnij autoryzacje debugowania USB</b>, potem połącz się jeszcze raz.</li><li>Na komputerze: <code>adb kill-server</code> i ponów <code>adb connect</code>.</li><li>Pytanie bywa schowane za oknem aplikacji: zamknij okno i zerknij na ekran telewizora.</li></ul></div></details>
+    <details><summary>Ciche aktualizacje się nie udają</summary><div class="body"><p>Wejdź w <b>Ustawienia → Aktualizacje → Diagnostyka adb…</b> i sprawdź, który krok zawodzi (patrz poradnik „adb w samym launcherze”). Jeśli nic nie pomaga, wybierz „Aktualizuj teraz”: launcher użyje wtedy zwykłego instalatora Androida.</p></div></details>
+    <details><summary>Systemowy pasek głośności nadal się pokazuje</summary><div class="body"><p>Upewnij się, że usługa dostępności jest włączona, a tryb to „tylko nasz”. Pierwsze naciśnięcie po aktualizacji może jeszcze pokazać systemowy pasek: launcher musi najpierw zobaczyć, że poziom Boxa jest prawdziwy. Jeśli głośnością steruje telewizor przez CEC, jego własnego paska (na ekranie TV) launcher nie zdejmie. Szczegóły w „Diagnostyka głośności”.</p></div></details>
+    <details><summary>Przycisk Menu nic nie robi</summary><div class="body"><p>Nauczysz go w <b>Ustawienia → System → Przycisk szybkich ustawień</b>. W „Diagnostyce głośności” zobaczysz też listę ostatnich przycisków, które dotarły do Boxa; jeśli przycisku tam nie ma, pilot nie wysyła go do Boxa.</p></div></details>
+    <details><summary>Udostępnianie ekranu z telefonu nie startuje</summary><div class="body"><ul><li>Telefon i Box muszą być w tej samej sieci Wi-Fi, a okno „Pilot z telefonu” albo opcja „działa cały czas” aktywne.</li><li>Zatwierdź pytanie systemu o nagrywanie ekranu i zezwól na powiadomienia.</li><li>Gdy kończysz Wstecz na TV, telefon przestaje wysyłać po następnej klatce.</li></ul></div></details>
+    <details><summary>Jak usunąć launcher albo wrócić do fabrycznego?</summary><div class="body"><p>Włącz z powrotem fabryczny launcher (<b>Przywróć wyłączone aplikacje…</b> albo <code>adb shell pm enable com.google.android.tvlauncher</code>), potem odinstaluj Liquid TV w Ustawienia → Aplikacje (albo pozycja „Odinstaluj” w skrypcie).</p></div></details>
+  </div>
+
+  <div class="card" style="margin-top:22px">
+    <h3>Bezpieczeństwo i prywatność</h3>
+    <p>„Skonfiguruj adb” daje launcherowi uprawnienia powłoki adb <b>na tym jednym Boxie</b>, więc włączaj to tylko w sieci domowej. Klucz adb jest generowany lokalnie i nie opuszcza Boxa. Strona sterowania z telefonu jest chroniona sekretnym kodem w adresie i działa tylko w sieci lokalnej. Launcher nie zbiera danych o Tobie; łączy się z GitHubem (aktualizacje, tapety), Open-Meteo (pogoda) i adresem iCal, który sam podasz. Kod jest otwarty: <a href="https://github.com/vcbgf5/LiquidLauncherMibox">github.com/vcbgf5/LiquidLauncherMibox</a>.</p>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>LG webOS</h3>
+    <p>Launcher jest natywną aplikacją na Androida i na webOS nie wystartuje. Możesz za to zainstalować na telewizorze LG klikalną makietę wyglądu: włącz <b>Developer Mode</b>, pobierz paczkę <code>.ipk</code> z <a href="https://github.com/vcbgf5/LiquidLauncherMibox/actions/workflows/webos.yml">Actions</a> i zainstaluj przez <code>ares-install</code> (pełna instrukcja w <a href="https://github.com/vcbgf5/LiquidLauncherMibox/tree/main/webos">folderze webos</a>).</p>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  Liquid TV · <a href="https://github.com/vcbgf5/LiquidLauncherMibox">kod na GitHubie</a> · <a href="preview.html">klikalny podgląd</a> · <a href="https://github.com/vcbgf5/LiquidLauncherMibox/releases">wydania</a><br>
+  Strona zaktualizowana: <span id="built">2026-10-29 22:38 UTC</span>. Logo i nazwy aplikacji na kafelkach należą do ich właścicieli; to niezależny projekt, niezwiązany z Apple.
+</div></footer>
+
 <script>
-// Show which version "latest" currently is. The button works without this.
-fetch("https://api.github.com/repos/vcbgf5/LiquidLauncherMibox/releases/latest")
-  .then(r => r.ok ? r.json() : Promise.reject())
-  .then(rel => {
-    const apk = (rel.assets || []).find(a => a.name === "LiquidTV.apk");
-    const mb = apk ? " · " + (apk.size / 1048576).toFixed(1) + " MB" : "";
-    const day = new Date(rel.published_at).toLocaleDateString("pl-PL", {day: "numeric", month: "long", year: "numeric"});
-    document.getElementById("ver").textContent = rel.tag_name + mb + " · " + day;
-  })
-  .catch(() => {});
+// Version chips and the list of recent releases come from GitHub; the download buttons work without this.
+(function(){
+  var repo="vcbgf5/LiquidLauncherMibox";
+  function mb(n){return (n/1048576).toFixed(1)+" MB"}
+  function day(s){return new Date(s).toLocaleDateString("pl-PL",{day:"numeric",month:"long",year:"numeric"})}
+  fetch("https://api.github.com/repos/"+repo+"/releases?per_page=8").then(function(r){return r.ok?r.json():Promise.reject()}).then(function(list){
+    list=list.filter(function(r){return !r.draft});
+    var latest=list[0]; if(!latest) return;
+    var apk=(latest.assets||[]).find(function(a){return a.name==="LiquidTV.apk"});
+    var pilot=(latest.assets||[]).find(function(a){return a.name==="LiquidTVPilot.apk"});
+    document.getElementById("ver").innerHTML="Najnowsza: <b>"+latest.tag_name+"</b> · "+day(latest.published_at)+(apk?" · "+mb(apk.size):"");
+    var v1=document.getElementById("v1"); if(v1) v1.textContent=latest.tag_name;
+    var v2=document.getElementById("v2"); if(v2&&pilot) v2.textContent=latest.tag_name;
+    if(apk) document.getElementById("m1").textContent=mb(apk.size)+" · Android 6+ (zalecany 8+ dla cichych aktualizacji)";
+    if(pilot) document.getElementById("m2").textContent=mb(pilot.size)+" · Android 8+ · bez reklam i śledzenia";
+    var box=document.getElementById("rel"); box.innerHTML="";
+    list.forEach(function(rel){
+      var row=document.createElement("div"); row.className="row";
+      var files=(rel.assets||[]).filter(function(a){return /\.apk$/.test(a.name)}).map(function(a){return '<a href="'+a.browser_download_url+'">'+a.name+'</a>'}).join("");
+      row.innerHTML='<span class="tag">'+rel.tag_name+'</span><span class="day">'+day(rel.published_at)+'</span><span class="files">'+files+'</span>';
+      box.appendChild(row);
+    });
+  }).catch(function(){
+    document.getElementById("ver").textContent="Najnowsza wersja: przycisk powyżej zawsze pobiera aktualną.";
+    document.getElementById("rel").innerHTML='<p style="color:var(--mut);margin:6px 0 0">Nie udało się wczytać listy. <a href="https://github.com/'+repo+'/releases">Zobacz wydania na GitHubie.</a></p>';
+  });
+  // Copy buttons on every code block.
+  document.querySelectorAll(".pre").forEach(function(box){
+    var b=document.createElement("button"); b.className="copy"; b.type="button"; b.textContent="Kopiuj";
+    b.onclick=function(){
+      var text=box.querySelector("pre").innerText;
+      (navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(function(){b.textContent="Skopiowano"}).catch(function(){
+        var r=document.createRange(); r.selectNodeContents(box.querySelector("pre")); var s=getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent="Zaznaczono";
+      });
+      setTimeout(function(){b.textContent="Kopiuj"},1800);
+    };
+    box.appendChild(b);
+  });
+  // A link to a section opens the tutorial inside it.
+  function openTarget(){var t=document.querySelector(location.hash||"#none"); if(t){var d=t.closest("details")||t.querySelector("details"); if(d) d.open=true;}}
+  addEventListener("hashchange",openTarget); openTarget();
+})();
 </script>
 </body>
 </html>
