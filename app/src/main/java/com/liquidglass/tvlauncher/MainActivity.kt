@@ -138,6 +138,7 @@ class MainActivity : ComponentActivity() {
                 } else when (Updater.install(this@MainActivity, file, askPermission = !automatic)) {
                     Updater.InstallStart.STARTED -> UpdateStatus.INSTALLING
                     Updater.InstallStart.NEEDS_PERMISSION -> UpdateStatus.NEEDS_PERMISSION
+                    Updater.InstallStart.WRONG_SIGNATURE -> UpdateStatus.WRONG_SIGNATURE
                     Updater.InstallStart.FAILED -> UpdateStatus.DOWNLOAD_FAILED
                 }
             }
@@ -341,6 +342,7 @@ class MainActivity : ComponentActivity() {
                     UpdateStatus.DOWNLOADING -> stringResource(R.string.update_downloading, downloadPercent)
                     UpdateStatus.DOWNLOAD_FAILED -> stringResource(R.string.update_download_failed)
                     UpdateStatus.NEEDS_PERMISSION -> stringResource(R.string.update_permission)
+                    UpdateStatus.WRONG_SIGNATURE -> stringResource(R.string.update_wrong_key)
                     UpdateStatus.INSTALLING -> stringResource(R.string.update_installing)
                 }
                 val installLabel = if (updateInfo != null && updateStatus != UpdateStatus.DOWNLOADING) {
@@ -552,5 +554,5 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class UpdateStatus {
-    IDLE, CHECKING, UP_TO_DATE, AVAILABLE, CHECK_FAILED, DOWNLOADING, DOWNLOAD_FAILED, NEEDS_PERMISSION, INSTALLING,
+    IDLE, CHECKING, UP_TO_DATE, AVAILABLE, CHECK_FAILED, DOWNLOADING, DOWNLOAD_FAILED, NEEDS_PERMISSION, WRONG_SIGNATURE, INSTALLING,
 }

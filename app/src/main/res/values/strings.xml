@@ -39,5 +39,6 @@
     <string name="update_check_failed">Nie udało się sprawdzić (brak internetu albo brak wydania).</string>
     <string name="update_download_failed">Nie udało się pobrać aktualizacji.</string>
     <string name="update_permission">Zezwól Liquid TV na instalowanie aplikacji, wróć i wybierz Aktualizuj jeszcze raz.</string>
+    <string name="update_wrong_key">Ta wersja jest podpisana innym kluczem niż zainstalowana, więc Android jej nie nadpisze. Jednorazowo odinstaluj Liquid TV (Ustawienia → Aplikacje) i zainstaluj nowy plik ze strony pobierania. Kolejne aktualizacje zadziałają już normalnie.</string>
     <string name="update_installing">Zatwierdź instalację na ekranie systemowym. Jeśli się nie uda, odinstaluj starą wersję i zainstaluj ją ręcznie (to tylko za pierwszym razem).</string>
 </resources>

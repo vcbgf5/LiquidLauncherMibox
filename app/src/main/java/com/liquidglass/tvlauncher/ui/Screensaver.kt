@@ -11,7 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -45,9 +45,9 @@ private val ScreensaverLocale = Locale("pl", "PL")
  * The screensaver: the current wallpaper full screen (slowly zooming and drifting, cross-fading
  * whenever the wallpaper changes) with a big clock and the date in "liquid glass" lettering.
  *
- * The clock itself wanders very slowly around the middle of the screen, so no pixel stays
- * lit in the same place for hours. It fades in when [visible] turns true and out when it turns
- * false; while it is fully gone nothing of it is composed.
+ * The clock stands exactly in the middle; it is the photo behind it that keeps drifting, so
+ * the lettering never burns into the same pixels. It fades in when [visible] turns true and out
+ * when it turns false; while it is fully gone nothing of it is composed.
  */
 @Composable
 fun Screensaver(wallpaper: WallpaperState, visible: Boolean, modifier: Modifier = Modifier) {
@@ -121,27 +121,22 @@ fun Screensaver(wallpaper: WallpaperState, visible: Boolean, modifier: Modifier 
 
         val now = rememberNow()
         val date = Date(now.value)
+        // Dead centre: the digits sit exactly in the middle of the screen, the date right under them.
         val clockSize = (maxWidth.value * 0.2f).sp
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .graphicsLayer {
-                    translationX = sin(phase.value) * widthPx * 0.05f
-                    translationY = cos(phase.value * 0.7f) * heightPx * 0.05f
-                },
-        ) {
+        val dateOffset = with(density) { clockSize.toDp() } * 0.6f
+        Box(modifier = Modifier.align(Alignment.Center), contentAlignment = Alignment.Center) {
             GlassText(
                 text = SimpleDateFormat("HH:mm", ScreensaverLocale).format(date),
                 size = clockSize,
                 weight = FontWeight.Bold,
-                tracking = (-clockSize.value * 0.02f).sp,
+                tracking = 0.sp,
             )
             GlassText(
                 text = SimpleDateFormat("EEEE, d MMMM", ScreensaverLocale).format(date).replaceFirstChar { it.uppercase() },
                 size = clockSize * 0.17f,
                 weight = FontWeight.SemiBold,
                 tracking = 0.sp,
+                modifier = Modifier.offset(y = dateOffset),
             )
         }
     }
@@ -154,10 +149,10 @@ fun Screensaver(wallpaper: WallpaperState, visible: Boolean, modifier: Modifier 
  */
 @OptIn(ExperimentalTextApi::class)
 @Composable
-private fun GlassText(text: String, size: TextUnit, weight: FontWeight, tracking: TextUnit) {
+private fun GlassText(text: String, size: TextUnit, weight: FontWeight, tracking: TextUnit, modifier: Modifier = Modifier) {
     val px = with(LocalDensity.current) { size.toPx() }
     val base = TextStyle(fontSize = size, fontWeight = weight, letterSpacing = tracking)
-    Box(contentAlignment = Alignment.Center) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         BasicText(
             text = text,
             style = base.copy(

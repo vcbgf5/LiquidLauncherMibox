@@ -3,6 +3,9 @@ package com.liquidglass.tvlauncher.data
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.content.pm.Signature
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
@@ -35,7 +38,7 @@ object Updater {
         object Failed : CheckResult
     }
 
-    enum class InstallStart { STARTED, NEEDS_PERMISSION, FAILED }
+    enum class InstallStart { STARTED, NEEDS_PERMISSION, WRONG_SIGNATURE, FAILED }
 
     fun currentVersionCode(context: Context): Long =
         PackageInfoCompat.getLongVersionCode(context.packageManager.getPackageInfo(context.packageName, 0))
@@ -108,6 +111,38 @@ object Updater {
         }
     }
 
+    /**
+     * Android only replaces an app with a file signed by the same key. Builds made before the
+     * stable key existed were signed with a random one, so they can't be updated in place:
+     * better to say so than to let the system installer fail with a vague message.
+     * Unknown (the system gave no signatures) counts as the same, so nothing is blocked wrongly.
+     */
+    @Suppress("DEPRECATION")
+    private fun sameSigner(context: Context, file: File): Boolean {
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            PackageManager.GET_SIGNATURES
+        }
+        return try {
+            val installed = signers(context.packageManager.getPackageInfo(context.packageName, flags))
+            val offered = signers(context.packageManager.getPackageArchiveInfo(file.path, flags) ?: return true)
+            installed.isEmpty() || offered.isEmpty() || installed == offered
+        } catch (_: Exception) {
+            true
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun signers(info: PackageInfo): Set<String> {
+        val signatures: Array<Signature>? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.signingInfo?.apkContentsSigners
+        } else {
+            info.signatures
+        }
+        return signatures.orEmpty().map { it.toCharsString() }.toSet()
+    }
+
     /** Guards against installing an error page or a different app: it must be this app, and newer. */
     private fun isOurApk(context: Context, file: File): Boolean {
         val info = context.packageManager.getPackageArchiveInfo(file.path, 0) ?: return false
@@ -121,6 +156,7 @@ object Updater {
      * throwing the settings screen at someone who is just watching TV.
      */
     fun install(context: Context, file: File, askPermission: Boolean = true): InstallStart {
+        if (!sameSigner(context, file)) return InstallStart.WRONG_SIGNATURE
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
                 if (askPermission) {
