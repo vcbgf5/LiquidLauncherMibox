@@ -9,6 +9,8 @@ Dwa osobne ekrany:
    (zaokrąglony „szklany” panel z rozmytym tłem, do 6 aplikacji).
 2. **Wszystkie aplikacje** — strzałka w dół na doku przesuwa cały ekran w górę i wjeżdża pełnoekranowa siatka.
    Strzałka w górę z pierwszego rzędu, **Wstecz** albo **Home** wraca na ekran główny.
+3. **Data** — strzałka w dół z ostatniego rzędu siatki: duży zegar, pełna data, kalendarz miesiąca,
+   rząd „Dalej oglądaj” i rząd ostatnio otwieranych aplikacji (Wstecz / strzałka w górę wraca).
 
 Ikona zębatki otwiera **ustawienia launchera**: przezroczystość docka (strzałki w lewo/prawo, zmiana widoczna od razu)
 oraz przejście do **ustawień systemowych** Androida. Ikona obok pokazuje konto Google z urządzenia (pierwsza litera adresu).
@@ -17,6 +19,19 @@ Animacje: płynne przejście między ekranami (zdjęcie „zostaje w tyle", rzę
 kafelki wchodzą jeden po drugim, zaznaczony kafelek unosi się, świeci i przebiega po nim połysk, wciśnięcie OK
 lekko go „dociska", a otwierana aplikacja wyrasta z własnego kafelka na cały ekran (po powrocie zwija się z powrotem).
 Zdjęcie bardzo powoli „oddycha".
+
+**„Dalej oglądaj” z Netflixa i Disney+.** Android pozwala aplikacji czytać tylko *własne* wpisy z listy „Dalej oglądaj”;
+wpisy innych aplikacji (i to tylko z aktywnego profilu, nigdy ze wszystkich naraz) czyta wyłącznie system. Dlatego:
+
+- w rzędzie „Dalej oglądaj” jest kafelek **ekranu systemowego** (jeśli fabryczny launcher nie jest wyłączony) — tam ten rząd jest;
+- jeśli Twoje urządzenie mimo wszystko pozwoli na odczyt, launcher pokaże prawdziwe tytuły i kliknięcie włączy dany film.
+  Żeby to sprawdzić, na komputerze (po `adb connect`) wydaj raz:
+
+```bash
+adb shell pm grant com.liquidglass.tvlauncher com.android.providers.tv.permission.READ_EPG_DATA
+```
+
+  i otwórz trzecią stronę. Jeśli komenda zgłosi błąd albo rząd nadal pokazuje tylko kafelek systemowy, system tego nie dopuszcza.
 
 **Tapety z Unsplash.** Launcher zmienia tapetę co kilka minut (z płynnym przenikaniem), losując z wybranej kategorii:
 zwierzęta, góry, miasto, las, ocean, kosmos, zima, niebo, abstrakcja, minimalizm (lub ze wszystkich).
@@ -34,6 +49,7 @@ Domyślne ulubione i zawsze pierwsze w siatce: YouTube, Netflix, YouTube Music, 
 
 ![Ekran główny](docs/preview-home.jpg)
 ![Wszystkie aplikacje](docs/preview-apps.jpg)
+![Data i dalej oglądaj](docs/preview-info.jpg)
 
 **Klikalny podgląd w przeglądarce: https://vcbgf5.github.io/LiquidLauncherMibox/preview.html**
 
