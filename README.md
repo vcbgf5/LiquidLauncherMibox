@@ -116,6 +116,7 @@ Domyślne ulubione i zawsze pierwsze w siatce: YouTube, Netflix, YouTube Music, 
 ![Ekran główny (minimalny pasek u góry, duży zegar, dok)](docs/preview-home.jpg)
 ![Wszystkie aplikacje](docs/preview-apps.jpg)
 ![Widżety: data, kalendarz, pogoda, teraz gra (strona nad ekranem głównym)](docs/preview-info.jpg)
+![Ustawienia launchera (kategorie)](docs/preview-settings.jpg)
 ![Wygaszacz](docs/preview-screensaver.jpg)
 
 **Klikalny podgląd w przeglądarce: https://vcbgf5.github.io/LiquidLauncherMibox/preview.html**
