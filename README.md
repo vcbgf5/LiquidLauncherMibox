@@ -48,8 +48,9 @@ darmowe, bez klucza). Miasto wybierasz w Ustawieniach → Widżety (lista polski
 Liquid Glass, Minimal) dla 14 popularnych aplikacji; pojawiają się tam też paczki Nova/ADW zainstalowane na Boxie. Ikony paczek
 wbudowanych rysuje `tools/make_tvos_tiles.py` z otwartych kształtów logo (Simple Icons, CC0); nazwy i logo należą do ich właścicieli.
 
-**Głośność.** Pasek głośności Liquid TV (usługa dostępności) działa nad każdą aplikacją. Przyciski głośności zawsze trafiają dalej do
-Androida (głośność nie może przestać działać przez launcher); pasek tylko to pokazuje. Po naciśnięciu sprawdza, co system zrobił
+**Głośność.** Pasek głośności Liquid TV (usługa dostępności) działa nad każdą aplikacją. Gdy poziom głośności Boxa okaże się prawdziwy (a nie sterowany przez telewizor), launcher
+odbiera przyciski + i − i ustawia głośność sam przez adb (komenda `media volume --stream 3 --set N` bez `--show`, więc system
+nie rysuje swojego paska); gdyby to nie działało, oddaje przyciski systemowi. Wcześniej sprawdza, co system zrobił
 z poziomem: jeśli głośność zmieniła się o część skali (pilot, głośnik Bluetooth, wyjście z własną regulacją), pokazuje prawdziwy
 poziom, a jeśli Box poziomu nie widzi (telewizor steruje głośnością przez HDMI-CEC), pokazuje kierunek ▲ ▼. Tryby: wyłączony;
 „systemowy zostaje”; „systemowy ukryty” (domyślny): pasek Androida jest zamykany kilkukrotnie zaraz po naciśnięciu, więc widać

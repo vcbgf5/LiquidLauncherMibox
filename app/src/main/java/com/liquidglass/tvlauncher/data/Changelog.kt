@@ -6,7 +6,6 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
-        "Głośność: gdy Box pokazuje, że jego poziom jest prawdziwy, launcher przejmuje przyciski głośności i nie pokazuje systemowego paska (zostaje tylko nasz). Gdyby to nie działało, sam oddaje przyciski systemowi.",
-        "Własne tapety: w Pilocie z telefonu doszło wysyłanie zdjęć. Pojawiają się w kategorii „Moje zdjęcia” i od razu są tapetą.",
+        "Głośność bez systemowego paska: launcher odbiera przyciski + i −, a głośność ustawia przez adb (komenda „media volume” bez --show), więc widać tylko nasz pasek. Wymaga skonfigurowanego adb (Ustawienia → Narzędzia → Skonfiguruj adb). Gdy adb nie działa, użyje własnego wywołania, a gdyby i to zawiodło, odda przyciski systemowi.",
     )
 }

@@ -25,6 +25,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import com.liquidglass.tvlauncher.data.KeyLearner
+import com.liquidglass.tvlauncher.data.SelfAdb
 import com.liquidglass.tvlauncher.data.KeyLog
 import com.liquidglass.tvlauncher.data.LauncherSettings
 import com.liquidglass.tvlauncher.data.VolumeRouting
@@ -63,6 +64,16 @@ class SystemService : AccessibilityService() {
     private var levelReal = false
     private var consumeFailures = 0
 
+    // Taking the volume keys: the level asked for and the one already sent, applied by one worker thread
+    // so a held key is coalesced into a few commands, through a connection to the box's own adb that stays open.
+    private val volumeLock = Any()
+    private var wantedLevel = -1
+    private var sentLevel = -1
+    private var applying = false
+    private var adbLine: dadb.Dadb? = null
+    private var nextAdbTry = 0L
+    private val volumeWorker = java.util.concurrent.Executors.newSingleThreadExecutor()
+
     private val volumeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val stream = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_TYPE", -1)
@@ -96,6 +107,7 @@ class SystemService : AccessibilityService() {
         lastLevel = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
         lastMuted = audio.isStreamMute(AudioManager.STREAM_MUSIC)
         levelReal = settings.volumeLevelReal
+        if (settings.volumeMode == LauncherSettings.VOLUME_REPLACE) volumeWorker.execute { ensureAdbLine() }
         // These two broadcasts are what Android's own volume bar listens to; they are not in the public SDK.
         val filter = IntentFilter().apply {
             addAction("android.media.VOLUME_CHANGED_ACTION")
@@ -171,16 +183,28 @@ class SystemService : AccessibilityService() {
         val take = mode == LauncherSettings.VOLUME_REPLACE && levelReal && !audio.isVolumeFixed && !settings.volumeConsumeBroken
         if (take) {
             if (event.action != KeyEvent.ACTION_DOWN) return true // the press was taken, so is its release
-            val direction = when (code) {
-                KeyEvent.KEYCODE_VOLUME_UP -> AudioManager.ADJUST_RAISE
-                KeyEvent.KEYCODE_VOLUME_DOWN -> AudioManager.ADJUST_LOWER
-                else -> AudioManager.ADJUST_TOGGLE_MUTE
+            if (code == KeyEvent.KEYCODE_VOLUME_MUTE) {
+                val before = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val mutedBefore = audio.isStreamMute(AudioManager.STREAM_MUSIC)
+                audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_TOGGLE_MUTE, 0)
+                showCurrent()
+                handler.postDelayed({ checkTaken(AudioManager.ADJUST_TOGGLE_MUTE, before, mutedBefore) }, 350)
+                return true
             }
-            val before = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
-            val mutedBefore = audio.isStreamMute(AudioManager.STREAM_MUSIC)
-            audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0) // flag 0 = no bar from Android
-            showCurrent()
-            handler.postDelayed({ checkTaken(direction, before, mutedBefore) }, 350)
+            val step = if (code == KeyEvent.KEYCODE_VOLUME_UP) 1 else -1
+            val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+            val target: Int
+            val start: Boolean
+            synchronized(volumeLock) {
+                if (!applying) wantedLevel = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+                wantedLevel = (wantedLevel + step).coerceIn(0, max)
+                target = wantedLevel
+                start = !applying
+                applying = true
+            }
+            // The bar answers at once; the system's own volume follows within a moment.
+            overlay?.show(target * 100 / max, false)
+            if (start) volumeWorker.execute { applyWantedLevel() }
             return true
         }
 
@@ -191,6 +215,73 @@ class SystemService : AccessibilityService() {
         handler.postDelayed({ afterVolumeKey(code, before, mutedBefore) }, 260)
         if (mode == LauncherSettings.VOLUME_REPLACE) hideSystemBar()
         return false
+    }
+
+    /** Opens (once, and again after a failure, at most every 20 seconds) the connection used for the volume commands. */
+    private fun ensureAdbLine(): dadb.Dadb? {
+        adbLine?.let { return it }
+        if (System.currentTimeMillis() < nextAdbTry) return null
+        val line = SelfAdb.connect(this)
+        if (line == null) nextAdbTry = System.currentTimeMillis() + 20_000L
+        adbLine = line
+        return line
+    }
+
+    /**
+     * Runs on the worker: sends `media volume --stream 3 --set N` (the `media` tool of Android; without
+     * `--show` it changes the volume without any bar) until the level asked for has been sent. If adb is not
+     * reachable the app's own call, which does the same, is used.
+     */
+    private fun applyWantedLevel() {
+        while (true) {
+            val target = synchronized(volumeLock) {
+                if (wantedLevel == sentLevel || wantedLevel < 0) {
+                    applying = false
+                    sentLevel = -1
+                    return
+                }
+                wantedLevel
+            }
+            var done = false
+            val line = ensureAdbLine()
+            if (line != null) {
+                try {
+                    val result = line.shell("media volume --stream 3 --set $target")
+                    done = result.exitCode == 0 && !result.allOutput.contains("rror")
+                    if (!done) Log.w(TAG, "media volume: ${result.allOutput.trim()}")
+                } catch (e: Throwable) {
+                    Log.w(TAG, "adb line dropped: $e")
+                    runCatching { line.close() }
+                    adbLine = null
+                }
+            }
+            if (!done) {
+                try {
+                    audio.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0)
+                } catch (e: Throwable) {
+                    Log.w(TAG, "setStreamVolume: $e")
+                }
+            }
+            synchronized(volumeLock) { sentLevel = target }
+            Thread.sleep(40)
+            val actual = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+            if (actual != target) {
+                // The volume did not follow: count it, and stop taking keys if it keeps failing.
+                handler.post { checkSetLevel(target, actual) }
+            } else {
+                consumeFailures = 0
+            }
+        }
+    }
+
+    private fun checkSetLevel(target: Int, actual: Int) {
+        consumeFailures++
+        ignoredAdjusts++
+        Log.w(TAG, "volume should be $target but is $actual")
+        if (consumeFailures >= 3) {
+            settings.volumeConsumeBroken = true
+            Log.w(TAG, "taking the volume keys changed nothing three times: leaving them to Android")
+        }
     }
 
     private fun markLevelReal() {
@@ -269,6 +360,10 @@ class SystemService : AccessibilityService() {
         overlay?.release()
         overlay = null
         handler.removeCallbacksAndMessages(null)
+        volumeWorker.execute {
+            runCatching { adbLine?.close() }
+            adbLine = null
+        }
         if (instance === this) instance = null
         Log.i(TAG, "service disconnected")
         return super.onUnbind(intent)

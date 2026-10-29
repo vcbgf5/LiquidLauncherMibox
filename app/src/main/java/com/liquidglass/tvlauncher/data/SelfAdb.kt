@@ -111,6 +111,33 @@ object SelfAdb {
     /** Runs one shell command and returns its output (or why it didn't work). */
     suspend fun shell(context: Context, command: String): AdbResult<ShellOut> = run(context) { it.sh(command) }
 
+    /**
+     * A connection that stays open (the caller closes it) for quick repeated commands, such as the volume
+     * keys, where connecting every time would be too slow. Blocks; null when adb can't be reached (not
+     * switched on, or the TV has not been told to allow the launcher's key yet).
+     */
+    fun connect(context: Context): Dadb? {
+        if (!supported) return null
+        val app = context.applicationContext
+        val keys = try {
+            keyPair(app)
+        } catch (e: Throwable) {
+            lastError = "klucz adb: " + describe(e)
+            return null
+        }
+        for ((host, port) in endpoints()) {
+            try {
+                val dadb = Dadb.create(host, port, keys, connectTimeout = CONNECT_WAIT_MS, socketTimeout = 15_000)
+                val hello = dadb.shell("echo liquidtv")
+                if (hello.allOutput.contains("liquidtv")) return dadb
+                dadb.close()
+            } catch (e: Throwable) {
+                lastError = describe(e)
+            }
+        }
+        return null
+    }
+
     private fun <T> attempt(app: Context, keys: AdbKeyPair, work: (AdbSession) -> T): AdbResult<T> {
         var sawProblem: AdbResult<T>? = null
         for ((host, port) in endpoints()) {
