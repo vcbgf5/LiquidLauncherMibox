@@ -184,15 +184,19 @@ fun HomeScreen(
         if (restoreSignal == 0 || key == null) return@LaunchedEffect
         delay(280)
         runCatching {
-            if (lastUsedInDock && page == PAGE_HOME) {
-                favorites.firstOrNull { it.key == key }?.let { dockRequester(it).requestFocus() }
-            } else if (!lastUsedInDock && page == PAGE_APPS) {
-                val index = allApps.indexOfFirst { it.key == key }
-                if (index >= 0) {
-                    gridState.scrollToItem(index)
-                    delay(60)
-                    gridRequester(allApps[index]).requestFocus()
+            when {
+                lastUsedInDock && page == PAGE_HOME -> {
+                    favorites.firstOrNull { it.key == key }?.let { dockRequester(it).requestFocus() }
                 }
+                !lastUsedInDock && page == PAGE_APPS -> {
+                    val index = allApps.indexOfFirst { it.key == key }
+                    if (index >= 0) {
+                        gridState.scrollToItem(index)
+                        delay(60)
+                        gridRequester(allApps[index]).requestFocus()
+                    }
+                }
+                else -> Unit
             }
         }
     }
