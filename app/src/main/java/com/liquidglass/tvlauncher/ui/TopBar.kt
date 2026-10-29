@@ -445,15 +445,12 @@ private fun MinimalTopBar(
             )
         }
         if (expanded) {
-            val shape = RoundedCornerShape(18.dp)
             Column(
                 modifier = Modifier
                     .padding(top = 10.dp)
                     .width(300.dp)
                     .riseIn(delayMillis = 0, distance = 8.dp, fromScale = 0.97f)
-                    .clip(shape)
-                    .background(LocalTheme.current.glass.menu)
-                    .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
+                    .glassPanel(18.dp, LocalTheme.current.glass.menu)
                     .padding(8.dp),
             ) {
                 entries.forEachIndexed { index, entry ->

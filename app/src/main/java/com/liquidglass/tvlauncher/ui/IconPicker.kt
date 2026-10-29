@@ -81,14 +81,11 @@ fun IconPicker(
             contents?.let { c -> listOfNotNull(matched) + c.names.filter { it != matched } }.orEmpty()
         }
 
-        val shape = RoundedCornerShape(26.dp)
         Column(
             modifier = Modifier
                 .width(780.dp)
                 .height(470.dp)
-                .clip(shape)
-                .background(Color(0xEB1C1E26))
-                .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
+                .glassPanel(26.dp, LocalTheme.current.glass.card)
                 .padding(20.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {

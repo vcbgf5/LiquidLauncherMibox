@@ -89,9 +89,11 @@ jobs:
         run: ./gradlew --no-daemon assembleRelease
 
       # Fixed file names, so .../releases/latest/download/LiquidTV.apk (and version.json) always work.
+      # LiquidTVLite.apk is the same app for old TVs with about 0.5 GB of RAM; each edition updates from its own file.
       - name: Name the APK and describe its version
         run: |
-          cp app/build/outputs/apk/release/*.apk LiquidTV.apk
+          cp app/build/outputs/apk/full/release/*.apk LiquidTV.apk
+          cp app/build/outputs/apk/lite/release/*.apk LiquidTVLite.apk
           cp pilot/build/outputs/apk/release/*.apk LiquidTVPilot.apk
           printf '{"versionCode": %s, "versionName": "%s"}\n' "$VERSION_CODE" "$VERSION_NAME" > version.json
           cat version.json
@@ -102,6 +104,7 @@ jobs:
           name: liquid-tv-apk
           path: |
             LiquidTV.apk
+            LiquidTVLite.apk
             LiquidTVPilot.apk
             version.json
 
@@ -114,5 +117,6 @@ jobs:
           target_commitish: ${{ github.sha }}
           files: |
             LiquidTV.apk
+            LiquidTVLite.apk
             LiquidTVPilot.apk
             version.json

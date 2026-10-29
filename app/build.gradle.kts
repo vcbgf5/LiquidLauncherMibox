@@ -30,6 +30,21 @@ android {
         }
     }
 
+    // Two editions of the same app (same package and key, so one replaces the other and either updates
+    // itself from its own file in the release): the normal one, and "lite" for old TVs with about
+    // 0.5 GB of RAM, which decodes smaller pictures, starts in the economy mode and keeps the windows plain.
+    flavorDimensions += "edition"
+    productFlavors {
+        create("full") {
+            dimension = "edition"
+            buildConfigField("boolean", "LITE", "false")
+        }
+        create("lite") {
+            dimension = "edition"
+            buildConfigField("boolean", "LITE", "true")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -49,6 +64,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"

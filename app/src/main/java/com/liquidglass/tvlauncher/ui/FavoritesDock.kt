@@ -133,6 +133,8 @@ fun FavoritesDock(
                 ),
             )
             .border(1.dp, Color.White.copy(alpha = 0.30f - 0.08f * t), DockShape)
+            // In the Liquid Glass style the tray also gets the bright, light-splitting rim.
+            .liquidRim(32.dp)
             .padding(horizontal = DockHorizontalPaddingDp.dp, vertical = 26.dp),
         horizontalArrangement = Arrangement.spacedBy(DockSpacingDp.dp),
     ) {

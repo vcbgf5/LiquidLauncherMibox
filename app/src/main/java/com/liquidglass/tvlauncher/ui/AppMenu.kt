@@ -45,13 +45,10 @@ fun AppMenu(title: String, options: List<MenuOption>, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        val shape = RoundedCornerShape(22.dp)
         Column(
             modifier = Modifier
                 .width(320.dp)
-                .clip(shape)
-                .background(LocalTheme.current.glass.menu)
-                .border(1.dp, Color.White.copy(alpha = 0.25f), shape)
+                .glassPanel(22.dp, LocalTheme.current.glass.menu)
                 .padding(14.dp),
         ) {
             Text(

@@ -22,7 +22,7 @@ class UpdateInfo(val versionCode: Long, val versionName: String)
 /**
  * Updates from this project's GitHub releases.
  *
- * Every release carries two files, written by the build: `LiquidTV.apk` and a tiny
+ * Every release carries the app (`LiquidTV.apk`, or `LiquidTVLite.apk` for the lite edition, see [Edition]) and a tiny
  * `version.json` with the build's versionCode. Checking is one small download of that
  * json compared with the installed versionCode; updating downloads the APK and hands it to
  * Android's installer, which asks the user to confirm (Android never lets an app
@@ -68,7 +68,7 @@ object Updater {
         dir.listFiles()?.filter { it != target }?.forEach { it.delete() }
         if (target.exists() && isOurApk(context, target)) return@withContext target
         try {
-            val connection = (URL(BASE + "LiquidTV.apk").openConnection() as HttpURLConnection).apply {
+            val connection = (URL(BASE + Edition.apkName).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 10_000
                 readTimeout = 30_000
                 instanceFollowRedirects = true

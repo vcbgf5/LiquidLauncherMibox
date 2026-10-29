@@ -52,13 +52,10 @@ fun QuickPanel(title: String, tiles: List<QuickTile>, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        val shape = RoundedCornerShape(26.dp)
         Column(
             modifier = Modifier
                 .width(660.dp)
-                .clip(shape)
-                .background(LocalTheme.current.glass.card)
-                .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
+                .glassPanel(26.dp, LocalTheme.current.glass.card)
                 .padding(18.dp),
         ) {
             Text(

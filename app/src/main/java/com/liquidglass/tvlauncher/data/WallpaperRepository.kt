@@ -24,6 +24,7 @@ object WallpaperRepository {
     private const val BASE = "https://raw.githubusercontent.com/vcbgf5/LiquidLauncherMibox/main/wallpapers/"
     private const val TARGET_WIDTH = 1920
     private const val TARGET_WIDTH_LITE = 1280
+    private const val TARGET_WIDTH_SMALL = 960
 
     suspend fun catalog(context: Context): WallpaperCatalog = withContext(Dispatchers.IO) {
         val cache = File(context.cacheDir, "wallpapers/index.json")
@@ -98,13 +99,15 @@ object WallpaperRepository {
                 file.delete()
                 return null
             }
-            val target = if (Performance.lite) TARGET_WIDTH_LITE else TARGET_WIDTH
+            val target = if (Edition.lite) TARGET_WIDTH_SMALL else if (Performance.lite) TARGET_WIDTH_LITE else TARGET_WIDTH
             var sample = 1
             while (bounds.outWidth / (sample * 2) >= target) sample *= 2
             // Mutable, because the darkening for bright photos is painted into the picture itself.
             val options = BitmapFactory.Options().apply {
                 inSampleSize = sample
                 inMutable = true
+                // The lite edition keeps two bytes per pixel instead of four.
+                if (Edition.lite) inPreferredConfig = Bitmap.Config.RGB_565
             }
             val bitmap = BitmapFactory.decodeFile(file.path, options) ?: return null
             bakeScrim(bitmap)

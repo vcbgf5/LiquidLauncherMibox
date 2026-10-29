@@ -88,6 +88,8 @@ class SettingsExtras(
     val onAccent: (Int) -> Unit,
     val glassIndex: Int,
     val onGlass: (Int) -> Unit,
+    val glassStyle: Int,
+    val onGlassStyle: (Int) -> Unit,
     val tileTilt: Boolean,
     val onTileTilt: (Boolean) -> Unit,
     val parallax: Boolean,
@@ -216,14 +218,11 @@ fun SettingsDialog(
         val categoryIndex = categoryOptions.indexOfFirst { it.first == categoryId }
         val categoryLabel = categoryOptions.getOrNull(categoryIndex)?.second ?: noneLabel
 
-        val shape = RoundedCornerShape(26.dp)
         Column(
             modifier = Modifier
                 .width(620.dp)
                 .heightIn(max = 500.dp)
-                .clip(shape)
-                .background(LocalTheme.current.glass.card)
-                .border(1.dp, Color.White.copy(alpha = 0.22f), shape),
+                .glassPanel(26.dp, LocalTheme.current.glass.card),
         ) {
             Row(
                 modifier = Modifier
@@ -326,6 +325,12 @@ fun SettingsDialog(
                         label = stringResource(R.string.settings_accent),
                         value = stringResource(Accents[extras.accentIndex.coerceIn(0, Accents.lastIndex)].nameRes),
                         onStep = { direction -> extras.onAccent((extras.accentIndex + direction).mod(Accents.size)) },
+                    )
+                    Divider()
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_glass_style),
+                        value = stringResource(if (extras.glassStyle == GlassStyle.LIQUID) R.string.glass_style_liquid else R.string.glass_style_classic),
+                        onStep = { extras.onGlassStyle(if (extras.glassStyle == GlassStyle.LIQUID) GlassStyle.CLASSIC else GlassStyle.LIQUID) },
                     )
                     Divider()
                     ChoiceRow(

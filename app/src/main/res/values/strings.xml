@@ -237,6 +237,9 @@
     <!-- Wygląd, wydajność -->
     <string name="settings_accent">Kolor akcentu</string>
     <string name="settings_glass_tint">Odcień szkła okien</string>
+    <string name="settings_glass_style">Styl okien i paneli</string>
+    <string name="glass_style_liquid">Liquid Glass (szkło z połyskiem)</string>
+    <string name="glass_style_classic">Ciemne szkło (proste)</string>
     <string name="settings_tile_tilt">Pochylanie kafelków przy przesuwaniu</string>
     <string name="settings_parallax">Ruch tapety przy przesuwaniu dockiem</string>
     <string name="settings_performance">Tryb wydajności</string>

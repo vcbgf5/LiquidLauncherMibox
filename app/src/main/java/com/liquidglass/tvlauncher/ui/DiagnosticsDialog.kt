@@ -51,14 +51,11 @@ fun DiagnosticsDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        val shape = RoundedCornerShape(26.dp)
         Column(
             modifier = Modifier
                 .width(640.dp)
                 .heightIn(max = 500.dp)
-                .clip(shape)
-                .background(LocalTheme.current.glass.card)
-                .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
+                .glassPanel(26.dp, LocalTheme.current.glass.card)
                 .padding(20.dp),
         ) {
             Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 10.dp))

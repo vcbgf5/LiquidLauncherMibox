@@ -45,7 +45,6 @@ fun FolderDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        val shape = RoundedCornerShape(26.dp)
         val first = remember { FocusRequester() }
         LaunchedEffect(apps.size) {
             delay(80)
@@ -54,9 +53,7 @@ fun FolderDialog(
         Column(
             modifier = Modifier
                 .width(780.dp)
-                .clip(shape)
-                .background(LocalTheme.current.glass.card)
-                .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
+                .glassPanel(26.dp, LocalTheme.current.glass.card)
                 .padding(vertical = 18.dp),
         ) {
             Text(name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 28.dp, bottom = 6.dp))

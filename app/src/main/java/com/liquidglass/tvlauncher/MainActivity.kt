@@ -57,6 +57,7 @@ import com.liquidglass.tvlauncher.data.AdbResult
 import com.liquidglass.tvlauncher.data.AppFolder
 import com.liquidglass.tvlauncher.data.AppInfo
 import com.liquidglass.tvlauncher.data.AppRepository
+import com.liquidglass.tvlauncher.data.Edition
 import com.liquidglass.tvlauncher.data.Changelog
 import com.liquidglass.tvlauncher.data.FavoritesStore
 import com.liquidglass.tvlauncher.data.FolderArt
@@ -98,6 +99,10 @@ import com.liquidglass.tvlauncher.ui.FolderDialog
 import com.liquidglass.tvlauncher.ui.HomeScreen
 import com.liquidglass.tvlauncher.ui.IconPicker
 import com.liquidglass.tvlauncher.ui.LauncherTheme
+import com.liquidglass.tvlauncher.ui.GlassBackdrop
+import com.liquidglass.tvlauncher.ui.GlassStyle
+import com.liquidglass.tvlauncher.ui.LocalGlassBackdrop
+import com.liquidglass.tvlauncher.ui.LocalGlassStyle
 import com.liquidglass.tvlauncher.ui.LocalTheme
 import com.liquidglass.tvlauncher.ui.LocalTileLighting
 import com.liquidglass.tvlauncher.ui.LocalTileTilt
@@ -221,6 +226,7 @@ class MainActivity : ComponentActivity() {
             var parallax by remember { mutableStateOf(settings.parallax) }
             var accentIndex by remember { mutableIntStateOf(settings.accentIndex) }
             var glassIndex by remember { mutableIntStateOf(settings.glassTintIndex) }
+            var glassStyle by remember { mutableIntStateOf(settings.glassStyle) }
             var performanceMode by remember(performanceTick) { mutableIntStateOf(settings.performanceMode) }
             var clockContent by remember { mutableIntStateOf(settings.clockContent) }
             var clockPosition by remember { mutableIntStateOf(settings.clockPosition) }
@@ -245,7 +251,7 @@ class MainActivity : ComponentActivity() {
 
             val wallpaper = remember {
                 WallpaperState(WallpaperImage(
-                    ImageBitmap.imageResource(resources, R.drawable.bg_hero),
+                    Edition.bundledHero(resources),
                     ImageBitmap.imageResource(resources, R.drawable.bg_hero_blur),
                 ))
             }
@@ -537,8 +543,11 @@ class MainActivity : ComponentActivity() {
             }
 
             val theme = LauncherTheme.of(accentIndex, glassIndex)
+            val glassBackdrop = remember(wallpaper) { GlassBackdrop(wallpaper) }
             CompositionLocalProvider(
                 LocalTheme provides theme,
+                LocalGlassStyle provides glassStyle,
+                LocalGlassBackdrop provides glassBackdrop,
                 LocalTileLighting provides tileLighting,
                 LocalTileTilt provides tileTilt,
             ) {
@@ -683,7 +692,7 @@ class MainActivity : ComponentActivity() {
                 var animationScale by remember { mutableStateOf(SystemTools.animationScale(this@MainActivity)) }
                 var quickKeyShown by remember { mutableStateOf(settings.quickKey) }
                 SettingsDialog(
-                    versionLabel = stringResource(R.string.settings_version_label, versionName),
+                    versionLabel = stringResource(R.string.settings_version_label, if (Edition.lite) "$versionName Lite" else versionName),
                     transparencyPercent = dockTransparency,
                     onTransparencyChange = {
                         dockTransparency = it
@@ -832,6 +841,11 @@ class MainActivity : ComponentActivity() {
                         onGlass = {
                             glassIndex = it
                             settings.glassTintIndex = it
+                        },
+                        glassStyle = glassStyle,
+                        onGlassStyle = {
+                            glassStyle = it
+                            settings.glassStyle = it
                         },
                         tileTilt = tileTilt,
                         onTileTilt = {

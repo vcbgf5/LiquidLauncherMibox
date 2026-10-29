@@ -31,13 +31,10 @@ fun LearnKeyPrompt() {
         modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)),
         contentAlignment = Alignment.Center,
     ) {
-        val shape = RoundedCornerShape(26.dp)
         Column(
             modifier = Modifier
                 .width(560.dp)
-                .clip(shape)
-                .background(LocalTheme.current.glass.card)
-                .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
+                .glassPanel(26.dp, LocalTheme.current.glass.card)
                 .padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

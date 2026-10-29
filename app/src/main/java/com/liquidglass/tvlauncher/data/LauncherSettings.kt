@@ -231,7 +231,7 @@ class LauncherSettings(context: Context) {
 
     /** [PERF_AUTO] decides by itself (and remembers it), [PERF_LITE] always saves effort, [PERF_FULL] never does. */
     var performanceMode: Int
-        get() = prefs.getInt(KEY_PERFORMANCE, PERF_AUTO).coerceIn(PERF_AUTO, PERF_FULL)
+        get() = prefs.getInt(KEY_PERFORMANCE, if (Edition.lite) PERF_LITE else PERF_AUTO).coerceIn(PERF_AUTO, PERF_FULL)
         set(value) {
             prefs.edit().putInt(KEY_PERFORMANCE, value).apply()
         }
@@ -255,6 +255,13 @@ class LauncherSettings(context: Context) {
         get() = prefs.getInt(KEY_GLASS_TINT, 0)
         set(value) {
             prefs.edit().putInt(KEY_GLASS_TINT, value).apply()
+        }
+
+    /** Look of the windows and menus: 0 flat dark glass, 1 Liquid Glass (see GlassStyle). */
+    var glassStyle: Int
+        get() = prefs.getInt(KEY_GLASS_STYLE, if (Edition.lite) 0 else 1)
+        set(value) {
+            prefs.edit().putInt(KEY_GLASS_STYLE, value).apply()
         }
 
     /** The wallpaper drifts a little sideways as focus moves along the dock. */
@@ -302,6 +309,7 @@ class LauncherSettings(context: Context) {
         private const val KEY_AUTO_LITE = "auto_lite"
         private const val KEY_ACCENT = "accent"
         private const val KEY_GLASS_TINT = "glass_tint"
+        private const val KEY_GLASS_STYLE = "glass_style"
         private const val KEY_PARALLAX = "parallax"
         private const val KEY_TILE_TILT = "tile_tilt"
         private const val KEY_REMOTE_ALWAYS = "remote_always"

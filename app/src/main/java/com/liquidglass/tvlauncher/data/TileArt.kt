@@ -23,8 +23,10 @@ import androidx.palette.graphics.Palette
  * own colours with the icon centred on top, so the grid stays uniform.
  */
 object TileArt {
-    const val WIDTH = 400
-    const val HEIGHT = 240
+    // The lite edition keeps every tile at about a third of the memory.
+    val WIDTH = if (Edition.lite) 250 else 400
+    val HEIGHT = if (Edition.lite) 150 else 240
+    private val ICON_SIZE = if (Edition.lite) 128 else 192
 
     fun fromBanner(banner: Drawable): Bitmap {
         val out = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)
@@ -49,7 +51,7 @@ object TileArt {
     }
 
     fun fromIcon(icon: Drawable): Bitmap {
-        val size = 192
+        val size = ICON_SIZE
         val iconBitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val iconCanvas = Canvas(iconBitmap)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && icon is AdaptiveIconDrawable) {
