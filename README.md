@@ -12,8 +12,12 @@ Natywna aplikacja: Kotlin + Jetpack Compose, bez WebView.
 
 ## Pobranie APK
 
-Zakładka **Actions** → ostatni przebieg „Build APK” → artefakt `liquid-tv-apk`.
-Po wypchnięciu tagu `v1.0.0` APK trafia też do **Releases**.
+- Strona z przyciskiem: **https://vcbgf5.github.io/LiquidLauncherMibox/**
+- Krótki adres do wpisania pilotem (od razu pobiera najnowszą wersję): **vcbgf5.github.io/LiquidLauncherMibox/apk**
+- Bezpośredni link: `https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk`
+
+Nowe wydanie: wypchnij tag, np. `git tag v1.1.0 && git push origin v1.1.0`. Workflow zbuduje APK i doda go do Releases,
+a linki powyżej zawsze wskazują na najnowsze.
 
 ## Instalacja na Mi Box
 
