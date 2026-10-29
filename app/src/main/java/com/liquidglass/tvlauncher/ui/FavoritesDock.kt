@@ -22,50 +22,70 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.liquidglass.tvlauncher.data.AppInfo
 
-internal val DockTileWidth = 130.dp
+internal val DockTileWidth = 120.dp
 private val DockShape = RoundedCornerShape(32.dp)
 
 /**
- * The rounded glass tray holding the favorites, centred across the seam
- * between the hero photo and the app grid.
+ * The rounded glass tray holding the favorites, sitting at the bottom of
+ * the home screen. D-pad Down from any tile calls [onScrollDown], which
+ * slides the screen up to the full app list.
  *
  * Real backdrop blur isn't available on the Android versions most TV
  * boxes ship, so the blur is baked: [backdrop] is a pre-blurred copy of
- * the hero, drawn here at the spot where the hero really is (found from
- * this node's position on screen). Below the hero there's nothing to
- * blur, so the tray falls back to the solid shelf colour, which also hides
- * grid rows scrolling underneath it. A white tint and a hairline border
- * on top give the frosted-glass look.
+ * the whole photo, drawn here at the spot where that photo really is. The
+ * tray is always [bottomInsetPx] above the bottom of a [screenSize] screen
+ * and horizontally centred, so its position is worked out from its own
+ * size instead of being measured on screen (which would be thrown off by
+ * the slide animation). A white tint and a hairline border on top give the
+ * frosted-glass look.
  */
 @Composable
 fun FavoritesDock(
     apps: List<AppInfo>,
     backdrop: ImageBitmap,
-    backdropSize: IntSize,
+    screenSize: IntSize,
+    bottomInsetPx: Float,
     firstTileFocus: FocusRequester,
     onLaunch: (AppInfo) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
+    onScrollDown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var origin by remember { mutableStateOf(Offset.Zero) }
+    var size by remember { mutableStateOf(IntSize.Zero) }
 
     Row(
         modifier = modifier
-            .onGloballyPositioned { origin = it.positionInRoot() }
-            .shadow(28.dp, DockShape, clip = false)
-            .clip(DockShape)
-            .background(ShelfColor)
-            .drawBehind {
-                translate(left = -origin.x, top = -origin.y) {
-                    drawImage(backdrop, dstSize = backdropSize)
+            .onSizeChanged { size = it }
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                    onScrollDown()
+                    true
+                } else {
+                    false
                 }
             }
+            .shadow(28.dp, DockShape, clip = false)
+            .clip(DockShape)
+            .drawBehind {
+                val origin = Offset(
+                    x = (screenSize.width - size.width) / 2f,
+                    y = screenSize.height - bottomInsetPx - size.height,
+                )
+                translate(left = -origin.x, top = -origin.y) {
+                    drawImage(backdrop, dstSize = screenSize)
+                }
+            }
+            .background(Color.Black.copy(alpha = 0.18f))
             .background(
                 Brush.linearGradient(
                     listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.06f)),

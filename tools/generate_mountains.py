@@ -3,7 +3,7 @@ from PIL import Image, ImageFilter, ImageDraw
 import sys
 
 S = 2                       # supersample
-W, H = 1920 * S, 640 * S
+W, H = 1920 * S, 1080 * S
 OUT = sys.argv[1]
 
 def fbm1d(n, seed, octaves=7, base=3, pers=0.52, ridged=False):

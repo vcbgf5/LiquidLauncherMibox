@@ -11,14 +11,15 @@ android {
         applicationId = "com.liquidglass.tvlauncher"
         minSdk = 23
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Signed with the debug key so the release APK installs by sideloading.
+            // Debug-signed so the APK installs by sideloading. Updating an installed copy means
+            // uninstalling it first (each CI build gets its own debug key).
             signingConfig = signingConfigs.getByName("debug")
         }
     }

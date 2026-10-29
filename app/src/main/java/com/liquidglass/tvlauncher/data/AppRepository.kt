@@ -9,9 +9,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Finds every launchable app, the same way a stock launcher does. TV apps
- * (leanback) come first, then everything else, so a sideloaded phone app
- * never pushes a real TV app out of the default favorites.
+ * Finds every launchable app, the same way a stock launcher does.
+ *
+ * Order: the [PriorityApps] first, in their fixed order; then the other TV
+ * (leanback) apps; then everything else, so a sideloaded phone app never
+ * pushes a real TV app out of view. The last two groups are alphabetical.
  */
 object AppRepository {
 
@@ -31,7 +33,9 @@ object AppRepository {
             }
             result += group.sortedBy { it.label.lowercase() }
         }
-        result
+
+        // Stable sort: apps outside the priority list keep the order built above.
+        result.sortedBy { PriorityApps.rank(it.packageName) }
     }
 
     private fun toAppInfo(pm: PackageManager, info: ResolveInfo): AppInfo {

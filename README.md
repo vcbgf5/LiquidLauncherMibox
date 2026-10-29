@@ -3,12 +3,17 @@
 Launcher na Android TV (Xiaomi Mi Box itp.) inspirowany ekranem głównym Apple TV.
 Natywna aplikacja: Kotlin + Jetpack Compose, bez WebView.
 
-- **Hero** — zdjęcie na górze ekranu, ściemnione tylko przy dolnej krawędzi.
-- **Dok z ulubionymi** — zaokrąglony, „szklany” panel z rozmytym tłem na granicy hero i siatki, do 5 aplikacji.
-- **Siatka** — pozostałe aplikacje, przewijana pilotem.
+Dwa osobne ekrany:
+
+1. **Ekran główny** — zdjęcie na cały ekran, u góry zegar, ustawienia i konto Google, na dole sam dok z ulubionymi
+   (zaokrąglony „szklany” panel z rozmytym tłem, do 6 aplikacji).
+2. **Wszystkie aplikacje** — strzałka w dół na doku przesuwa cały ekran w górę i wjeżdża pełnoekranowa siatka.
+   Strzałka w górę z pierwszego rzędu, **Wstecz** albo **Home** wraca na ekran główny.
+
+Domyślne ulubione i zawsze pierwsze w siatce: YouTube, Netflix, YouTube Music, Sklep Play, Spotify, Disney+.
+
 - **Kafelki** jak w tvOS: szerokie prostokąty 5:3 (banner aplikacji TV, a dla zwykłych aplikacji ikona na kolorowym tle), po najechaniu unoszą się, rosną i świecą.
 - **Przytrzymaj OK** na aplikacji → menu: dodaj/usuń z ulubionych, przesuń w lewo/prawo, informacje o aplikacji, odinstaluj.
-- **Home / Wstecz** wraca na górę i zaznacza pierwszą ulubioną.
 
 ## Pobranie APK
 
@@ -31,14 +36,16 @@ adb shell pm disable-user --user 0 com.google.android.tvlauncher
 
 Cofnięcie: `adb shell pm enable com.google.android.tvlauncher`.
 
-## Zdjęcie w hero
+## Zdjęcie na ekranie głównym
 
 `app/src/main/res/drawable/bg_hero.jpg` to na razie wygenerowany krajobraz górski. Żeby wstawić własne zdjęcie:
 
-1. Zapisz je jako `bg_hero.jpg` w proporcjach ok. 3:1 (np. 1920×640) — podmień plik.
-2. Przygotuj do niego rozmyte tło docka `bg_hero_blur.jpg` (480×150): wytnij środek zdjęcia w proporcji 3,2:1,
-   zmniejsz do 480×150, rozmyj (Gaussian ~7 px) i nałóż to samo ściemnienie dołu, co w `HeroBanner.kt`.
-   Skrypt do tego: `tools/make_hero_assets.py`.
+```bash
+python3 tools/make_hero_assets.py moje_zdjecie.jpg
+```
+
+Skrypt przytnie je do 16:9 (1920×1080) i przygotuje rozmytą kopię `bg_hero_blur.jpg`, która jest tłem docka
+i ekranu z aplikacjami. Wybierz zdjęcie z ciemniejszym dołem — tam leży dok.
 
 ## Budowanie lokalnie
 

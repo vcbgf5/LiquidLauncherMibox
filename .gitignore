@@ -9,3 +9,7 @@
 .externalNativeBuild/
 .cxx/
 preview/__pycache__/
+
+# never commit signing keys
+*.jks
+*.keystore
