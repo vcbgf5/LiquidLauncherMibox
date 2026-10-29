@@ -1,7 +1,12 @@
 package com.liquidglass.tvlauncher.ui
 
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -46,7 +52,7 @@ import kotlinx.coroutines.delay
 
 internal val ShelfColor = Color(0xFF050608)
 
-private val DockBottomInset = 36.dp
+private val DockBottomInset = 32.dp
 
 /**
  * Two separate screens stacked vertically, like pages of a pager:
@@ -59,6 +65,12 @@ private val DockBottomInset = 36.dp
  * rises into its place; Up from the grid's first row (or Back, or Home —
  * handled by the caller through [showApps] / [resetSignal]) reverses it.
  *
+ * The slide is one critically-damped spring ([progress]) that everything
+ * else is derived from: the photo trails behind the dock for depth, screen 1
+ * fades as it leaves, and the grid's rows ripple in one after another.
+ * Meanwhile the photo breathes with a very slow zoom, and fades up from
+ * black when the launcher starts.
+ *
  * Only the visible screen can take focus, so D-pad movement never wanders
  * onto tiles that are sitting off-screen.
  */
@@ -70,7 +82,8 @@ fun HomeScreen(
     onShowApps: (Boolean) -> Unit,
     resetSignal: Int,
     accountName: String?,
-    onLaunch: (AppInfo) -> Unit,
+    dockTransparency: Float,
+    onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAccount: () -> Unit,
@@ -97,6 +110,16 @@ fun HomeScreen(
         }
     }
 
+    // The photo breathes: a barely-there zoom, back and forth, forever.
+    val zoomState = rememberInfiniteTransition().animateFloat(
+        initialValue = 1f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(tween(26000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "zoom",
+    )
+    val heroFade = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { heroFade.animateTo(1f, tween(900)) }
+
     BoxWithConstraints(modifier = modifier.fillMaxSize().background(ShelfColor)) {
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.roundToPx() }
@@ -106,7 +129,7 @@ fun HomeScreen(
 
         val progress by animateFloatAsState(
             targetValue = if (showApps) 1f else 0f,
-            animationSpec = tween(durationMillis = 480, easing = FastOutSlowInEasing),
+            animationSpec = spring(dampingRatio = 1f, stiffness = 200f),
             label = "screen",
         )
 
@@ -114,21 +137,36 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { translationY = -progress * heightPx }
+                .graphicsLayer {
+                    translationY = -progress * heightPx
+                    alpha = (1f - progress * 1.15f).coerceIn(0f, 1f)
+                }
                 .focusProperties { canFocus = !showApps },
         ) {
             Image(
                 painter = hero,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val zoom = zoomState.value
+                        scaleX = zoom
+                        scaleY = zoom
+                        alpha = heroFade.value
+                        // Slides the other way while the screen moves up, so the photo
+                        // trails behind the dock instead of travelling with it.
+                        translationY = progress * heightPx * 0.45f
+                    },
             )
 
             TopBar(
                 accountName = accountName,
                 onOpenSettings = onOpenSettings,
                 onOpenAccount = onOpenAccount,
-                modifier = Modifier.align(Alignment.TopEnd),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .riseIn(delayMillis = 350, distance = 12.dp, fromScale = 1f),
             )
 
             if (hasFavorites) {
@@ -137,6 +175,8 @@ fun HomeScreen(
                     backdrop = backdrop,
                     screenSize = screenSize,
                     bottomInsetPx = dockInsetPx,
+                    transparency = dockTransparency,
+                    zoom = { zoomState.value },
                     firstTileFocus = dockFirst,
                     onLaunch = onLaunch,
                     onOpenMenu = onOpenMenu,
@@ -182,12 +222,15 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 itemsIndexed(allApps, key = { _, app -> app.key }) { index, app ->
+                    // Row by row: each row starts a little later than the one above it.
+                    val row = (index / 6).coerceAtMost(4)
                     AppTile(
                         label = app.label,
                         art = app.tile,
                         modifier = Modifier.fillMaxWidth(),
                         focusRequester = if (index == 0) gridFirst else null,
-                        onClick = { onLaunch(app) },
+                        enterProgress = { ((progress - 0.12f - row * 0.06f) / 0.5f).coerceIn(0f, 1f) },
+                        onClick = { rect -> onLaunch(app, rect) },
                         onLongClick = { onOpenMenu(app) },
                     )
                 }

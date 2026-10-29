@@ -10,10 +10,32 @@ Dwa osobne ekrany:
 2. **Wszystkie aplikacje** — strzałka w dół na doku przesuwa cały ekran w górę i wjeżdża pełnoekranowa siatka.
    Strzałka w górę z pierwszego rzędu, **Wstecz** albo **Home** wraca na ekran główny.
 
+Ikona zębatki otwiera **ustawienia launchera**: przezroczystość docka (strzałki w lewo/prawo, zmiana widoczna od razu)
+oraz przejście do **ustawień systemowych** Androida. Ikona obok pokazuje konto Google z urządzenia (pierwsza litera adresu).
+
+Animacje: płynne przejście między ekranami (zdjęcie „zostaje w tyle", rzędy aplikacji wjeżdżają kaskadą),
+kafelki wchodzą jeden po drugim, zaznaczony kafelek unosi się, świeci i przebiega po nim połysk, wciśnięcie OK
+lekko go „dociska", a otwierana aplikacja wyrasta z własnego kafelka na cały ekran (po powrocie zwija się z powrotem).
+Zdjęcie bardzo powoli „oddycha".
+
 Domyślne ulubione i zawsze pierwsze w siatce: YouTube, Netflix, YouTube Music, Sklep Play, Spotify, Disney+.
 
 - **Kafelki** jak w tvOS: szerokie prostokąty 5:3 (banner aplikacji TV, a dla zwykłych aplikacji ikona na kolorowym tle), po najechaniu unoszą się, rosną i świecą.
 - **Przytrzymaj OK** na aplikacji → menu: dodaj/usuń z ulubionych, przesuń w lewo/prawo, informacje o aplikacji, odinstaluj.
+
+## Podgląd
+
+![Ekran główny](docs/preview-home.jpg)
+![Wszystkie aplikacje](docs/preview-apps.jpg)
+
+**Klikalny podgląd w przeglądarce: https://vcbgf5.github.io/LiquidLauncherMibox/preview.html**
+
+Możesz w nim klikać kafelki (pierwsze kliknięcie zaznacza, drugie „otwiera”), używać wirtualnego pilota pod ekranem
+albo strzałek, Enter i Esc na klawiaturze. Prawy przycisk myszy lub „Przytrzymaj OK (menu)” pokazuje menu aplikacji.
+Działa też na telefonie.
+
+To makieta z przykładowymi ikonami — prawdziwa aplikacja pokazuje ikony zainstalowanych aplikacji.
+Plik źródłowy: [`preview/preview.html`](preview/preview.html).
 
 ## Pobranie APK
 

@@ -7,4 +7,7 @@
     <string name="menu_move_right">Przesuń w prawo</string>
     <string name="menu_app_info">Informacje o aplikacji</string>
     <string name="menu_uninstall">Odinstaluj</string>
+    <string name="settings_title">Ustawienia launchera</string>
+    <string name="settings_dock_transparency">Przezroczystość docka</string>
+    <string name="settings_system">Ustawienia systemowe</string>
 </resources>

@@ -1,6 +1,7 @@
 package com.liquidglass.tvlauncher
 
 import android.accounts.AccountManager
+import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
@@ -11,6 +12,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,10 +26,14 @@ import com.liquidglass.tvlauncher.data.AccountProvider
 import com.liquidglass.tvlauncher.data.AppInfo
 import com.liquidglass.tvlauncher.data.AppRepository
 import com.liquidglass.tvlauncher.data.FavoritesStore
+import com.liquidglass.tvlauncher.data.LauncherSettings
 import com.liquidglass.tvlauncher.data.PriorityApps
 import com.liquidglass.tvlauncher.ui.AppMenu
 import com.liquidglass.tvlauncher.ui.HomeScreen
+import com.liquidglass.tvlauncher.ui.LaunchOverlay
+import com.liquidglass.tvlauncher.ui.LaunchRequest
 import com.liquidglass.tvlauncher.ui.MenuOption
+import com.liquidglass.tvlauncher.ui.SettingsDialog
 
 class MainActivity : ComponentActivity() {
 
@@ -40,16 +46,26 @@ class MainActivity : ComponentActivity() {
     /** False = home screen (photo + dock), true = the full app list. */
     private var showApps by mutableStateOf(false)
 
+    /** The app being opened (null when none) and whether its opening animation is out. */
+    private var launchRequest by mutableStateOf<LaunchRequest?>(null)
+    private var launchExpanded by mutableStateOf(false)
+
+    private var inForeground = false
+
     private lateinit var store: FavoritesStore
+    private lateinit var settings: LauncherSettings
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = FavoritesStore(this)
+        settings = LauncherSettings(this)
 
         setContent {
             var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
             var favoriteKeys by remember { mutableStateOf(store.load()) }
             var menuApp by remember { mutableStateOf<AppInfo?>(null) }
+            var showSettings by remember { mutableStateOf(false) }
+            var dockTransparency by remember { mutableIntStateOf(settings.dockTransparency) }
             var accountName by remember { mutableStateOf(AccountProvider.googleAccountName(this@MainActivity)) }
 
             val accountPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -92,29 +108,57 @@ class MainActivity : ComponentActivity() {
                 if (showApps) showApps = false else resetSignal++
             }
 
-            HomeScreen(
-                favorites = favorites,
-                allApps = apps,
-                showApps = showApps,
-                onShowApps = { showApps = it },
-                resetSignal = resetSignal,
-                accountName = accountName,
-                onLaunch = { launchApp(it) },
-                onOpenMenu = { menuApp = it },
-                onOpenSettings = { openSettings() },
-                onOpenAccount = {
-                    if (accountName == null) {
-                        try {
-                            accountPicker.launch(AccountProvider.chooserIntent())
-                        } catch (_: Exception) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                HomeScreen(
+                    favorites = favorites,
+                    allApps = apps,
+                    showApps = showApps,
+                    onShowApps = { showApps = it },
+                    resetSignal = resetSignal,
+                    accountName = accountName,
+                    dockTransparency = dockTransparency / 100f,
+                    onLaunch = { app, from ->
+                        if (launchRequest == null) {
+                            launchRequest = LaunchRequest(app, from)
+                            launchExpanded = true
+                        }
+                    },
+                    onOpenMenu = { menuApp = it },
+                    onOpenSettings = { showSettings = true },
+                    onOpenAccount = {
+                        if (accountName == null) {
+                            try {
+                                accountPicker.launch(AccountProvider.chooserIntent())
+                            } catch (_: Exception) {
+                                openAccountSettings()
+                            }
+                        } else {
                             openAccountSettings()
                         }
-                    } else {
-                        openAccountSettings()
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                // Draws over everything: the tile growing to fill the screen as the app opens.
+                LaunchOverlay(
+                    request = launchRequest,
+                    expanded = launchExpanded,
+                    onExpanded = { launchRequest?.let { startApp(it.app) } },
+                    onCollapsed = { launchRequest = null },
+                )
+            }
+
+            if (showSettings) {
+                SettingsDialog(
+                    transparencyPercent = dockTransparency,
+                    onTransparencyChange = {
+                        dockTransparency = it
+                        settings.dockTransparency = it
+                    },
+                    onOpenSystemSettings = { openSettings() },
+                    onDismiss = { showSettings = false },
+                )
+            }
 
             menuApp?.let { app ->
                 val shown = favorites.map { it.key }
@@ -150,7 +194,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        inForeground = true
         resumeSignal++
+        // Back from an app: the opening animation plays in reverse.
+        launchExpanded = false
+    }
+
+    override fun onPause() {
+        inForeground = false
+        super.onPause()
     }
 
     /** Home pressed while the launcher is already on screen: back to the home screen. */
@@ -163,15 +215,19 @@ class MainActivity : ComponentActivity() {
     private fun swapped(list: List<String>, from: Int, to: Int): List<String> =
         list.toMutableList().also { val moved = it[from]; it[from] = it[to]; it[to] = moved }
 
-    private fun launchApp(app: AppInfo) {
+    private fun startApp(app: AppInfo) {
         val intent = Intent(Intent.ACTION_MAIN).apply {
             component = ComponentName(app.packageName, app.className)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
         }
         try {
-            startActivity(intent)
+            // The screen is already black from the opening animation, so a plain fade hands over cleanly.
+            val options = ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out)
+            startActivity(intent, options.toBundle())
+            // If the app never actually takes over the screen, don't stay stuck on black.
+            window.decorView.postDelayed({ if (inForeground) launchExpanded = false }, 2500)
         } catch (_: Exception) {
-            // Uninstalled since the list was loaded; the next resume refreshes it.
+            launchExpanded = false // uninstalled since the list was loaded; the next resume refreshes it
         }
     }
 
