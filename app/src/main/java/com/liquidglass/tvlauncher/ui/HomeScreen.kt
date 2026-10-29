@@ -52,15 +52,17 @@ internal val ShelfColor = Color(0xFF050608)
 private val DockBottomInset = 32.dp
 
 /**
- * Two separate screens stacked vertically, like pages of a pager:
+ * Three separate screens stacked vertically, like pages of a pager ([page] 0, 1, 2):
  *
  *  1. Home: the photo filling the screen, the clock/settings/account in
  *     the corner, and only the favorites dock at the bottom.
  *  2. All apps: nothing but the full app grid.
+ *  3. Info: the date, a calendar, "continue watching" and recently opened apps.
  *
- * Down on the dock slides the whole of screen 1 up and out while screen 2
- * rises into its place; Up from the grid's first row (or Back, or Home —
- * handled by the caller through [showApps] / [resetSignal]) reverses it.
+ * Down on the dock slides screen 1 up and out while screen 2 rises into its
+ * place; Down from the grid's last row goes on to screen 3. Up from the first
+ * row of a screen (or Back, or Home — handled by the caller through [page] /
+ * [resetSignal]) goes back one.
  *
  * The slide is one critically-damped spring ([progress]) that everything
  * else is derived from: the photo trails behind the dock for depth, screen 1
@@ -75,8 +77,10 @@ private val DockBottomInset = 32.dp
 fun HomeScreen(
     favorites: List<AppInfo>,
     allApps: List<AppInfo>,
-    showApps: Boolean,
-    onShowApps: (Boolean) -> Unit,
+    watchNext: List<AppInfo>,
+    recents: List<AppInfo>,
+    page: Int,
+    onPage: (Int) -> Unit,
     resetSignal: Int,
     accountName: String?,
     wallpaper: WallpaperState,
@@ -92,17 +96,18 @@ fun HomeScreen(
     val gridState = rememberLazyGridState()
     val dockFirst = remember { FocusRequester() }
     val gridFirst = remember { FocusRequester() }
+    val infoFirst = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
     // Whenever the screen changes (or Home is pressed), put focus on the
     // first tile of the screen that is now showing.
-    LaunchedEffect(showApps, resetSignal, hasFavorites, hasApps) {
-        if (showApps) gridState.scrollToItem(0)
+    LaunchedEffect(page, resetSignal, hasFavorites, hasApps) {
+        if (page == 1) gridState.scrollToItem(0)
         delay(90) // the screen that just became focusable needs a frame to say so
-        if (showApps) {
-            if (hasApps) runCatching { gridFirst.requestFocus() }
-        } else if (hasFavorites) {
-            runCatching { dockFirst.requestFocus() }
+        when (page) {
+            0 -> if (hasFavorites) runCatching { dockFirst.requestFocus() }
+            1 -> if (hasApps) runCatching { gridFirst.requestFocus() }
+            else -> runCatching { infoFirst.requestFocus() }
         }
     }
 
@@ -124,7 +129,7 @@ fun HomeScreen(
         val dockInsetPx = with(density) { DockBottomInset.toPx() }
 
         val progress by animateFloatAsState(
-            targetValue = if (showApps) 1f else 0f,
+            targetValue = page.toFloat(),
             animationSpec = spring(dampingRatio = 1f, stiffness = 200f),
             label = "screen",
         )
@@ -137,7 +142,7 @@ fun HomeScreen(
                     translationY = -progress * heightPx
                     alpha = (1f - progress * 1.15f).coerceIn(0f, 1f)
                 }
-                .focusProperties { canFocus = !showApps },
+                .focusProperties { canFocus = page == 0 },
         ) {
             Box(
                 modifier = Modifier
@@ -193,7 +198,7 @@ fun HomeScreen(
                     firstTileFocus = dockFirst,
                     onLaunch = onLaunch,
                     onOpenMenu = onOpenMenu,
-                    onScrollDown = { if (hasApps) onShowApps(true) },
+                    onScrollDown = { if (hasApps) onPage(1) },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = DockBottomInset),
@@ -206,13 +211,22 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer { translationY = (1f - progress) * heightPx }
-                .focusProperties { canFocus = showApps }
+                .focusProperties { canFocus = page == 1 }
                 .onPreviewKeyEvent { event ->
-                    if (showApps && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
-                        // Up inside the grid moves focus; from the first row there is
-                        // nowhere to go, which means "back to the home screen".
-                        if (!focusManager.moveFocus(FocusDirection.Up)) onShowApps(false)
-                        true
+                    if (page == 1 && event.type == KeyEventType.KeyDown) {
+                        // Up/Down inside the grid move focus. When there is nowhere left to go
+                        // (and the grid can't scroll that way either), go to the neighbouring page.
+                        when (event.key) {
+                            Key.DirectionUp -> {
+                                if (!focusManager.moveFocus(FocusDirection.Up) && !gridState.canScrollBackward) onPage(0)
+                                true
+                            }
+                            Key.DirectionDown -> {
+                                if (!focusManager.moveFocus(FocusDirection.Down) && !gridState.canScrollForward) onPage(2)
+                                true
+                            }
+                            else -> false
+                        }
                     } else {
                         false
                     }
@@ -259,5 +273,27 @@ fun HomeScreen(
                 }
             }
         }
+
+        // ---- Screen 3: date and what to watch ---------------------------------
+        InfoPage(
+            wallpaper = wallpaper,
+            watchNext = watchNext,
+            recents = recents,
+            entry = { ((progress - 1.05f) / 0.7f).coerceIn(0f, 1f) },
+            firstFocus = infoFirst,
+            onLaunch = onLaunch,
+            onOpenMenu = onOpenMenu,
+            modifier = Modifier
+                .graphicsLayer { translationY = (2f - progress) * heightPx }
+                .focusProperties { canFocus = page == 2 }
+                .onPreviewKeyEvent { event ->
+                    if (page == 2 && event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                        if (!focusManager.moveFocus(FocusDirection.Up)) onPage(1)
+                        true
+                    } else {
+                        false
+                    }
+                },
+        )
     }
 }

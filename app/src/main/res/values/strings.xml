@@ -19,4 +19,7 @@
     <string name="wallpaper_none">Brak tapet w repozytorium</string>
     <string name="minutes_short">%1$d min</string>
     <string name="hour_short">1 godz.</string>
+    <string name="info_watch_next">Dalej oglądaj</string>
+    <string name="info_system_home">ekran systemowy</string>
+    <string name="info_recent">Ostatnio otwierane</string>
 </resources>

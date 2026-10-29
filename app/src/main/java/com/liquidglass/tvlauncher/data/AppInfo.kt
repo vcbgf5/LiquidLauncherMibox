@@ -12,6 +12,8 @@ data class AppInfo(
     val packageName: String,
     val className: String,
     val tile: ImageBitmap,
+    /** Set for "continue watching" entries: an intent URI that opens that very title. */
+    val intentUri: String? = null,
 ) {
     val key: String get() = "$packageName/$className"
 }

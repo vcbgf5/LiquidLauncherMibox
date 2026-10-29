@@ -31,6 +31,9 @@ import com.liquidglass.tvlauncher.data.AppRepository
 import com.liquidglass.tvlauncher.data.FavoritesStore
 import com.liquidglass.tvlauncher.data.LauncherSettings
 import com.liquidglass.tvlauncher.data.PriorityApps
+import com.liquidglass.tvlauncher.data.RecentsStore
+import com.liquidglass.tvlauncher.data.SystemHomeFinder
+import com.liquidglass.tvlauncher.data.WatchNextRepository
 import com.liquidglass.tvlauncher.data.WallpaperCatalog
 import com.liquidglass.tvlauncher.data.WallpaperImage
 import com.liquidglass.tvlauncher.data.WallpaperRepository
@@ -50,8 +53,11 @@ class MainActivity : ComponentActivity() {
     /** Bumped on Home/Back: focus returns to the first favorite. */
     private var resetSignal by mutableIntStateOf(0)
 
-    /** False = home screen (photo + dock), true = the full app list. */
-    private var showApps by mutableStateOf(false)
+    /** 0 = home screen (photo + dock), 1 = the full app list, 2 = date and what to watch. */
+    private var page by mutableIntStateOf(0)
+
+    /** Keys of the apps opened most recently from here, newest first. */
+    private var recentKeys by mutableStateOf<List<String>>(emptyList())
 
     /** The app being opened (null when none) and whether its opening animation is out. */
     private var launchRequest by mutableStateOf<LaunchRequest?>(null)
@@ -69,11 +75,14 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var store: FavoritesStore
     private lateinit var settings: LauncherSettings
+    private lateinit var recentsStore: RecentsStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = FavoritesStore(this)
         settings = LauncherSettings(this)
+        recentsStore = RecentsStore(this)
+        recentKeys = recentsStore.load()
 
         setContent {
             var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
@@ -93,6 +102,8 @@ class MainActivity : ComponentActivity() {
             var wallpaperCategory by remember { mutableStateOf(settings.wallpaperCategory) }
             var wallpaperInterval by remember { mutableIntStateOf(settings.wallpaperIntervalMinutes) }
             var photoCredit by remember { mutableStateOf<String?>(null) }
+            var watchNextTitles by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+            var systemHome by remember { mutableStateOf<AppInfo?>(null) }
 
             val accountPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 result.data?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)?.let { name ->
@@ -108,6 +119,13 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(resumeSignal) {
                 if (catalog.isEmpty) catalog = WallpaperRepository.catalog(this@MainActivity)
+            }
+
+            // The third page: real "continue watching" titles if the system lets us read them,
+            // and the system home screen (where they are shown) as a fallback tile.
+            LaunchedEffect(resumeSignal) {
+                watchNextTitles = WatchNextRepository.load(this@MainActivity)
+                systemHome = SystemHomeFinder.find(this@MainActivity)
             }
 
             // Wallpaper rotation. Restarts when the category, interval or "next" changes, and
@@ -158,25 +176,29 @@ class MainActivity : ComponentActivity() {
             val keys = favoriteKeys.orEmpty()
             val byKey = remember(apps) { apps.associateBy { it.key } }
             val favorites = remember(apps, keys) { keys.mapNotNull { byKey[it] } }
+            val recents = remember(apps, recentKeys) { recentKeys.mapNotNull { byKey[it] }.take(7) }
+            val watchNext = watchNextTitles.ifEmpty { listOfNotNull(systemHome) }
 
             fun saveKeys(updated: List<String>) {
                 favoriteKeys = updated
                 store.save(updated)
             }
 
-            // Back never leaves the launcher: from the app list it goes up to the
-            // home screen, from the home screen it just returns focus to the dock.
+            // Back never leaves the launcher: it goes up one page, and from the home
+            // screen it just returns focus to the dock.
             BackHandler {
                 menuApp = null
-                if (showApps) showApps = false else resetSignal++
+                if (page > 0) page-- else resetSignal++
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
                 HomeScreen(
                     favorites = favorites,
                     allApps = apps,
-                    showApps = showApps,
-                    onShowApps = { showApps = it },
+                    watchNext = watchNext,
+                    recents = recents,
+                    page = page,
+                    onPage = { page = it },
                     resetSignal = resetSignal,
                     accountName = accountName,
                     wallpaper = wallpaper,
@@ -187,7 +209,8 @@ class MainActivity : ComponentActivity() {
                             launchExpanded = true
                         }
                     },
-                    onOpenMenu = { menuApp = it },
+                    // Titles and the system-home shortcut have no favorite/uninstall menu.
+                    onOpenMenu = { if (it.intentUri == null && it in apps) menuApp = it },
                     onOpenSettings = { showSettings = true },
                     onOpenAccount = {
                         if (accountName == null) {
@@ -294,7 +317,7 @@ class MainActivity : ComponentActivity() {
     /** Home pressed while the launcher is already on screen: back to the home screen. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        showApps = false
+        page = 0
         resetSignal++
     }
 
@@ -302,14 +325,29 @@ class MainActivity : ComponentActivity() {
         list.toMutableList().also { val moved = it[from]; it[from] = it[to]; it[to] = moved }
 
     private fun startApp(app: AppInfo) {
-        val intent = Intent(Intent.ACTION_MAIN).apply {
-            component = ComponentName(app.packageName, app.className)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+        val intent = try {
+            if (app.intentUri != null) {
+                // A "continue watching" title: the app's own deep link opens that very film or episode.
+                Intent.parseUri(app.intentUri, Intent.URI_INTENT_SCHEME).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    selector = null
+                }
+            } else {
+                Intent(Intent.ACTION_MAIN).apply {
+                    component = ComponentName(app.packageName, app.className)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                }
+            }
+        } catch (_: Exception) {
+            launchExpanded = false
+            return
         }
         try {
             // The screen is already black from the opening animation, so a plain fade hands over cleanly.
             val options = ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out)
             startActivity(intent, options.toBundle())
+            recentsStore.record(app.key)
+            recentKeys = recentsStore.load()
             // If the app never actually takes over the screen, don't stay stuck on black.
             window.decorView.postDelayed({ if (inForeground) launchExpanded = false }, 2500)
         } catch (_: Exception) {

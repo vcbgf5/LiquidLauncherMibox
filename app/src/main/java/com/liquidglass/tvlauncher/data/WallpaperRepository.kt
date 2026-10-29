@@ -8,10 +8,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * Fetches wallpapers from this project's own GitHub repo (the `wallpapers/`
@@ -24,7 +21,7 @@ object WallpaperRepository {
 
     suspend fun catalog(context: Context): WallpaperCatalog = withContext(Dispatchers.IO) {
         val cache = File(context.cacheDir, "wallpapers/index.json")
-        val fresh = download(BASE + "index.json")?.toString(Charsets.UTF_8)
+        val fresh = Net.download(BASE + "index.json")?.toString(Charsets.UTF_8)
         if (fresh != null) {
             runCatching {
                 cache.parentFile?.mkdirs()
@@ -39,7 +36,7 @@ object WallpaperRepository {
         val file = File(context.cacheDir, "wallpapers/" + path.replace('/', '_'))
         if (!file.exists()) {
             val url = BASE + path.split('/').joinToString("/") { Uri.encode(it) }
-            val bytes = download(url) ?: return@withContext null
+            val bytes = Net.download(url) ?: return@withContext null
             runCatching {
                 file.parentFile?.mkdirs()
                 val part = File(file.path + ".part")
@@ -138,34 +135,6 @@ object WallpaperRepository {
                 }
                 dst[y * w + x] = (0xFF shl 24) or ((r / count) shl 16) or ((g / count) shl 8) or (b / count)
             }
-        }
-    }
-
-    private fun download(url: String, limit: Int = 12_000_000): ByteArray? {
-        return try {
-            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 8_000
-                readTimeout = 20_000
-                instanceFollowRedirects = true
-            }
-            try {
-                if (connection.responseCode != HttpURLConnection.HTTP_OK) return null
-                val out = ByteArrayOutputStream()
-                val buffer = ByteArray(16 * 1024)
-                connection.inputStream.use { input ->
-                    while (true) {
-                        val n = input.read(buffer)
-                        if (n < 0) break
-                        if (out.size() + n > limit) return null
-                        out.write(buffer, 0, n)
-                    }
-                }
-                out.toByteArray()
-            } finally {
-                connection.disconnect()
-            }
-        } catch (_: Exception) {
-            null
         }
     }
 }

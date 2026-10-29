@@ -15,6 +15,8 @@
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <!-- Only to read the Google account name for the avatar; nothing is requested at runtime. -->
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+    <!-- For "continue watching": only used if the system lets this app have it (see WatchNextRepository). -->
+    <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA" />
 
     <queries>
         <intent>
