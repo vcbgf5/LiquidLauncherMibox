@@ -58,6 +58,7 @@ import java.util.Locale
 fun TopBar(
     accountName: String?,
     updateAvailable: Boolean,
+    showClock: Boolean,
     onUp: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAccount: () -> Unit,
@@ -86,13 +87,15 @@ fun TopBar(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = time,
-            color = Color.White,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Medium,
-            style = TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.55f), blurRadius = 10f)),
-        )
+        if (showClock) {
+            Text(
+                text = time,
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                style = TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.55f), blurRadius = 10f)),
+            )
+        }
         TopBarButton(onClick = onOpenSettings) {
             Box(modifier = Modifier.size(24.dp)) {
                 GearIcon(Modifier.fillMaxSize())
@@ -146,7 +149,7 @@ private fun TopBarButton(onClick: () -> Unit, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun GearIcon(modifier: Modifier = Modifier) {
+internal fun GearIcon(modifier: Modifier = Modifier) {
     Canvas(modifier) {
         val side = size.minDimension
         val ringRadius = side * 0.27f

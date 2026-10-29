@@ -37,6 +37,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.key.Key
@@ -121,6 +122,7 @@ fun AppTile(
                 scaleX = scale
                 scaleY = scale
                 alpha = enter
+                compositingStrategy = CompositingStrategy.ModulateAlpha
             }
             .onFocusChanged {
                 focused = it.isFocused

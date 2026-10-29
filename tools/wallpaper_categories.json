@@ -1,12 +1,16 @@
 [
-  {"id": "zwierzeta",  "name": "Zwierzęta",               "query": "wildlife animals"},
-  {"id": "gory",       "name": "Góry",                    "query": "mountains landscape"},
-  {"id": "miasto",     "name": "Miasto",                  "query": "city skyline"},
-  {"id": "las",        "name": "Las",                     "query": "forest nature"},
-  {"id": "ocean",      "name": "Ocean i plaża",           "query": "ocean beach"},
-  {"id": "kosmos",     "name": "Kosmos",                  "query": "galaxy space stars"},
-  {"id": "zima",       "name": "Zima",                    "query": "winter snow"},
-  {"id": "niebo",      "name": "Niebo i zachody słońca",  "query": "sunset sky clouds"},
-  {"id": "abstrakcja", "name": "Abstrakcja",              "query": "abstract colorful"},
-  {"id": "minimalizm", "name": "Minimalizm",              "query": "minimalist landscape"}
+  {"id": "zwierzeta", "name": "Zwierzęta", "query": "wildlife animals"},
+  {"id": "gory", "name": "Góry", "query": "mountains landscape"},
+  {"id": "miasto", "name": "Miasto", "query": "city skyline"},
+  {"id": "las", "name": "Las", "query": "forest nature"},
+  {"id": "ocean", "name": "Ocean i plaża", "query": "ocean beach"},
+  {"id": "kosmos", "name": "Kosmos", "query": "galaxy space stars"},
+  {"id": "zima", "name": "Zima", "query": "winter snow"},
+  {"id": "niebo", "name": "Niebo i zachody słońca", "query": "sunset sky clouds"},
+  {"id": "abstrakcja", "name": "Abstrakcja", "query": "abstract colorful"},
+  {"id": "minimalizm", "name": "Minimalizm", "query": "minimalist landscape"},
+  {"id": "jezioro", "name": "Jeziora i rzeki", "query": "lake river reflection"},
+  {"id": "pustynia", "name": "Pustynia", "query": "desert dunes"},
+  {"id": "jesien", "name": "Jesień", "query": "autumn forest leaves"},
+  {"id": "kwiaty", "name": "Kwiaty", "query": "flowers macro nature"}
 ]

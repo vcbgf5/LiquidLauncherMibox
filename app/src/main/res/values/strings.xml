@@ -9,6 +9,13 @@
     <string name="menu_uninstall">Odinstaluj</string>
     <string name="settings_title">Ustawienia launchera</string>
     <string name="settings_dock_transparency">Przezroczystość docka</string>
+    <string name="settings_version_label">Liquid TV · wersja %1$s</string>
+    <string name="settings_big_clock">Duży zegar na środku zamiast małego</string>
+    <string name="group_appearance">Wygląd</string>
+    <string name="group_wallpapers">Tapety</string>
+    <string name="group_screensaver">Wygaszacz</string>
+    <string name="group_updates">Aktualizacje</string>
+    <string name="group_system">System</string>
     <string name="settings_dock_size">Rozmiar aplikacji na ekranie głównym</string>
     <string name="settings_screensaver">Wygaszacz po</string>
     <string name="settings_screensaver_show">Pokaż wygaszacz teraz</string>

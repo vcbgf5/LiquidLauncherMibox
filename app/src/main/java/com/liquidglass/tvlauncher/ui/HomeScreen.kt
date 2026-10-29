@@ -1,12 +1,7 @@
 package com.liquidglass.tvlauncher.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -36,6 +31,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -95,6 +91,7 @@ fun HomeScreen(
     wallpaper: WallpaperState,
     dockTransparency: Float,
     dockSize: Float,
+    bigClock: Boolean,
     onLaunch: (AppInfo, Rect) -> Unit,
     onOpenMenu: (AppInfo) -> Unit,
     onOpenSettings: () -> Unit,
@@ -141,12 +138,20 @@ fun HomeScreen(
         }
     }
 
-    // The photo breathes: a barely-there zoom, back and forth, forever.
-    val zoomState = rememberInfiniteTransition().animateFloat(
-        initialValue = 1f,
-        targetValue = 1.06f,
-        animationSpec = infiniteRepeatable(tween(26000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "zoom",
+    // 0 = info, 1 = home, 2 = apps; every page sits at (its index - progress) screens down.
+    val progress by animateFloatAsState(
+        targetValue = page.toFloat(),
+        animationSpec = spring(dampingRatio = 1f, stiffness = 200f),
+        label = "screen",
+    )
+
+    // The photo breathes: a barely-there zoom, back and forth, forever. It is refreshed only
+    // 20 times a second and stands still while a page slides, so the slide gets all the GPU.
+    val zoomState = rememberSlowOscillation(
+        from = 1f,
+        to = 1.06f,
+        periodMillis = 26_000,
+        paused = { abs(progress - page) > 0.001f },
     )
     val heroFade = remember { Animatable(0f) }
     LaunchedEffect(Unit) { heroFade.animateTo(1f, tween(900)) }
@@ -158,13 +163,6 @@ fun HomeScreen(
         val screenSize = IntSize(widthPx, heightPx)
         val dockInsetPx = with(density) { DockBottomInset.toPx() }
 
-        // 0 = info, 1 = home, 2 = apps; every page sits at (its index - progress) screens down.
-        val progress by animateFloatAsState(
-            targetValue = page.toFloat(),
-            animationSpec = spring(dampingRatio = 1f, stiffness = 200f),
-            label = "screen",
-        )
-
         // ---- Page 1: home ----------------------------------------------------
         Box(
             modifier = Modifier
@@ -172,6 +170,8 @@ fun HomeScreen(
                 .graphicsLayer {
                     translationY = (1f - progress) * heightPx
                     alpha = (1f - abs(progress - 1f) * 1.15f).coerceIn(0f, 1f)
+                    // Fade each draw op, not a full-screen offscreen copy of the page, every frame.
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
                 }
                 .focusProperties { canFocus = page == PAGE_HOME }
                 .onFocusChanged { if (page == PAGE_HOME) pageHasFocus = it.hasFocus },
@@ -180,7 +180,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        val zoom = zoomState.value
+                        val zoom = zoomState.floatValue
                         scaleX = zoom
                         scaleY = zoom
                         alpha = heroFade.value
@@ -208,9 +208,23 @@ fun HomeScreen(
                 )
             }
 
+            if (bigClock) {
+                // The big clock instead of the small one: in the middle of the photo, above the dock.
+                val now = rememberNow()
+                GlassClock(
+                    widthDp = maxWidth,
+                    nowMillis = now.value,
+                    scale = 0.14f,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .riseIn(delayMillis = 250, distance = 16.dp, fromScale = 0.96f),
+                )
+            }
+
             TopBar(
                 accountName = accountName,
                 updateAvailable = updateAvailable,
+                showClock = !bigClock,
                 onUp = { onPage(PAGE_INFO) },
                 onOpenSettings = onOpenSettings,
                 onOpenAccount = onOpenAccount,
@@ -229,7 +243,7 @@ fun HomeScreen(
                     bottomInsetPx = dockInsetPx,
                     transparency = dockTransparency,
                     sizeFactor = dockSize,
-                    zoom = { zoomState.value },
+                    zoom = { zoomState.floatValue },
                     firstTileFocus = dockFirst,
                     onLaunch = onLaunch,
                     onOpenMenu = onOpenMenu,

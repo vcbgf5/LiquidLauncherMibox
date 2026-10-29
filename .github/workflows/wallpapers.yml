@@ -28,6 +28,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         env:
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+          PER_CATEGORY: "20"
         run: python3 tools/fetch_unsplash.py
 
       - name: Rebuild index.json

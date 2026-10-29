@@ -1,11 +1,6 @@
 package com.liquidglass.tvlauncher.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -23,6 +18,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -30,14 +26,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 private val ScreensaverLocale = Locale("pl", "PL")
 
@@ -57,25 +51,18 @@ fun Screensaver(wallpaper: WallpaperState, visible: Boolean, modifier: Modifier 
     }
     if (!visible && shown.value <= 0f) return
 
-    val motion = rememberInfiniteTransition(label = "screensaver")
-    val zoom = motion.animateFloat(
-        initialValue = 1.02f,
-        targetValue = 1.12f,
-        animationSpec = infiniteRepeatable(tween(45_000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "zoom",
-    )
-    val phase = motion.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(tween(150_000, easing = LinearEasing)),
-        label = "drift",
-    )
+    val zoom = rememberSlowOscillation(from = 1.02f, to = 1.12f, periodMillis = 45_000)
+    val panX = rememberSlowOscillation(from = -1f, to = 1f, periodMillis = 60_000)
+    val panY = rememberSlowOscillation(from = -1f, to = 1f, periodMillis = 85_000)
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
-            .graphicsLayer { alpha = shown.value },
+            .graphicsLayer {
+                alpha = shown.value
+                compositingStrategy = CompositingStrategy.ModulateAlpha
+            },
     ) {
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.toPx() }
@@ -85,10 +72,10 @@ fun Screensaver(wallpaper: WallpaperState, visible: Boolean, modifier: Modifier 
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    scaleX = zoom.value
-                    scaleY = zoom.value
-                    translationX = sin(phase.value) * widthPx * 0.012f
-                    translationY = cos(phase.value) * heightPx * 0.012f
+                    scaleX = zoom.floatValue
+                    scaleY = zoom.floatValue
+                    translationX = panX.floatValue * widthPx * 0.012f
+                    translationY = panY.floatValue * heightPx * 0.012f
                 },
         ) {
             wallpaper.previous?.let { old ->
@@ -120,25 +107,34 @@ fun Screensaver(wallpaper: WallpaperState, visible: Boolean, modifier: Modifier 
         )
 
         val now = rememberNow()
-        val date = Date(now.value)
-        // Dead centre: the digits sit exactly in the middle of the screen, the date right under them.
-        val clockSize = (maxWidth.value * 0.2f).sp
-        val dateOffset = with(density) { clockSize.toDp() } * 0.6f
-        Box(modifier = Modifier.align(Alignment.Center), contentAlignment = Alignment.Center) {
-            GlassText(
-                text = SimpleDateFormat("HH:mm", ScreensaverLocale).format(date),
-                size = clockSize,
-                weight = FontWeight.Bold,
-                tracking = 0.sp,
-            )
-            GlassText(
-                text = SimpleDateFormat("EEEE, d MMMM", ScreensaverLocale).format(date).replaceFirstChar { it.uppercase() },
-                size = clockSize * 0.17f,
-                weight = FontWeight.SemiBold,
-                tracking = 0.sp,
-                modifier = Modifier.offset(y = dateOffset),
-            )
-        }
+        GlassClock(widthDp = maxWidth, nowMillis = now.value, scale = 0.2f, modifier = Modifier.align(Alignment.Center))
+    }
+}
+
+/**
+ * A big clock with the date under it, in glass lettering, centred in the space it is given
+ * (the digits dead centre, the date right under them). Its size follows the screen width:
+ * the digits are [scale] of it.
+ */
+@Composable
+internal fun GlassClock(widthDp: Dp, nowMillis: Long, scale: Float, modifier: Modifier = Modifier) {
+    val date = Date(nowMillis)
+    val clockSize = (widthDp.value * scale).sp
+    val dateOffset = with(LocalDensity.current) { clockSize.toDp() } * 0.6f
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        GlassText(
+            text = SimpleDateFormat("HH:mm", ScreensaverLocale).format(date),
+            size = clockSize,
+            weight = FontWeight.Bold,
+            tracking = 0.sp,
+        )
+        GlassText(
+            text = SimpleDateFormat("EEEE, d MMMM", ScreensaverLocale).format(date).replaceFirstChar { it.uppercase() },
+            size = clockSize * 0.17f,
+            weight = FontWeight.SemiBold,
+            tracking = 0.sp,
+            modifier = Modifier.offset(y = dateOffset),
+        )
     }
 }
 

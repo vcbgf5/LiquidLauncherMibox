@@ -103,6 +103,7 @@ class MainActivity : ComponentActivity() {
             var dockTransparency by remember { mutableIntStateOf(settings.dockTransparency) }
             var dockSize by remember { mutableIntStateOf(settings.dockSize) }
             var screensaverMinutes by remember { mutableIntStateOf(settings.screensaverMinutes) }
+            var bigClock by remember { mutableStateOf(settings.bigClock) }
             var accountName by remember { mutableStateOf(AccountProvider.googleAccountName(this@MainActivity)) }
 
             val wallpaper = remember {
@@ -287,6 +288,7 @@ class MainActivity : ComponentActivity() {
                     wallpaper = wallpaper,
                     dockTransparency = dockTransparency / 100f,
                     dockSize = dockSize / 100f,
+                    bigClock = bigClock,
                     onLaunch = { app, from ->
                         if (launchRequest == null) {
                             launchRequest = LaunchRequest(app, from)
@@ -351,10 +353,16 @@ class MainActivity : ComponentActivity() {
                     null
                 }
                 SettingsDialog(
+                    versionLabel = stringResource(R.string.settings_version_label, versionName),
                     transparencyPercent = dockTransparency,
                     onTransparencyChange = {
                         dockTransparency = it
                         settings.dockTransparency = it
+                    },
+                    bigClock = bigClock,
+                    onBigClockChange = {
+                        bigClock = it
+                        settings.bigClock = it
                     },
                     dockSizePercent = dockSize,
                     onDockSizeChange = {

@@ -20,6 +20,13 @@ class LauncherSettings(context: Context) {
             prefs.edit().putInt(KEY_DOCK_SIZE, value.coerceIn(MIN_DOCK_SIZE, MAX_DOCK_SIZE)).apply()
         }
 
+    /** A big clock in the middle of the home screen instead of the small one in the corner. */
+    var bigClock: Boolean
+        get() = prefs.getBoolean(KEY_BIG_CLOCK, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_BIG_CLOCK, value).apply()
+        }
+
     /** Minutes without a key press after which the screensaver starts; 0 = never. */
     var screensaverMinutes: Int
         get() = prefs.getInt(KEY_SCREENSAVER, DEFAULT_SCREENSAVER_MINUTES)
@@ -84,6 +91,7 @@ class LauncherSettings(context: Context) {
         const val MAX_DOCK_SIZE = 140
         const val DEFAULT_SCREENSAVER_MINUTES = 3
         private const val KEY_DOCK_SIZE = "dock_size"
+        private const val KEY_BIG_CLOCK = "big_clock"
         private const val KEY_SCREENSAVER = "screensaver_minutes"
         const val DEFAULT_DOCK_TRANSPARENCY = 60
         private const val KEY_DOCK_TRANSPARENCY = "dock_transparency"
