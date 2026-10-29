@@ -204,6 +204,7 @@ class MainActivity : ComponentActivity() {
             var clockContent by remember { mutableIntStateOf(settings.clockContent) }
             var clockPosition by remember { mutableIntStateOf(settings.clockPosition) }
             var statusIcons by remember { mutableStateOf(settings.statusIcons) }
+            var topBarMinimal by remember { mutableStateOf(settings.topBarMinimal) }
             var systemStatus by remember { mutableStateOf(SystemStatus.UNKNOWN) }
             var volumeMode by remember { mutableIntStateOf(settings.volumeMode) }
             var showVolumeDiag by remember { mutableStateOf(false) }
@@ -541,7 +542,8 @@ class MainActivity : ComponentActivity() {
                     bigClock = bigClock,
                     clockContent = clockContent,
                     clockPosition = clockPosition,
-                    status = if (statusIcons) systemStatus else null,
+                    // The minimal bar has no status icons, but its list shows the same states in words.
+                    status = if (statusIcons || topBarMinimal) systemStatus else null,
                     onOpenWifi = { openSystemScreen(Settings.ACTION_WIFI_SETTINGS) },
                     onOpenBluetooth = { openSystemScreen(Settings.ACTION_BLUETOOTH_SETTINGS) },
                     onLaunch = { app, from ->
@@ -568,6 +570,7 @@ class MainActivity : ComponentActivity() {
                     },
                     restoreSignal = restoreSignal,
                     parallaxOn = parallax,
+                    minimalTopBar = topBarMinimal,
                     idle = dialogOpen || screensaverShowing || !inForeground,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -814,6 +817,11 @@ class MainActivity : ComponentActivity() {
                         onAdbDiagnostics = {
                             showSettings = false
                             openAdbDiagnostics()
+                        },
+                        topBarMinimal = topBarMinimal,
+                        onTopBarMinimal = {
+                            topBarMinimal = it
+                            settings.topBarMinimal = it
                         },
                         quickKeyName = if (quickKeyShown == 0) "" else KeyLog.name(quickKeyShown),
                         onLearnQuickKey = {

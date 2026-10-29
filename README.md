@@ -88,6 +88,10 @@ chyba że włączysz „działa cały czas”.
 OK = odtwórz/pauza, przytrzymanie OK = następny utwór. Wymaga dostępu do powiadomień (nadawany przyciskiem w Narzędziach
 albo w ustawieniach Androida).
 
+**Pasek u góry.** Ustawienia → Wygląd → „Pasek u góry”: „Ikony” (rząd okrągłych przycisków: Wi-Fi, Bluetooth, ustawienia, konto) albo
+„Minimalny”: jedna ikona z trzema kreskami, której kliknięcie rozwija listę (Wi-Fi, Bluetooth, Konto, Szybkie ustawienia, Ustawienia)
+z aktualnym stanem sieci, Bluetooth i konta; Wstecz zwija listę.
+
 **Wygląd i wydajność.** Kafelki pochylają się w stronę, z której przyszedł fokus, a grafika przesuwa się za ramką; tapeta
 lekko przesuwa się przy przechodzeniu po doku; kolor akcentu i odcień szkła okien (Ustawienia → Wygląd); na jasnych zdjęciach
 góra i dół są automatycznie przyciemniane, żeby zegar i nazwy aplikacji były czytelne. **Tryb wydajności** (automatyczny /

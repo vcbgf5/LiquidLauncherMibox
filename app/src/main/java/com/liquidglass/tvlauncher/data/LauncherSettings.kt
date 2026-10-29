@@ -60,6 +60,13 @@ class LauncherSettings(context: Context) {
             prefs.edit().putInt(KEY_CLOCK_POSITION, value).apply()
         }
 
+    /** The top bar as one menu button (three lines) that unfolds a list, instead of a row of round buttons. */
+    var topBarMinimal: Boolean
+        get() = prefs.getBoolean(KEY_TOPBAR_MINIMAL, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_TOPBAR_MINIMAL, value).apply()
+        }
+
     /** Wi-Fi and Bluetooth icons in the top bar. */
     var statusIcons: Boolean
         get() = prefs.getBoolean(KEY_STATUS_ICONS, true)
@@ -310,6 +317,7 @@ class LauncherSettings(context: Context) {
         private const val KEY_CLOCK_CONTENT = "clock_content"
         private const val KEY_CLOCK_POSITION = "clock_position"
         private const val KEY_STATUS_ICONS = "status_icons"
+        private const val KEY_TOPBAR_MINIMAL = "topbar_minimal"
         const val VOLUME_OFF = 0
         const val VOLUME_BESIDE = 1
         const val VOLUME_REPLACE = 2

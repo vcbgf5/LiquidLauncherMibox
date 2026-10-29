@@ -295,4 +295,10 @@
     <string name="quick_key_learned">Zapisano przycisk: %1$s. Od teraz otwiera szybkie ustawienia.</string>
     <string name="quick_key_prompt_title">Naciśnij przycisk na pilocie</string>
     <string name="quick_key_prompt_text">Naciśnij ten, który ma otwierać szybkie ustawienia (np. Menu). Strzałki, OK, Wstecz, Home i głośność są pomijane. Wstecz anuluje. Z włączoną usługą dostępności przycisk będzie działał w każdej aplikacji.</string>
+    <string name="settings_topbar">Pasek u góry</string>
+    <string name="topbar_icons">Ikony</string>
+    <string name="topbar_minimal">Minimalny (menu z trzema kreskami)</string>
+    <string name="topbar_account">Konto</string>
+    <string name="topbar_account_none">niepołączone</string>
+    <string name="topbar_settings">Ustawienia</string>
 </resources>

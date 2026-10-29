@@ -141,6 +141,7 @@ fun HomeScreen(
     restoreSignal: Int,
     parallaxOn: Boolean,
     idle: Boolean,
+    minimalTopBar: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -329,6 +330,7 @@ fun HomeScreen(
                 onOpenSettings = onOpenSettings,
                 onOpenPower = onOpenPower,
                 onOpenAccount = onOpenAccount,
+                minimal = minimalTopBar,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .riseIn(delayMillis = 350, distance = 12.dp, fromScale = 1f),

@@ -1,5 +1,6 @@
 package com.liquidglass.tvlauncher.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -10,7 +11,15 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.stringResource
+import com.liquidglass.tvlauncher.R
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -59,7 +68,8 @@ import java.util.Locale
 
 /**
  * Clock, settings and Google account, top right of the home screen.
- * The icons are drawn in code so the app needs no icon library.
+ * The icons are drawn in code so the app needs no icon library. With [minimal] the row of round
+ * buttons is replaced by a single menu button (three lines) that unfolds the same choices as a list.
  */
 @Composable
 fun TopBar(
@@ -73,6 +83,7 @@ fun TopBar(
     onOpenSettings: () -> Unit,
     onOpenPower: () -> Unit,
     onOpenAccount: () -> Unit,
+    minimal: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var time by remember { mutableStateOf(currentTime()) }
@@ -81,6 +92,24 @@ fun TopBar(
             time = currentTime()
             delay(15_000)
         }
+    }
+
+    if (minimal) {
+        MinimalTopBar(
+            time = time,
+            accountName = accountName,
+            updateAvailable = updateAvailable,
+            showClock = showClock,
+            status = status,
+            onUp = onUp,
+            onOpenWifi = onOpenWifi,
+            onOpenBluetooth = onOpenBluetooth,
+            onOpenQuick = onOpenPower,
+            onOpenSettings = onOpenSettings,
+            onOpenAccount = onOpenAccount,
+            modifier = modifier,
+        )
+        return
     }
 
     Row(
@@ -314,3 +343,196 @@ private fun AccountIcon(accountName: String?) {
 
 private fun currentTime(): String =
     SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+
+// ---- Minimal style ----------------------------------------------------------------------------------------
+
+private class TopMenuEntry(val label: String, val state: String, val dot: Boolean = false, val onClick: () -> Unit)
+
+/**
+ * The quiet version of the top bar: the clock and one button with three lines. OK on it unfolds a small
+ * glass list (Wi-Fi, Bluetooth, account, quick settings, settings) right under it; Back or choosing a row
+ * folds it again. Up from the button still goes to the widgets page.
+ */
+@Composable
+private fun MinimalTopBar(
+    time: String,
+    accountName: String?,
+    updateAvailable: Boolean,
+    showClock: Boolean,
+    status: SystemStatus?,
+    onUp: () -> Unit,
+    onOpenWifi: () -> Unit,
+    onOpenBluetooth: () -> Unit,
+    onOpenQuick: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenAccount: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val buttonFocus = remember { FocusRequester() }
+    val firstRow = remember { FocusRequester() }
+
+    // Back folds the list first (this handler is newer than the launcher's own, so it is asked first).
+    BackHandler(enabled = expanded) {
+        expanded = false
+        runCatching { buttonFocus.requestFocus() }
+    }
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            delay(60)
+            runCatching { firstRow.requestFocus() }
+        }
+    }
+
+    val network = stringResource(
+        when (status?.network) {
+            NetworkKind.WIFI -> R.string.status_wifi
+            NetworkKind.ETHERNET -> R.string.status_ethernet
+            NetworkKind.OTHER -> R.string.status_online
+            NetworkKind.OFFLINE, null -> R.string.status_offline
+        },
+    )
+    val bluetooth = stringResource(
+        when (status?.bluetooth) {
+            true -> R.string.quick_on
+            false -> R.string.quick_off
+            null -> R.string.quick_none
+        },
+    )
+    val entries = listOf(
+        TopMenuEntry(stringResource(R.string.shortcut_wifi), network) { onOpenWifi() },
+        TopMenuEntry(stringResource(R.string.shortcut_bluetooth), bluetooth) { onOpenBluetooth() },
+        TopMenuEntry(stringResource(R.string.topbar_account), accountName ?: stringResource(R.string.topbar_account_none)) { onOpenAccount() },
+        TopMenuEntry(stringResource(R.string.quick_title), "") { onOpenQuick() },
+        TopMenuEntry(
+            stringResource(R.string.topbar_settings),
+            if (updateAvailable) stringResource(R.string.update_badge) else "",
+            dot = updateAvailable,
+        ) { onOpenSettings() },
+    )
+
+    Column(
+        modifier = modifier.padding(horizontal = 48.dp, vertical = 26.dp),
+        horizontalAlignment = Alignment.End,
+    ) {
+        Row(
+            modifier = Modifier.onPreviewKeyEvent { event ->
+                // Anything above the top bar is the info page: Up from here goes there.
+                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                    onUp()
+                    true
+                } else {
+                    false
+                }
+            },
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (showClock) {
+                Text(
+                    text = time,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    style = TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.55f), blurRadius = 10f)),
+                )
+            }
+            MenuButton(
+                focusRequester = buttonFocus,
+                open = expanded,
+                dot = updateAvailable && !expanded,
+                onClick = { expanded = !expanded },
+            )
+        }
+        if (expanded) {
+            val shape = RoundedCornerShape(18.dp)
+            Column(
+                modifier = Modifier
+                    .padding(top = 10.dp)
+                    .width(300.dp)
+                    .riseIn(delayMillis = 0, distance = 8.dp, fromScale = 0.97f)
+                    .clip(shape)
+                    .background(LocalTheme.current.glass.menu)
+                    .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
+                    .padding(8.dp),
+            ) {
+                entries.forEachIndexed { index, entry ->
+                    TopMenuRow(
+                        entry = entry,
+                        focusRequester = if (index == 0) firstRow else null,
+                        onClick = {
+                            expanded = false
+                            entry.onClick()
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Three short lines; nothing around them until it is focused. */
+@Composable
+private fun MenuButton(focusRequester: FocusRequester, open: Boolean, dot: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = if (focused) 0.26f else if (open) 0.14f else 0f))
+            .border(1.5.dp, Color.White.copy(alpha = if (focused) 0.9f else 0f), CircleShape)
+            .onFocusChanged { focused = it.isFocused }
+            .okAction(onClick)
+            .focusRequester(focusRequester)
+            .focusable(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(22.dp)) {
+            val w = size.width
+            val h = size.height
+            listOf(0.22f, 0.5f, 0.78f).forEach { y ->
+                drawLine(Color.White, Offset(w * 0.08f, h * y), Offset(w * 0.92f, h * y), strokeWidth = w * 0.11f, cap = StrokeCap.Round)
+            }
+        }
+        if (dot) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-6).dp, y = 6.dp)
+                    .size(9.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFF5A4F)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TopMenuRow(entry: TopMenuEntry, focusRequester: FocusRequester?, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val ink = if (focused) Color(0xFF111111) else Color.White.copy(alpha = 0.92f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .onFocusChanged { focused = it.isFocused }
+            .okAction(onClick)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .focusable()
+            .background(if (focused) Color.White.copy(alpha = 0.92f) else Color.Transparent)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(entry.label, color = ink, fontSize = 15.sp, fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal)
+        if (entry.state.isNotEmpty()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (entry.dot) {
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFFFF5A4F)))
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp))
+                }
+                Text(entry.state, color = ink.copy(alpha = 0.6f), fontSize = 12.5.sp, maxLines = 1)
+            }
+        }
+    }
+}

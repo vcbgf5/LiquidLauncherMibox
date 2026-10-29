@@ -113,6 +113,8 @@ class SettingsExtras(
     val quickKeyName: String,
     val onLearnQuickKey: () -> Unit,
     val onClearQuickKey: () -> Unit,
+    val topBarMinimal: Boolean,
+    val onTopBarMinimal: (Boolean) -> Unit,
 )
 
 private val GroupColor = Color.White.copy(alpha = 0.07f)
@@ -308,6 +310,12 @@ fun SettingsDialog(
                         label = stringResource(R.string.settings_clock_position),
                         value = stringResource(if (clockPosition == CLOCK_POS_CENTER) R.string.clock_position_center else R.string.clock_position_high),
                         onStep = { onClockPositionChange(if (clockPosition == CLOCK_POS_CENTER) CLOCK_POS_HIGH else CLOCK_POS_CENTER) },
+                    )
+                    Divider()
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_topbar),
+                        value = stringResource(if (extras.topBarMinimal) R.string.topbar_minimal else R.string.topbar_icons),
+                        onStep = { extras.onTopBarMinimal(!extras.topBarMinimal) },
                     )
                     Divider()
                     ToggleRow(stringResource(R.string.settings_status_icons), statusIcons, onStatusIconsChange)
