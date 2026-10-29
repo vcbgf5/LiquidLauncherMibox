@@ -73,4 +73,6 @@ dependencies {
 
     // Dominant-colour backdrops for apps that only ship a square icon.
     implementation("androidx.palette:palette-ktx:1.0.0")
+    // Silent self-updates: talks to the box's own ADB service (see SilentInstaller).
+    implementation("dev.mobile:dadb:2.0.0")
 }

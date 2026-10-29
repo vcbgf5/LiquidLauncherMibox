@@ -69,6 +69,13 @@ class LauncherSettings(context: Context) {
             prefs.edit().putString(KEY_ICAL_URL, value ?: "").apply()
         }
 
+    /** Install updates through the box's own ADB service, so Android's installer window never shows. */
+    var silentUpdates: Boolean
+        get() = prefs.getBoolean(KEY_SILENT_UPDATES, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_SILENT_UPDATES, value).apply()
+        }
+
     /** A big clock in the middle of the home screen instead of the small one in the corner. */
     var bigClock: Boolean
         get() = prefs.getBoolean(KEY_BIG_CLOCK, false)
@@ -141,6 +148,7 @@ class LauncherSettings(context: Context) {
         const val DEFAULT_SCREENSAVER_MINUTES = 3
         private const val KEY_DOCK_SIZE = "dock_size"
         private const val KEY_BIG_CLOCK = "big_clock"
+        private const val KEY_SILENT_UPDATES = "silent_updates"
         private const val KEY_WIDGETS = "widgets"
         private const val KEY_ICAL_URL = "ical_url"
         private const val KEY_CLOCK_CONTENT = "clock_content"

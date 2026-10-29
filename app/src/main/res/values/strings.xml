@@ -98,6 +98,16 @@
     <string name="widgets_refresh">Odśwież kalendarz teraz</string>
     <string name="widgets_disconnect">Odłącz kalendarz Google</string>
     <string name="widgets_request_permission">Zezwól na kalendarz systemowy…</string>
+    <string name="update_silent_installing">Instaluję w tle, bez okna Androida… launcher uruchomi się ponownie.</string>
+    <string name="update_silent_needs_approval">Zaakceptuj na ekranie telewizora pytanie „Zezwolić na debugowanie USB?” (zaznacz „Zawsze zezwalaj”), potem spróbuj ponownie.</string>
+    <string name="update_silent_no_adb">Ciche aktualizacje wymagają włączonego debugowania przez sieć (adb, port 5555) na tym Boxie.</string>
+    <string name="update_silent_failed">Cicha instalacja nie powiodła się: %1$s</string>
+    <string name="settings_silent_updates">Ciche aktualizacje (bez okna Androida)</string>
+    <string name="settings_silent_help">Aktualizacja instaluje się przez adb działający na samym Boxie, tak jak z komputera, więc Android nie pokazuje swojego okna. Wymaga włączonego debugowania przez sieć (port 5555) i jednorazowej zgody na ekranie TV; daje launcherowi uprawnienia adb, używane wyłącznie do instalowania jego własnych aktualizacji.</string>
+    <string name="settings_connect_adb">Połącz z adb na tym Boxie (jednorazowo)</string>
+    <string name="adb_connecting">Łączę z adb na Boxie… Jeśli pojawi się pytanie o debugowanie, zaznacz „Zawsze zezwalaj” i potwierdź.</string>
+    <string name="adb_connected">Połączono: ciche aktualizacje będą działać.</string>
+    <string name="adb_failed">Nie udało się połączyć z adb na tym Boxie.</string>
     <string name="group_appearance">Wygląd</string>
     <string name="group_wallpapers">Tapety</string>
     <string name="group_screensaver">Wygaszacz</string>

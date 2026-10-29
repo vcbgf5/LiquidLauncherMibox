@@ -129,6 +129,10 @@ fun SettingsDialog(
     onInstallUpdate: () -> Unit,
     autoCheckUpdates: Boolean,
     onAutoCheckChange: (Boolean) -> Unit,
+    silentUpdates: Boolean,
+    onSilentUpdatesChange: (Boolean) -> Unit,
+    adbStatus: String,
+    onConnectAdb: () -> Unit,
     enabledWidgets: Set<String>,
     onWidgetToggle: (WidgetType, Boolean) -> Unit,
     calendarLinked: Boolean,
@@ -346,6 +350,11 @@ fun SettingsDialog(
                     }
                     Divider()
                     ToggleRow(stringResource(R.string.settings_update_auto), autoCheckUpdates, onAutoCheckChange)
+                    Divider()
+                    ToggleRow(stringResource(R.string.settings_silent_updates), silentUpdates, onSilentUpdatesChange)
+                    Note(stringResource(R.string.settings_silent_help))
+                    ActionRow(label = stringResource(R.string.settings_connect_adb), arrow = false, onClick = onConnectAdb)
+                    if (adbStatus.isNotEmpty()) Note(adbStatus)
                 }
 
                 SettingsCategory.SYSTEM -> Group {

@@ -49,6 +49,7 @@ import com.liquidglass.tvlauncher.data.IconPack
 import com.liquidglass.tvlauncher.data.IconPacks
 import com.liquidglass.tvlauncher.data.LauncherSettings
 import com.liquidglass.tvlauncher.data.PriorityApps
+import com.liquidglass.tvlauncher.data.SilentInstaller
 import com.liquidglass.tvlauncher.data.SystemStatus
 import com.liquidglass.tvlauncher.data.UpdateInfo
 import com.liquidglass.tvlauncher.data.Updater
@@ -160,6 +161,9 @@ class MainActivity : ComponentActivity() {
             var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
             var updateStatus by remember { mutableStateOf(UpdateStatus.IDLE) }
             var downloadPercent by remember { mutableIntStateOf(0) }
+            var silentProblem by remember { mutableStateOf("") }
+            var silentUpdates by remember { mutableStateOf(settings.silentUpdates) }
+            var adbStatus by remember { mutableStateOf("") }
             var autoCheck by remember { mutableStateOf(settings.autoCheckUpdates) }
 
             // [automatic] = nobody pressed anything: stay quiet about errors, only the red dot
@@ -170,6 +174,27 @@ class MainActivity : ComponentActivity() {
                 updateStatus = UpdateStatus.DOWNLOADING
                 downloadPercent = 0
                 val file = Updater.download(this@MainActivity, info) { downloadPercent = it }
+                if (file != null && settings.silentUpdates) {
+                    // No Android window: the box's own ADB installs it (the launcher is then restarted by the system).
+                    updateStatus = UpdateStatus.SILENT_INSTALLING
+                    when (val result = SilentInstaller.install(this@MainActivity, file)) {
+                        SilentInstaller.Result.Done -> {
+                            updateInfo = null
+                            updateStatus = UpdateStatus.UP_TO_DATE
+                            return
+                        }
+                        SilentInstaller.Result.NeedsApproval -> silentProblem = getString(R.string.update_silent_needs_approval)
+                        SilentInstaller.Result.NoAdb -> silentProblem = getString(R.string.update_silent_no_adb)
+                        is SilentInstaller.Result.Failed -> silentProblem = getString(R.string.update_silent_failed, result.reason)
+                    }
+                    updateStatus = UpdateStatus.SILENT_FAILED
+                    // Pressed by hand: still get the update, through the normal installer.
+                    if (automatic) return
+                }
+                if (file != null && updateStatus == UpdateStatus.SILENT_FAILED) {
+                    Updater.install(this@MainActivity, file, askPermission = true)
+                    return
+                }
                 updateStatus = if (file == null) {
                     UpdateStatus.DOWNLOAD_FAILED
                 } else when (Updater.install(this@MainActivity, file, askPermission = !automatic)) {
@@ -427,6 +452,8 @@ class MainActivity : ComponentActivity() {
                     UpdateStatus.NEEDS_PERMISSION -> stringResource(R.string.update_permission)
                     UpdateStatus.WRONG_SIGNATURE -> stringResource(R.string.update_wrong_key)
                     UpdateStatus.INSTALLING -> stringResource(R.string.update_installing)
+                    UpdateStatus.SILENT_INSTALLING -> stringResource(R.string.update_silent_installing)
+                    UpdateStatus.SILENT_FAILED -> silentProblem
                 }
                 val installLabel = if (updateInfo != null && updateStatus != UpdateStatus.DOWNLOADING) {
                     stringResource(R.string.settings_update_install, newVersionName)
@@ -496,6 +523,25 @@ class MainActivity : ComponentActivity() {
                     installLabel = installLabel,
                     onCheckUpdates = { scope.launch { checkForUpdates(automatic = false, thenInstall = true) } },
                     onInstallUpdate = { scope.launch { installUpdate(automatic = false) } },
+                    silentUpdates = silentUpdates,
+                    onSilentUpdatesChange = {
+                        silentUpdates = it
+                        settings.silentUpdates = it
+                    },
+                    adbStatus = adbStatus,
+                    onConnectAdb = {
+                        adbStatus = getString(R.string.adb_connecting)
+                        scope.launch {
+                            adbStatus = getString(
+                                when (SilentInstaller.check(this@MainActivity)) {
+                                    SilentInstaller.Result.Done -> R.string.adb_connected
+                                    SilentInstaller.Result.NeedsApproval -> R.string.update_silent_needs_approval
+                                    SilentInstaller.Result.NoAdb -> R.string.update_silent_no_adb
+                                    is SilentInstaller.Result.Failed -> R.string.adb_failed
+                                },
+                            )
+                        }
+                    },
                     autoCheckUpdates = autoCheck,
                     onAutoCheckChange = {
                         autoCheck = it
@@ -812,5 +858,5 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class UpdateStatus {
-    IDLE, CHECKING, UP_TO_DATE, AVAILABLE, CHECK_FAILED, DOWNLOADING, DOWNLOAD_FAILED, NEEDS_PERMISSION, WRONG_SIGNATURE, INSTALLING,
+    IDLE, CHECKING, UP_TO_DATE, AVAILABLE, CHECK_FAILED, DOWNLOADING, DOWNLOAD_FAILED, NEEDS_PERMISSION, WRONG_SIGNATURE, INSTALLING, SILENT_INSTALLING, SILENT_FAILED,
 }
