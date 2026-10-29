@@ -196,7 +196,7 @@ potwierdź pytanie na ekranie telewizora.
 
 ## Pobranie APK
 
-- Strona z przyciskiem: **https://vcbgf5.github.io/LiquidLauncherMibox/**
+- Strona z pobieraniem i poradnikami (instalacja, adb, tv_adb.py, pilot na telefon): **https://vcbgf5.github.io/LiquidLauncherMibox/** — źródło w `site/`, publikowane automatycznie workflow „Site” po zmianie plików w `site/`, `preview/` lub `docs/`
 - Krótki adres do wpisania pilotem (od razu pobiera najnowszą wersję): **vcbgf5.github.io/LiquidLauncherMibox/apk**
 - Bezpośredni link: `https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk`
 

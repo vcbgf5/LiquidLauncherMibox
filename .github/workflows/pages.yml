@@ -1,0 +1,51 @@
+name: Site
+
+# Builds the download page (site/) and publishes it to the gh-pages branch, which GitHub Pages serves.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'preview/preview.html'
+      - 'docs/*.jpg'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the site
+        run: |
+          mkdir -p out/img out/apk
+          cp -r site/. out/
+          cp preview/preview.html out/preview.html
+          cp docs/preview-*.jpg out/img/
+          touch out/.nojekyll
+          sed -i "s/__BUILT__/$(date -u +'%Y-%m-%d %H:%M UTC')/" out/index.html
+          find out -type f | sort
+
+      - name: Publish to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          git worktree add ../pages origin/gh-pages --detach
+          rsync -a --delete --exclude '.git' out/ ../pages/
+          cd ../pages
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Site unchanged"
+          else
+            git commit -m "Update site"
+            git push origin HEAD:gh-pages
+          fi
