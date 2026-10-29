@@ -60,6 +60,26 @@ Działa też na telefonie.
 To makieta z przykładowymi ikonami — prawdziwa aplikacja pokazuje ikony zainstalowanych aplikacji.
 Plik źródłowy: [`preview/preview.html`](preview/preview.html).
 
+## Aktualizacje w aplikacji
+
+W ustawieniach launchera (zębatka) jest **Sprawdź aktualizacje**, a gdy jest nowsza wersja, także **Aktualizuj teraz**:
+launcher pobiera plik z najnowszego wydania i otwiera systemowy instalator (Android nigdy nie pozwala instalować po cichu,
+trzeba zatwierdzić). Opcja **Automatyczne sprawdzanie** (domyślnie włączona) sprawdza raz na 12 godzin i zapala
+czerwoną kropkę przy zębatce. Przy pierwszej aktualizacji system zapyta o zgodę na „instalowanie nieznanych aplikacji”
+dla Liquid TV — włącz ją i wybierz Aktualizuj jeszcze raz.
+
+**Żeby aktualizacje „na wierzchu” w ogóle działały, wersje muszą być podpisane tym samym kluczem.** Jednorazowo:
+
+1. Repo → **Settings → Secrets and variables → Actions → New repository secret**: nazwa `KEYSTORE_PASSPHRASE`,
+   wartość: długie losowe hasło (min. 30 znaków; to ono chroni klucz, więc nie wymyślaj krótkiego).
+2. Zbuduj wydanie (np. nowy release `v1.0.2`). Workflow sam utworzy klucz i zapisze go w repo **zaszyfrowanego**
+   hasłem z sekretu (`signing/release.p12.enc`) — bez hasła jest bezużyteczny.
+3. **Ostatni raz odinstaluj starą wersję** (była podpisana innym kluczem) i zainstaluj nową ręcznie.
+   Od tej chwili każda kolejna wersja zainstaluje się na poprzedniej przez „Aktualizuj teraz”.
+
+Nie usuwaj ani nie zmieniaj sekretu `KEYSTORE_PASSPHRASE` — bez niego nie da się podpisać następnych wersji
+tym samym kluczem i trzeba zaczynać od nowa (z odinstalowaniem).
+
 ## Pobranie APK
 
 - Strona z przyciskiem: **https://vcbgf5.github.io/LiquidLauncherMibox/**

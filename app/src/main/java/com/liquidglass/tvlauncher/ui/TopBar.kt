@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -51,6 +52,7 @@ import java.util.Locale
 @Composable
 fun TopBar(
     accountName: String?,
+    updateAvailable: Boolean,
     onOpenSettings: () -> Unit,
     onOpenAccount: () -> Unit,
     modifier: Modifier = Modifier,
@@ -75,7 +77,22 @@ fun TopBar(
             fontWeight = FontWeight.Medium,
             style = TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.55f), blurRadius = 10f)),
         )
-        TopBarButton(onClick = onOpenSettings) { GearIcon(Modifier.size(24.dp)) }
+        TopBarButton(onClick = onOpenSettings) {
+            Box(modifier = Modifier.size(24.dp)) {
+                GearIcon(Modifier.fillMaxSize())
+                if (updateAvailable) {
+                    // A small red dot: a newer version is waiting in the settings.
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 5.dp, y = (-5).dp)
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFF5A4F)),
+                    )
+                }
+            }
+        }
         TopBarButton(onClick = onOpenAccount) { AccountIcon(accountName) }
     }
 }

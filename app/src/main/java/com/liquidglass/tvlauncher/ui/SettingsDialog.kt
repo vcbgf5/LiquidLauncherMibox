@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,6 +56,8 @@ val WallpaperIntervals = listOf(1, 5, 10, 30, 60)
  *  - how transparent the dock is (the dock behind the card updates live),
  *  - which wallpaper category to rotate through, and how often,
  *  - skipping to the next wallpaper right now,
+ *  - updates: the current version, "check now", "update now" (only when [installLabel] is set)
+ *    and whether the launcher checks by itself,
  *  - a way into the Android system settings.
  *
  * Left/Right changes a value, OK presses an action. [categoryOptions] is
@@ -69,6 +74,12 @@ fun SettingsDialog(
     onIntervalChange: (Int) -> Unit,
     photoCredit: String?,
     onNextWallpaper: () -> Unit,
+    updateStatus: String,
+    installLabel: String?,
+    onCheckUpdates: () -> Unit,
+    onInstallUpdate: () -> Unit,
+    autoCheckUpdates: Boolean,
+    onAutoCheckChange: (Boolean) -> Unit,
     onOpenSystemSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -88,9 +99,11 @@ fun SettingsDialog(
         Column(
             modifier = Modifier
                 .width(480.dp)
+                .heightIn(max = 480.dp)
                 .clip(shape)
                 .background(Color(0xE62A2C36))
                 .border(1.dp, Color.White.copy(alpha = 0.25f), shape)
+                .verticalScroll(rememberScrollState())
                 .padding(14.dp),
         ) {
             Text(
@@ -136,6 +149,21 @@ fun SettingsDialog(
                     modifier = Modifier.padding(start = 14.dp, top = 2.dp, bottom = 6.dp),
                 )
             }
+            Text(
+                text = updateStatus,
+                color = Color.White.copy(alpha = 0.55f),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 4.dp),
+            )
+            ActionRow(label = stringResource(R.string.settings_update_check), arrow = false, onClick = onCheckUpdates)
+            if (installLabel != null) {
+                ActionRow(label = installLabel, arrow = false, onClick = onInstallUpdate)
+            }
+            ChoiceRow(
+                label = stringResource(R.string.settings_update_auto),
+                value = stringResource(if (autoCheckUpdates) R.string.on_label else R.string.off_label),
+                onStep = { onAutoCheckChange(!autoCheckUpdates) },
+            )
             ActionRow(
                 label = stringResource(R.string.settings_system),
                 arrow = true,

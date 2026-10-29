@@ -8,12 +8,17 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing release tag to attach the freshly built APK to (leave empty to only build)"
+        description: "Release tag to attach the freshly built APK to (created if missing; leave empty to only build)"
         required: false
         default: ""
 
 permissions:
-  contents: write   # needed to attach the APK to a release
+  contents: write   # create releases, and commit the encrypted signing key the first time
+
+# One build at a time, so two runs can't both create the signing key.
+concurrency:
+  group: build
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -30,20 +35,73 @@ jobs:
       - name: Accept SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
+      # versionCode grows with every run, which is how the in-app updater knows a build is newer.
+      - name: Version
+        env:
+          TAG_INPUT: ${{ inputs.tag }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          TAG="$TAG_INPUT"
+          if [ -z "$TAG" ] && [ "$REF_TYPE" = "tag" ]; then TAG="$REF_NAME"; fi
+          echo "VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          if [ -n "$TAG" ]; then echo "VERSION_NAME=${TAG#v}" >> "$GITHUB_ENV"; else echo "VERSION_NAME=0.0.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"; fi
+
+      # The release signing key. Updates only install over the previous version when every
+      # build is signed by the same key. It is generated once, encrypted with the passphrase from
+      # the KEYSTORE_PASSPHRASE secret and kept in the repo as signing/release.p12.enc, so nothing
+      # usable is ever public. Without the secret the build just uses the debug key.
+      - name: Signing key
+        env:
+          PASS: ${{ secrets.KEYSTORE_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PASS" ]; then
+            echo "::warning::No KEYSTORE_PASSPHRASE secret - signing with the debug key, so this APK can't be updated in place."
+            exit 0
+          fi
+          OUT="$RUNNER_TEMP/release.p12"
+          git fetch --depth=1 origin main || true
+          if git cat-file -e origin/main:signing/release.p12.enc 2>/dev/null; then
+            git show origin/main:signing/release.p12.enc > "$RUNNER_TEMP/release.p12.enc"
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:PASS -in "$RUNNER_TEMP/release.p12.enc" -out "$OUT"
+          elif [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            keytool -genkeypair -keystore "$OUT" -storetype PKCS12 -alias liquidtv -keyalg RSA -keysize 2048 \
+              -validity 36500 -storepass "$PASS" -keypass "$PASS" -dname "CN=Liquid TV"
+            mkdir -p signing
+            openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:PASS -in "$OUT" -out signing/release.p12.enc
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add signing/release.p12.enc
+            git commit -m "Add encrypted release signing key"
+            git pull --rebase origin main || true
+            git push origin HEAD:main
+          else
+            echo "::warning::No signing key yet; run the build once from the main branch to create it."
+            exit 0
+          fi
+          echo "KEYSTORE_PATH=$OUT" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=$PASS" >> "$GITHUB_ENV"
+
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Build release APK
         run: ./gradlew --no-daemon assembleRelease
 
-      # Fixed file name, so .../releases/latest/download/LiquidTV.apk always works.
-      - name: Name the APK
-        run: cp app/build/outputs/apk/release/*.apk LiquidTV.apk
+      # Fixed file names, so .../releases/latest/download/LiquidTV.apk (and version.json) always work.
+      - name: Name the APK and describe its version
+        run: |
+          cp app/build/outputs/apk/release/*.apk LiquidTV.apk
+          printf '{"versionCode": %s, "versionName": "%s"}\n' "$VERSION_CODE" "$VERSION_NAME" > version.json
+          cat version.json
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: liquid-tv-apk
-          path: LiquidTV.apk
+          path: |
+            LiquidTV.apk
+            version.json
 
       - name: Attach APK to the release
         if: github.ref_type == 'tag' || inputs.tag != ''
@@ -52,4 +110,6 @@ jobs:
           tag_name: ${{ inputs.tag || github.ref_name }}
           # If the tag doesn't exist yet it is created at exactly the commit that was built.
           target_commitish: ${{ github.sha }}
-          files: LiquidTV.apk
+          files: |
+            LiquidTV.apk
+            version.json

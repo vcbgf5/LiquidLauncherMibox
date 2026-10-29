@@ -19,18 +19,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.liquidglass.tvlauncher.data.AccountProvider
 import com.liquidglass.tvlauncher.data.AppInfo
 import com.liquidglass.tvlauncher.data.AppRepository
 import com.liquidglass.tvlauncher.data.FavoritesStore
 import com.liquidglass.tvlauncher.data.LauncherSettings
 import com.liquidglass.tvlauncher.data.PriorityApps
+import com.liquidglass.tvlauncher.data.UpdateInfo
+import com.liquidglass.tvlauncher.data.Updater
 import com.liquidglass.tvlauncher.data.RecentsStore
 import com.liquidglass.tvlauncher.data.SystemHomeFinder
 import com.liquidglass.tvlauncher.data.WatchNextRepository
@@ -104,6 +108,54 @@ class MainActivity : ComponentActivity() {
             var photoCredit by remember { mutableStateOf<String?>(null) }
             var watchNextTitles by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
             var systemHome by remember { mutableStateOf<AppInfo?>(null) }
+
+            // In-app updates (see Updater): what the check found, and where the download is.
+            val scope = rememberCoroutineScope()
+            var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+            var updateStatus by remember { mutableStateOf(UpdateStatus.IDLE) }
+            var downloadPercent by remember { mutableIntStateOf(0) }
+            var autoCheck by remember { mutableStateOf(settings.autoCheckUpdates) }
+
+            // [silent] checks (the automatic ones) only ever show the red dot, never errors.
+            suspend fun checkForUpdates(silent: Boolean) {
+                if (!silent) updateStatus = UpdateStatus.CHECKING
+                when (val result = Updater.check(this@MainActivity)) {
+                    is Updater.CheckResult.Newer -> {
+                        updateInfo = result.info
+                        updateStatus = UpdateStatus.AVAILABLE
+                    }
+                    Updater.CheckResult.UpToDate -> {
+                        updateInfo = null
+                        if (!silent) updateStatus = UpdateStatus.UP_TO_DATE
+                    }
+                    Updater.CheckResult.Failed -> if (!silent) updateStatus = UpdateStatus.CHECK_FAILED
+                }
+                settings.lastUpdateCheck = System.currentTimeMillis()
+            }
+
+            fun installUpdate() {
+                val info = updateInfo ?: return
+                if (updateStatus == UpdateStatus.DOWNLOADING) return
+                scope.launch {
+                    updateStatus = UpdateStatus.DOWNLOADING
+                    downloadPercent = 0
+                    val file = Updater.download(this@MainActivity, info) { downloadPercent = it }
+                    updateStatus = if (file == null) {
+                        UpdateStatus.DOWNLOAD_FAILED
+                    } else when (Updater.install(this@MainActivity, file)) {
+                        Updater.InstallStart.STARTED -> UpdateStatus.INSTALLING
+                        Updater.InstallStart.NEEDS_PERMISSION -> UpdateStatus.NEEDS_PERMISSION
+                        Updater.InstallStart.FAILED -> UpdateStatus.DOWNLOAD_FAILED
+                    }
+                }
+            }
+
+            // Automatic check: when the launcher is on screen, at most every 12 hours.
+            LaunchedEffect(inForeground, autoCheck) {
+                if (inForeground && autoCheck && System.currentTimeMillis() - settings.lastUpdateCheck > 12 * 3_600_000L) {
+                    checkForUpdates(silent = true)
+                }
+            }
 
             val accountPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 result.data?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)?.let { name ->
@@ -201,6 +253,7 @@ class MainActivity : ComponentActivity() {
                     onPage = { page = it },
                     resetSignal = resetSignal,
                     accountName = accountName,
+                    updateAvailable = updateInfo != null,
                     wallpaper = wallpaper,
                     dockTransparency = dockTransparency / 100f,
                     onLaunch = { app, from ->
@@ -245,6 +298,24 @@ class MainActivity : ComponentActivity() {
                     listOf(WallpaperCatalog.ALL to allLabel) + catalog.categories.map { it.id to it.name } +
                         (WallpaperCatalog.OFF to offLabel)
                 }
+                val versionName = Updater.currentVersionName(this@MainActivity)
+                val newVersionName = updateInfo?.versionName ?: ""
+                val statusText = when (updateStatus) {
+                    UpdateStatus.IDLE -> stringResource(R.string.update_version, versionName)
+                    UpdateStatus.CHECKING -> stringResource(R.string.update_checking, versionName)
+                    UpdateStatus.UP_TO_DATE -> stringResource(R.string.update_latest, versionName)
+                    UpdateStatus.AVAILABLE -> stringResource(R.string.update_available, versionName, newVersionName)
+                    UpdateStatus.CHECK_FAILED -> stringResource(R.string.update_check_failed)
+                    UpdateStatus.DOWNLOADING -> stringResource(R.string.update_downloading, downloadPercent)
+                    UpdateStatus.DOWNLOAD_FAILED -> stringResource(R.string.update_download_failed)
+                    UpdateStatus.NEEDS_PERMISSION -> stringResource(R.string.update_permission)
+                    UpdateStatus.INSTALLING -> stringResource(R.string.update_installing)
+                }
+                val installLabel = if (updateInfo != null && updateStatus != UpdateStatus.DOWNLOADING) {
+                    stringResource(R.string.settings_update_install, newVersionName)
+                } else {
+                    null
+                }
                 SettingsDialog(
                     transparencyPercent = dockTransparency,
                     onTransparencyChange = {
@@ -264,6 +335,15 @@ class MainActivity : ComponentActivity() {
                     },
                     photoCredit = photoCredit,
                     onNextWallpaper = { skipSignal++ },
+                    updateStatus = statusText,
+                    installLabel = installLabel,
+                    onCheckUpdates = { scope.launch { checkForUpdates(silent = false) } },
+                    onInstallUpdate = { installUpdate() },
+                    autoCheckUpdates = autoCheck,
+                    onAutoCheckChange = {
+                        autoCheck = it
+                        settings.autoCheckUpdates = it
+                    },
                     onOpenSystemSettings = { openSettings() },
                     onDismiss = { showSettings = false },
                 )
@@ -386,4 +466,8 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
         }
     }
+}
+
+private enum class UpdateStatus {
+    IDLE, CHECKING, UP_TO_DATE, AVAILABLE, CHECK_FAILED, DOWNLOADING, DOWNLOAD_FAILED, NEEDS_PERMISSION, INSTALLING,
 }

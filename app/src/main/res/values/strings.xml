@@ -22,4 +22,18 @@
     <string name="info_watch_next">Dalej oglądaj</string>
     <string name="info_system_home">ekran systemowy</string>
     <string name="info_recent">Ostatnio otwierane</string>
+    <string name="settings_update_check">Sprawdź aktualizacje</string>
+    <string name="settings_update_install">Aktualizuj teraz (%1$s)</string>
+    <string name="settings_update_auto">Automatyczne sprawdzanie</string>
+    <string name="on_label">Włączone</string>
+    <string name="off_label">Wyłączone</string>
+    <string name="update_version">Wersja %1$s</string>
+    <string name="update_checking">Wersja %1$s · sprawdzanie…</string>
+    <string name="update_latest">Wersja %1$s · masz najnowszą</string>
+    <string name="update_available">Wersja %1$s · dostępna nowsza: %2$s</string>
+    <string name="update_downloading">Pobieranie aktualizacji… %1$d%%</string>
+    <string name="update_check_failed">Nie udało się sprawdzić (brak internetu albo brak wydania).</string>
+    <string name="update_download_failed">Nie udało się pobrać aktualizacji.</string>
+    <string name="update_permission">Zezwól Liquid TV na instalowanie aplikacji, wróć i wybierz Aktualizuj jeszcze raz.</string>
+    <string name="update_installing">Zatwierdź instalację na ekranie systemowym. Jeśli się nie uda, odinstaluj starą wersję i zainstaluj ją ręcznie (to tylko za pierwszym razem).</string>
 </resources>

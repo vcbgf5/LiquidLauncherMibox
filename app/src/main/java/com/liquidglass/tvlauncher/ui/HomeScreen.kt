@@ -83,6 +83,7 @@ fun HomeScreen(
     onPage: (Int) -> Unit,
     resetSignal: Int,
     accountName: String?,
+    updateAvailable: Boolean,
     wallpaper: WallpaperState,
     dockTransparency: Float,
     onLaunch: (AppInfo, Rect) -> Unit,
@@ -178,6 +179,7 @@ fun HomeScreen(
 
             TopBar(
                 accountName = accountName,
+                updateAvailable = updateAvailable,
                 onOpenSettings = onOpenSettings,
                 onOpenAccount = onOpenAccount,
                 modifier = Modifier

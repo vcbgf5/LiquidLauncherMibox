@@ -11,16 +11,31 @@ android {
         applicationId = "com.liquidglass.tvlauncher"
         minSdk = 23
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1.0"
+        // CI sets these (build number, release tag); local builds keep the defaults.
+        versionCode = (System.getenv("VERSION_CODE") ?: "2").toInt()
+        versionName = System.getenv("VERSION_NAME") ?: "1.1.0"
+    }
+
+    // The release key lives outside the repo: CI decrypts it and points KEYSTORE_PATH at it.
+    // Every build signed with the same key is what lets one install update the previous one.
+    val releaseKeystore: String? = System.getenv("KEYSTORE_PATH")
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = "liquidtv"
+                keyPassword = System.getenv("KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Debug-signed so the APK installs by sideloading. Updating an installed copy means
-            // uninstalling it first (each CI build gets its own debug key).
-            signingConfig = signingConfigs.getByName("debug")
+            // Without the CI key it falls back to the debug key, which installs fine but
+            // can't be updated in place (every machine has its own debug key).
+            signingConfig = signingConfigs.getByName(if (releaseKeystore != null) "release" else "debug")
         }
     }
 
