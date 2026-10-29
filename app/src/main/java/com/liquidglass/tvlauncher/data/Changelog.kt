@@ -6,9 +6,9 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
-        "Głośność: pasek Liquid TV reaguje na każdą zmianę głośności (pilot, głośnik Bluetooth, HDMI), a systemowy pasek jest zamykany. Tryb zmienisz w Szybkich ustawieniach albo w Ustawienia → System.",
+        "Głośność: pasek Liquid TV pokazuje prawdziwy poziom, gdy Box go widzi (pilot, głośnik Bluetooth), a przy sterowaniu telewizorem przez HDMI-CEC kierunek zmiany ▲ ▼. Systemowy pasek jest zamykany tuż po naciśnięciu. Przyciski głośności nigdy nie są blokowane.",
         "Przycisk Menu otwiera szybkie ustawienia. Jeśli Twój pilot wysyła inny kod: Ustawienia → System → „Przycisk szybkich ustawień”, naciśnij przycisk, a launcher go zapamięta (z włączoną usługą działa w każdej aplikacji).",
-        "Diagnostyka głośności pokazuje teraz ostatnie przyciski z pilota z nazwą urządzenia, wykryte zmiany głośności oraz okna systemowe (przez adb).",
+        "Diagnostyka głośności pokazuje ostatnie przyciski z pilota z nazwą urządzenia, wykryte zmiany głośności i dokąd idzie dźwięk; w skrypcie na komputer doszły własna komenda i „Nadaj wszystkie uprawnienia”.",
         "W Szybkich ustawieniach doszły: tryb paska głośności, diagnostyka głośności i adb.",
-        )
+            )
 }

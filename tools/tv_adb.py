@@ -20,6 +20,7 @@ Użycie:
 import argparse
 import os
 import platform
+import shlex
 import shutil
 import stat
 import subprocess
@@ -228,10 +229,11 @@ def volume_diagnostics(tv):
     code, out = tv.run("logcat", "-d", "-s", "LiquidTV:I", timeout=30)
     say("\n".join(out.splitlines()[-15:]) or "(pusto: usługa nie zapisała jeszcze żadnego klawisza)")
     say("\n== Test ==")
-    say("Wysyłam klawisz głośności w górę przez adb i czytam dziennik jeszcze raz ...")
-    tv.shell("input", "keyevent", "KEYCODE_VOLUME_UP")
+    say("Naciśnij teraz PRAWDZIWY przycisk głośności (albo Menu) na pilocie Boxa, potem wróć tu i wciśnij Enter.\n"
+        "(Klawisz wysłany przez adb omija usługę dostępności, więc nie sprawdza niczego.)")
+    input()
     code, out = tv.run("logcat", "-d", "-s", "LiquidTV:I", timeout=30)
-    say("\n".join(out.splitlines()[-4:]) or "(usługa nie widzi klawisza)")
+    say("\n".join(out.splitlines()[-8:]) or "(usługa nie widzi żadnego klawisza: sprawdź, czy jest włączona, albo pilot nie wysyła go do Boxa)")
 
 
 def set_home(tv):
@@ -300,11 +302,31 @@ def type_link(tv):
         say("Wpisano.")
 
 
+def writable_folder():
+    """A folder the user can always write to (the current one may be a protected program folder)."""
+    candidates = [Path.home() / "Pictures", Path.home() / "Desktop", Path.home() / "Downloads", Path.home(), Path.cwd()]
+    for folder in candidates:
+        try:
+            if folder.is_dir():
+                probe = folder / ".liquidtv_write_test"
+                probe.write_bytes(b"")
+                probe.unlink()
+                return folder
+        except OSError:
+            continue
+    import tempfile
+    return Path(tempfile.gettempdir())
+
+
 def screenshot(tv):
-    target = Path.cwd() / "zrzut_ekranu_tv.png"
+    target = writable_folder() / "zrzut_ekranu_tv.png"
     command = [tv.adb, "-s", tv.serial, "exec-out", "screencap", "-p"]
-    with open(target, "wb") as handle:
-        result = subprocess.run(command, stdout=handle, stderr=subprocess.PIPE)
+    try:
+        with open(target, "wb") as handle:
+            result = subprocess.run(command, stdout=handle, stderr=subprocess.PIPE)
+    except OSError as error:
+        say(f"Nie udało się zapisać pliku ({error}).")
+        return
     if result.returncode == 0 and target.stat().st_size > 0:
         say(f"Zapisano zrzut ekranu: {target}")
     else:
@@ -332,6 +354,102 @@ def open_launcher(tv):
     say("Otwarto Liquid TV.")
 
 
+def custom_command(tv):
+    """Dowolna komenda na Boxie. Bez przedrostka to `adb shell ...`; zaczynając od `adb ` wykonuje zwykłe polecenie adb."""
+    say("Wpisz komendę dla Boxa (pusta linia = powrót do menu). Przykłady:\n"
+        "  pm list packages -d                    (wyłączone aplikacje)\n"
+        "  dumpsys audio                          (stan dźwięku)\n"
+        "  input keyevent 24                      (głośność w górę)\n"
+        "  settings get global hdmi_control_enabled\n"
+        "  adb logcat -d -s LiquidTV              (zaczynając od „adb ” to zwykłe polecenie adb)")
+    while True:
+        line = input("komenda> ").strip()
+        if not line or line.lower() in ("q", "quit", "exit", "koniec"):
+            return
+        if line.lower().startswith("adb "):
+            try:
+                words = shlex.split(line[4:], posix=(os.name != "nt"))
+            except ValueError as error:
+                say(f"Nie rozumiem tej linii ({error}).")
+                continue
+            code, out = tv.run(*words, timeout=300)
+        else:
+            code, out = tv.shell(line, timeout=300)
+        say(out if out else "(brak wyjścia)")
+        if code != 0:
+            say(f"[kod wyjścia: {code}]")
+
+
+def declared_permissions(tv):
+    """Uprawnienia zadeklarowane w zainstalowanej aplikacji i które z nich są już nadane (według dumpsys package)."""
+    code, out = tv.shell("dumpsys", "package", PACKAGE, timeout=60)
+    lines = out.splitlines()
+    declared = []
+    granted = set()
+    start = next((i for i, l in enumerate(lines) if l.strip() == "requested permissions:"), None)
+    if start is not None:
+        indent = len(lines[start]) - len(lines[start].lstrip())
+        for l in lines[start + 1:]:
+            if l.strip() and len(l) - len(l.lstrip()) <= indent:
+                break
+            name = l.strip().split(":")[0]
+            if name and all(c.isalnum() or c in "._" for c in name):
+                declared.append(name)
+    for l in lines:
+        text = l.strip()
+        if ": granted=true" in text:
+            granted.add(text.split(":")[0])
+    return declared, granted
+
+
+def grant_everything(tv):
+    """Nadaje WSZYSTKO, co Android pozwala: każde zadeklarowane uprawnienie, operacje appops, pracę w tle i usługi."""
+    say("Nadaję wszystkie uprawnienia (także te, których launcher nie potrzebuje) ...")
+    declared, _ = declared_permissions(tv)
+    if not declared:
+        say("Nie widzę uprawnień aplikacji: czy Liquid TV jest zainstalowany? (pozycja 2 w menu)")
+        return
+    for permission in declared:
+        tv.shell("pm", "grant", PACKAGE, permission)
+    say(f"  próbowałem nadać {len(declared)} uprawnień")
+
+    # Operacje, które nie są zwykłymi uprawnieniami (appops), oraz praca w tle.
+    ops = ["SYSTEM_ALERT_WINDOW", "WRITE_SETTINGS", "REQUEST_INSTALL_PACKAGES", "GET_USAGE_STATS", "RUN_IN_BACKGROUND",
+           "RUN_ANY_IN_BACKGROUND", "WAKE_LOCK", "START_FOREGROUND", "BOOT_COMPLETED", "POST_NOTIFICATION", "ACCESS_NOTIFICATIONS",
+           "MANAGE_EXTERNAL_STORAGE", "PICTURE_IN_PICTURE", "READ_CLIPBOARD", "WRITE_CLIPBOARD", "TOAST_WINDOW",
+           "CAMERA", "RECORD_AUDIO", "COARSE_LOCATION", "FINE_LOCATION", "READ_CONTACTS", "WRITE_CONTACTS",
+           "READ_CALENDAR", "WRITE_CALENDAR", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE", "READ_PHONE_STATE",
+           "ACTIVITY_RECOGNITION", "BODY_SENSORS", "WIFI_SCAN", "BLUETOOTH_SCAN", "BLUETOOTH_CONNECT"]
+    done = 0
+    for op in ops:
+        code, out = tv.shell("appops", "set", PACKAGE, op, "allow")
+        if code == 0 and "rror" not in out and "xception" not in out:
+            done += 1
+    say(f"  operacje appops: {done} z {len(ops)} przyjęte (reszty ten Android nie zna)")
+    for label, command in [
+        ("bez oszczędzania baterii (doze)", ["cmd", "deviceidle", "whitelist", f"+{PACKAGE}"]),
+        ("najwyższy priorytet w tle (standby bucket)", ["am", "set-standby-bucket", PACKAGE, "active"]),
+        ("dostęp do powiadomień i odtwarzaczy", ["cmd", "notification", "allow_listener", f"{PACKAGE}/.MediaListenerService"]),
+    ]:
+        code, out = tv.shell(*command)
+        failed = code != 0 or "xception" in out or "rror" in out
+        say(f"  {'BŁĄD' if failed else 'OK  '}  {label}" + (f"\n        {out.splitlines()[0]}" if failed and out else ""))
+    # Usługi, także gdy powyższe polecenie powiadomień nie istnieje w tym Androidzie.
+    code, current = tv.shell("settings", "get", "secure", "enabled_notification_listeners")
+    entry = f"{PACKAGE}/{PACKAGE}.MediaListenerService"
+    if entry not in current:
+        merged = entry if not current.strip() or current.strip() == "null" else current.strip() + ":" + entry
+        tv.shell("settings", "put", "secure", "enabled_notification_listeners", merged)
+    enable_service(tv)
+
+    declared, granted = declared_permissions(tv)
+    missing = [p for p in declared if p not in granted]
+    say(f"\nZadeklarowanych uprawnień: {len(declared)}, nadanych: {len(declared) - len(missing)}.")
+    if missing:
+        say("Nienadane (Android nie pozwala ich nadać zwykłej aplikacji: to uprawnienia systemowe/podpis producenta albo\n"
+            "niedostępne w tej wersji Androida):\n  " + "\n  ".join(missing))
+
+
 MENU = [
     ("Pokaż stan (wersja, usługa dostępności, domyślny launcher)", status),
     ("Zainstaluj / zaktualizuj Liquid TV (najnowsza wersja z GitHuba)", install),
@@ -339,12 +457,14 @@ MENU = [
     ("Ustaw Liquid TV jako domyślny ekran główny", set_home),
     ("Wpisz link do pobrania w zaznaczone pole na Boxie", type_link),
     ("Otwórz Liquid TV na Boxie", open_launcher),
-    ("Zrzut ekranu Boxa (zapisze plik w bieżącym folderze)", screenshot),
+    ("Zrzut ekranu Boxa (zapisze plik w Obrazach lub na Pulpicie)", screenshot),
     ("Uśpij Boxa", sleep_tv),
     ("Obudź Boxa", wake_tv),
     ("Podłącz kalendarz Google (link iCal) do widżetu wydarzeń", connect_calendar),
     ("Ustaw miasto pogody", set_weather_city),
     ("Nadaj launcherowi uprawnienia (ustawienia, Bluetooth, kalendarz, tło)", grant_permissions),
+    ("Nadaj WSZYSTKIE uprawnienia (także niepotrzebne)", grant_everything),
+    ("Własna komenda (adb shell albo adb ...)", custom_command),
     ("Diagnostyka głośności (usługa, audio, CEC, dziennik)", volume_diagnostics),
     ("Wyłącz usługę dostępności", disable_service),
     ("Odinstaluj Liquid TV", uninstall),
@@ -381,6 +501,8 @@ def main():
     parser.add_argument("--screenshot", action="store_true", help="zrób zrzut ekranu Boxa")
     parser.add_argument("--sleep", action="store_true", help="uśpij Boxa")
     parser.add_argument("--wake", action="store_true", help="obudź Boxa")
+    parser.add_argument("--shell", metavar="KOMENDA", help="wykonaj jedną komendę na Boxie (adb shell) i zakończ")
+    parser.add_argument("--grant-all", action="store_true", help="nadaj wszystkie uprawnienia i zakończ")
     args = parser.parse_args()
 
     adb = ensure_adb()
@@ -395,6 +517,12 @@ def main():
         (args.status, status), (args.install, install), (args.enable_service, enable_service),
         (args.home, set_home), (args.screenshot, screenshot), (args.sleep, sleep_tv), (args.wake, wake_tv),
     ]
+    if args.shell:
+        code, out = tv.shell(args.shell, timeout=300)
+        say(out or "(brak wyjścia)")
+        sys.exit(0 if code == 0 else 1)
+    if args.grant_all:
+        actions.append((True, grant_everything))
     chosen = [function for flag, function in actions if flag]
     if chosen:
         for function in chosen:

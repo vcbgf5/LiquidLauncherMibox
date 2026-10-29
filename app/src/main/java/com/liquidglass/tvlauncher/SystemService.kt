@@ -27,6 +27,8 @@ import android.view.accessibility.AccessibilityEvent
 import com.liquidglass.tvlauncher.data.KeyLearner
 import com.liquidglass.tvlauncher.data.KeyLog
 import com.liquidglass.tvlauncher.data.LauncherSettings
+import com.liquidglass.tvlauncher.data.VolumeRouting
+import kotlin.math.abs
 
 /**
  * Lets the launcher reach past its own screen, once the user switches it on in Android's
@@ -36,9 +38,9 @@ import com.liquidglass.tvlauncher.data.LauncherSettings
  *    included. The bar is driven by *changes of the volume* (the broadcast Android sends, backed up by
  *    a settings observer), not by key presses, because on a TV the keys are handled by the system
  *    itself and a Bluetooth speaker or an HDMI device changes the volume without any key at all.
- *    In [LauncherSettings.VOLUME_REPLACE] the volume keys are also taken here and applied without
- *    Android's bar (a TV's window manager would otherwise handle them and show its own), and every
- *    other change gets Android's bar closed straight away.
+ *    Over HDMI the TV owns the volume and the box cannot read it, so the bar then shows which way a
+ *    key turned it. In [LauncherSettings.VOLUME_REPLACE] Android's own bar is closed again a moment
+ *    after every volume key or change. The keys themselves are never swallowed.
  *  - The remote button taught as "quick settings": works in any app.
  *  - Power: [showPowerDialog] asks Android for its "power off / restart" dialog, which no ordinary
  *    app is allowed to do.
@@ -52,6 +54,12 @@ class SystemService : AccessibilityService() {
 
     private var lastLevel = -1
     private var lastMuted = false
+
+    /**
+     * Set once the music volume has been seen changing by part of its range, which proves the level is a
+     * real one (a TV output that only flips between 0 and full, or that the box cannot see, never does).
+     */
+    private var levelReal = false
 
     private val volumeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -103,26 +111,39 @@ class SystemService : AccessibilityService() {
         Log.i(TAG, "service connected")
     }
 
-    /** The volume (or the mute) changed, whoever did it: show the bar and, when asked to, close Android's. */
+    /**
+     * The volume (or the mute) changed, whoever did it. When the level is real (a Bluetooth speaker,
+     * a built-in output) the bar shows it. Through HDMI the box's number only flips between 0 and
+     * full, so there the bar is driven by the key presses instead (see [onKeyEvent]).
+     */
     private fun volumeChanged(source: String) {
-        lastLevel = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val level = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        if (lastLevel >= 0 && abs(level - lastLevel) in 1 until max) levelReal = true
+        lastLevel = level
         lastMuted = audio.isStreamMute(AudioManager.STREAM_MUSIC)
         changesSeen++
         lastChange = source
         lastChangeAt = System.currentTimeMillis()
         val mode = settings.volumeMode
-        if (mode == LauncherSettings.VOLUME_OFF) return
+        if (mode == LauncherSettings.VOLUME_OFF || !(levelReal || VolumeRouting.levelIsReal(audio))) return
         showCurrent()
-        if (mode == LauncherSettings.VOLUME_REPLACE && Build.VERSION.SDK_INT < 31) {
-            // Android's bar appears a moment after the change: ask for it to be closed a few times.
-            handler.removeCallbacks(closeDialogs)
-            for (delay in longArrayOf(0, 50, 130, 260, 500)) handler.postDelayed(closeDialogs, delay)
-        }
+        if (mode == LauncherSettings.VOLUME_REPLACE) hideSystemBar()
+    }
+
+    /** Android's bar appears a moment after the change: ask for it to be closed a few times, then once more late. */
+    private fun hideSystemBar() {
+        if (Build.VERSION.SDK_INT >= 31) return
+        handler.removeCallbacks(closeDialogs)
+        for (delay in longArrayOf(0, 60, 140, 260, 400, 600, 900)) handler.postDelayed(closeDialogs, delay)
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         KeyLog.record("usługa", event)
         val code = event.keyCode
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            Log.i(TAG, "key ${KeyLog.name(code)} ($code) device=${event.device?.name}")
+        }
 
         // Learning which button opens the quick settings.
         if (KeyLearner.offer(event, settings)) return true
@@ -138,26 +159,39 @@ class SystemService : AccessibilityService() {
         lastKey = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_") + if (event.action == KeyEvent.ACTION_UP) " (puszczony)" else ""
         lastKeyAt = System.currentTimeMillis()
 
-        // Anything but "replace" leaves the keys to Android; the change they cause is picked up by volumeChanged.
-        if (settings.volumeMode != LauncherSettings.VOLUME_REPLACE || audio.isVolumeFixed) return false
-        if (event.action != KeyEvent.ACTION_DOWN) return true // the press was taken, so is its release
-
-        val direction = when (code) {
-            KeyEvent.KEYCODE_VOLUME_UP -> AudioManager.ADJUST_RAISE
-            KeyEvent.KEYCODE_VOLUME_DOWN -> AudioManager.ADJUST_LOWER
-            else -> AudioManager.ADJUST_TOGGLE_MUTE
-        }
+        // The keys always go on to Android untouched, so the volume can never stop working because of
+        // this service; the bar only reports, and Android's own bar is closed when that is wanted.
+        val mode = settings.volumeMode
+        if (mode == LauncherSettings.VOLUME_OFF || event.action != KeyEvent.ACTION_DOWN) return false
         val before = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
         val mutedBefore = audio.isStreamMute(AudioManager.STREAM_MUSIC)
-        // Flag 0: no Android bar. It is the same call the TV's window manager would have made.
-        audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
-        handler.postDelayed({
-            val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            val changed = audio.getStreamVolume(AudioManager.STREAM_MUSIC) != before || audio.isStreamMute(AudioManager.STREAM_MUSIC) != mutedBefore
-            val atLimit = (direction == AudioManager.ADJUST_RAISE && before >= max) || (direction == AudioManager.ADJUST_LOWER && before <= 0)
-            if (!changed && !atLimit) ignoredAdjusts++
-        }, 350)
-        return true
+        // Give the system a moment to apply the key, then look at what it did to the level.
+        handler.postDelayed({ afterVolumeKey(code, before, mutedBefore) }, 260)
+        if (mode == LauncherSettings.VOLUME_REPLACE) hideSystemBar()
+        return false
+    }
+
+    /**
+     * The level moved by part of its range: it is real, show it. It flipped between 0 and full or did not
+     * move at all (the TV sets the volume over HDMI-CEC and the box cannot read it): show only which
+     * way the key turned it, unless the level was proven real earlier (then it is just at its end).
+     */
+    private fun afterVolumeKey(code: Int, before: Int, mutedBefore: Boolean) {
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val after = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val muteChanged = audio.isStreamMute(AudioManager.STREAM_MUSIC) != mutedBefore
+        if (abs(after - before) in 1 until max) levelReal = true
+        if (levelReal || VolumeRouting.levelIsReal(audio) || (muteChanged && code == KeyEvent.KEYCODE_VOLUME_MUTE)) {
+            showCurrent()
+        } else {
+            overlay?.showDirection(
+                when (code) {
+                    KeyEvent.KEYCODE_VOLUME_UP -> 1
+                    KeyEvent.KEYCODE_VOLUME_DOWN -> -1
+                    else -> 0
+                },
+            )
+        }
     }
 
     /** The taught button: brings the launcher up with its quick settings open, from any app. */
@@ -226,11 +260,6 @@ class SystemService : AccessibilityService() {
         var lastChangeAt = 0L
             private set
 
-        /** Key presses taken by the service that changed nothing (not counting the minimum and maximum). */
-        @Volatile
-        var ignoredAdjusts = 0
-            private set
-
         val connected: Boolean get() = instance != null
 
         /** Opens the system power dialog; false when the service isn't switched on. */
@@ -258,8 +287,18 @@ private class VolumeOverlay(private val context: Context) {
         view.animate().alpha(0f).translationY(-30f * density).setDuration(220).withEndAction { remove() }.start()
     }
 
+    /** The TV's volume is unknown: show only which way it was turned (1 up, -1 down, 0 mute/unmute). */
+    fun showDirection(direction: Int) {
+        view.setDirection(direction)
+        display()
+    }
+
     fun show(percent: Int, muted: Boolean) {
         view.set(percent, muted)
+        display()
+    }
+
+    private fun display() {
         handler.removeCallbacks(hide)
         view.animate().cancel()
         if (!attached) {
@@ -307,6 +346,9 @@ private class VolumeBarView(context: Context) : View(context) {
     private var percent = 0
     private var muted = false
 
+    /** null = a real level is shown; otherwise only the way the TV's volume was turned (1, -1) or muted (0). */
+    private var direction: Int? = null
+
     private val background = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xEB1C1E26.toInt() }
     private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -330,6 +372,13 @@ private class VolumeBarView(context: Context) : View(context) {
     fun set(percent: Int, muted: Boolean) {
         this.percent = percent.coerceIn(0, 100)
         this.muted = muted
+        this.direction = null
+        invalidate()
+    }
+
+    fun setDirection(direction: Int) {
+        this.direction = direction
+        this.muted = direction == 0
         invalidate()
     }
 
@@ -358,7 +407,8 @@ private class VolumeBarView(context: Context) : View(context) {
         }
         val fillIcon = Paint(icon).apply { style = Paint.Style.FILL }
         canvas.drawPath(body, fillIcon)
-        val level = if (muted) 0 else percent
+        val relative = direction
+        val level = if (muted) 0 else if (relative != null) 50 else percent
         if (level == 0) {
             val x = sx + 16f * d
             canvas.drawLine(x, cy - 5f * d, x + 10f * d, cy + 5f * d, icon)
@@ -366,6 +416,30 @@ private class VolumeBarView(context: Context) : View(context) {
         } else {
             canvas.drawArc(RectF(sx + 8f * d, cy - 6f * d, sx + 20f * d, cy + 6f * d), -50f, 100f, false, icon)
             canvas.drawArc(RectF(sx + 5f * d, cy - 11f * d, sx + 25f * d, cy + 11f * d), -50f, 100f, false, icon)
+        }
+
+        if (relative != null) {
+            // The TV's level is unknown: a word and a triangle for the way the volume was turned.
+            val word = if (relative == 0) "Wyciszenie" else "Głośność"
+            canvas.drawText(word, 66f * d, cy + text.textSize * 0.35f, text)
+            if (relative != 0) {
+                val cx = w - 52f * d
+                val half = 11f * d
+                val triangle = Path().apply {
+                    if (relative > 0) {
+                        moveTo(cx, cy - half)
+                        lineTo(cx + half, cy + half * 0.7f)
+                        lineTo(cx - half, cy + half * 0.7f)
+                    } else {
+                        moveTo(cx, cy + half)
+                        lineTo(cx + half, cy - half * 0.7f)
+                        lineTo(cx - half, cy - half * 0.7f)
+                    }
+                    close()
+                }
+                canvas.drawPath(triangle, fill)
+            }
+            return
         }
 
         // Level bar and percentage.

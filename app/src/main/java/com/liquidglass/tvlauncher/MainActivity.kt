@@ -1609,8 +1609,8 @@ class MainActivity : ComponentActivity() {
         val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         val mode = when (settings.volumeMode) {
             LauncherSettings.VOLUME_OFF -> "wyłączony"
-            LauncherSettings.VOLUME_REPLACE -> "zamiast systemowego"
-            else -> "obok systemowego"
+            LauncherSettings.VOLUME_REPLACE -> "nasz pasek, systemowy zamykany"
+            else -> "nasz pasek, systemowy zostaje"
         }
         return buildString {
             appendLine("Usługa dostępności włączona w ustawieniach: ${yes(SystemTools.accessibilityOn(this@MainActivity))}")
@@ -1620,7 +1620,7 @@ class MainActivity : ComponentActivity() {
             appendLine("Klawisze głośności widziane przez usługę:   ${SystemService.keysSeen} (ostatni: ${SystemService.lastKey.ifEmpty { "—" }} o ${at(SystemService.lastKeyAt)})")
             appendLine("Klawisze widziane przez sam launcher:       $volumeKeysSeen (ostatni: ${lastVolumeKey.ifEmpty { "—" }} o ${at(lastVolumeKeyAt)})")
             appendLine("Zmiany głośności wykryte (sygnał/ustawienia): ${SystemService.changesSeen} (ostatnia: ${SystemService.lastChange.ifEmpty { "—" }} o ${at(SystemService.lastChangeAt)})")
-            appendLine("Naciśnięcia przejęte, a głośność bez zmiany: ${SystemService.ignoredAdjusts}")
+            appendLine("Dokąd idzie dźwięk: ${com.liquidglass.tvlauncher.data.VolumeRouting.describe(audio)}")
             appendLine()
             appendLine("Ostatnie przyciski (nowe na górze), z nazwą urządzenia:")
             appendLine(KeyLog.dump())
@@ -1630,12 +1630,12 @@ class MainActivity : ComponentActivity() {
             appendLine("Wyjścia audio: $outputs")
             appendLine("HDMI-CEC włączone: ${global("hdmi_control_enabled")}")
             appendLine()
-            appendLine("Jak to czytać: naciśnij przycisk głośności (albo zmień głośność na głośniku Bluetooth) i wybierz Odśwież.")
-            appendLine("- „Zmiany wykryte” rosną: pasek Liquid TV się pokaże. Nie rosną, a głośność się zmienia: głośnością steruje telewizor (HDMI-CEC), nie Box.")
-            appendLine("- Klawisze nie rosną, a lista przycisków pokazuje je: usługa je widzi, ale nie jako głośność; podaj nazwę z listy.")
+            appendLine("Jak to czytać: naciśnij przycisk głośności na pilocie (albo zmień głośność na głośniku Bluetooth) i wybierz Odśwież.")
+            appendLine("- Przez HDMI głośnością rządzi telewizor (CEC), a Box widzi tylko przyciski: pasek pokazuje wtedy kierunek zmiany (▲ ▼), nie poziom.")
+            appendLine("- Przy głośniku Bluetooth pasek pokazuje prawdziwy poziom, bo rośnie licznik zmian głośności.")
+            appendLine("- Przycisk jest na liście przycisków, ale licznik „klawisze widziane przez usługę” nie rośnie: to inny przycisk niż głośność; podaj nazwę z listy.")
             appendLine("- Przycisku nie ma na liście: pilot nie wysyła go do Boxa (np. używa podczerwieni do telewizora).")
             appendLine("- Usługa nie działa: Ustawienia → Narzędzia → Skonfiguruj adb albo włącz ją w ustawieniach dostępności.")
-            appendLine("- „Przejęte, a bez zmiany” rośnie: przełącz tryb paska na „Pasek Liquid TV, systemowy zostaje”.")
         }
     }
 

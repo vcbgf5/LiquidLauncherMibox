@@ -48,13 +48,14 @@ darmowe, bez klucza). Miasto wybierasz w Ustawieniach → Widżety (lista polski
 Liquid Glass, Minimal) dla 14 popularnych aplikacji; pojawiają się tam też paczki Nova/ADW zainstalowane na Boxie. Ikony paczek
 wbudowanych rysuje `tools/make_tvos_tiles.py` z otwartych kształtów logo (Simple Icons, CC0); nazwy i logo należą do ich właścicieli.
 
-**Głośność.** Pasek głośności Liquid TV (usługa dostępności) pokazuje się przy **każdej zmianie głośności**, także gdy zmieni ją
-głośnik Bluetooth albo HDMI, bo opiera się na sygnale, który Android rozsyła przy zmianie (a nie na samych przyciskach: w telewizorze
-przyciski obsługuje system, zanim dotrą do aplikacji). Tryby: wyłączony; „oba paski” (systemowy zostaje); „tylko nasz” (domyślny:
-przyciski głośności są przejmowane i stosowane bez paska Androida, a każda inna zmiana zamyka systemowy pasek). Tryb przełączysz
-w Szybkich ustawieniach. Gdy głośność nie działa: Ustawienia → System → „Diagnostyka głośności” pokazuje, jakie przyciski dochodzą
-z pilota i czy zmiany głośności są wykrywane; „Okna systemowe i audio (adb)” pokazuje, które okno Androida jest paskiem głośności.
-Jeśli głośnością steruje telewizor przez HDMI-CEC, Box nie widzi zmiany (to sprawa telewizora).
+**Głośność.** Pasek głośności Liquid TV (usługa dostępności) działa nad każdą aplikacją. Przyciski głośności zawsze trafiają dalej do
+Androida (głośność nie może przestać działać przez launcher); pasek tylko to pokazuje. Po naciśnięciu sprawdza, co system zrobił
+z poziomem: jeśli głośność zmieniła się o część skali (pilot, głośnik Bluetooth, wyjście z własną regulacją), pokazuje prawdziwy
+poziom, a jeśli Box poziomu nie widzi (telewizor steruje głośnością przez HDMI-CEC), pokazuje kierunek ▲ ▼. Tryby: wyłączony;
+„systemowy zostaje”; „systemowy ukryty” (domyślny): pasek Androida jest zamykany kilkukrotnie zaraz po naciśnięciu, więc widać
+głównie nasz. Tryb przełączysz w Szybkich ustawieniach. Gdy głośność nie działa: Ustawienia → System → „Diagnostyka głośności”
+pokazuje, jakie przyciski dochodzą z pilota, czy zmiany głośności są wykrywane i dokąd idzie dźwięk; „Okna systemowe i audio (adb)”
+pokazuje, które okno Androida jest paskiem głośności. Skrypt `tools/tv_adb.py` ma tę samą diagnostykę z komputera.
 
 **Przycisk Menu.** Przycisk Menu (oraz Settings i Contents Menu) otwiera szybkie ustawienia. Jeśli pilot wysyła inny kod, albo system
 go nie przepuszcza: Ustawienia → System → „Przycisk szybkich ustawień”, naciśnij wybrany przycisk, a launcher go zapamięta.
@@ -155,7 +156,11 @@ tym samym kluczem i trzeba zaczynać od nowa (z odinstalowaniem).
 
 [`tools/tv_adb.py`](tools/tv_adb.py) łączy się z Boxem przez sieć (domyślnie port 5555) i ma menu najczęstszych czynności:
 instalacja i aktualizacja Liquid TV z GitHuba (większość tego umie już sam launcher: Ustawienia → Narzędzia), włączenie usługi dostępności (pasek głośności, okno zasilania),
-ustawienie domyślnego ekranu głównego, wpisanie linku w zaznaczone pole, zrzut ekranu, uśpienie i obudzenie Boxa.
+ustawienie domyślnego ekranu głównego, wpisanie linku w zaznaczone pole, zrzut ekranu (zapisuje w Obrazach lub na Pulpicie),
+uśpienie i obudzenie Boxa, **własna komenda** (dowolna komenda `adb shell`, a zaczynając od `adb ` zwykłe polecenie adb; albo
+jednorazowo `--shell "komenda"`) oraz **„Nadaj WSZYSTKIE uprawnienia”** (`--grant-all`): każde uprawnienie zadeklarowane w aplikacji
+(także te, których launcher nie używa; są wpisane w manifeście tylko po to, żeby dało się je nadać), operacje appops, praca w tle,
+dostęp do powiadomień i usługa dostępności, z podsumowaniem tego, czego Android nie pozwala nadać zwykłej aplikacji.
 Potrzebuje tylko Pythona 3; jeśli nie ma `adb`, zaproponuje pobranie go od Google.
 
 ```bash
