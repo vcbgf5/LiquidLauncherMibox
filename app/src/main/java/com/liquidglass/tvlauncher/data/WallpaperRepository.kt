@@ -37,8 +37,26 @@ object WallpaperRepository {
         parse(fresh ?: runCatching { cache.readText() }.getOrNull())
     }
 
+    const val USER_CATEGORY = "user"
+    private const val USER_PREFIX = "user/"
+
+    /** Where the photos sent from the phone live (never in the cache, so clearing caches does not lose them). */
+    fun userDir(context: Context): File = File(context.filesDir, "user_wallpapers")
+
+    /** [base] plus a "Moje zdjęcia" category made of the photos the user sent, when there are any. */
+    fun withUserPhotos(context: Context, base: WallpaperCatalog): WallpaperCatalog {
+        val files = userDir(context).listFiles()?.filter { it.isFile }?.sortedBy { it.name }
+            ?.map { WallpaperFile(USER_PREFIX + it.name, null) }.orEmpty()
+        if (files.isEmpty()) return base
+        return WallpaperCatalog(base.categories.filter { it.id != USER_CATEGORY } + WallpaperCategory(USER_CATEGORY, "Moje zdjęcia", files))
+    }
+
     /** Downloads (once) and decodes one wallpaper; null if it can't be had or read. */
     suspend fun load(context: Context, path: String): WallpaperImage? = withContext(Dispatchers.IO) {
+        if (path.startsWith(USER_PREFIX)) {
+            val own = File(userDir(context), path.removePrefix(USER_PREFIX))
+            return@withContext if (own.isFile) decode(own) else null
+        }
         val file = File(context.cacheDir, "wallpapers/" + path.replace('/', '_'))
         if (!file.exists()) {
             val url = BASE + path.split('/').joinToString("/") { Uri.encode(it) }

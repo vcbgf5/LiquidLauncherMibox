@@ -81,7 +81,7 @@ są pierwsze na liście wszystkich aplikacji; aplikacja w folderze znika z głó
 
 **Pilot z telefonu.** Ustawienia → Narzędzia → „Pilot z telefonu”: kod QR z adresem strony działającej w launcherze (ta sama sieć
 Wi-Fi). Na telefonie: pilot (strzałki, OK, wstecz, home), głośność, uśpienie/restart, pola na link kalendarza Google, miasto
-pogody i adres do otwarcia na TV. W adresie jest sekret; „Nowy link” unieważnia stary. Strona działa tylko przy otwartym oknie,
+pogody i adres do otwarcia na TV, a także **wysyłanie własnych zdjęć na tapetę** (kategoria „Moje zdjęcia”, do 60 zdjęć po 25 MB). W adresie jest sekret; „Nowy link” unieważnia stary. Strona działa tylko przy otwartym oknie,
 chyba że włączysz „działa cały czas”.
 
 **Teraz gra.** Widżet pokazuje utwór, wykonawcę, okładkę i postęp z aplikacji muzycznych i wideo (Spotify, YouTube Music itd.);

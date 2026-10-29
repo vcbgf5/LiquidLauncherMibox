@@ -40,7 +40,8 @@ import kotlin.math.abs
  *    itself and a Bluetooth speaker or an HDMI device changes the volume without any key at all.
  *    Over HDMI the TV owns the volume and the box cannot read it, so the bar then shows which way a
  *    key turned it. In [LauncherSettings.VOLUME_REPLACE] Android's own bar is closed again a moment
- *    after every volume key or change. The keys themselves are never swallowed.
+ *    after every volume key or change, and once the box's own level is proven real the keys are taken
+ *    here and applied without Android's bar at all (and given back to Android if that ever fails).
  *  - The remote button taught as "quick settings": works in any app.
  *  - Power: [showPowerDialog] asks Android for its "power off / restart" dialog, which no ordinary
  *    app is allowed to do.
@@ -60,6 +61,7 @@ class SystemService : AccessibilityService() {
      * real one (a TV output that only flips between 0 and full, or that the box cannot see, never does).
      */
     private var levelReal = false
+    private var consumeFailures = 0
 
     private val volumeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -93,6 +95,7 @@ class SystemService : AccessibilityService() {
         overlay = VolumeOverlay(this)
         lastLevel = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
         lastMuted = audio.isStreamMute(AudioManager.STREAM_MUSIC)
+        levelReal = settings.volumeLevelReal
         // These two broadcasts are what Android's own volume bar listens to; they are not in the public SDK.
         val filter = IntentFilter().apply {
             addAction("android.media.VOLUME_CHANGED_ACTION")
@@ -119,7 +122,7 @@ class SystemService : AccessibilityService() {
     private fun volumeChanged(source: String) {
         val level = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
         val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-        if (lastLevel >= 0 && abs(level - lastLevel) in 1 until max) levelReal = true
+        if (lastLevel >= 0 && abs(level - lastLevel) in 1 until max) markLevelReal()
         lastLevel = level
         lastMuted = audio.isStreamMute(AudioManager.STREAM_MUSIC)
         changesSeen++
@@ -159,16 +162,59 @@ class SystemService : AccessibilityService() {
         lastKey = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_") + if (event.action == KeyEvent.ACTION_UP) " (puszczony)" else ""
         lastKeyAt = System.currentTimeMillis()
 
-        // The keys always go on to Android untouched, so the volume can never stop working because of
-        // this service; the bar only reports, and Android's own bar is closed when that is wanted.
         val mode = settings.volumeMode
-        if (mode == LauncherSettings.VOLUME_OFF || event.action != KeyEvent.ACTION_DOWN) return false
+        if (mode == LauncherSettings.VOLUME_OFF) return false
+
+        // Once the level is proven real (the box's own volume really moves) the keys can be taken here and
+        // applied without Android's own bar, which on this kind of TV is drawn by the system for every key.
+        // Never when the volume is the TV's over HDMI-CEC (nothing proven), and never again after it failed.
+        val take = mode == LauncherSettings.VOLUME_REPLACE && levelReal && !audio.isVolumeFixed && !settings.volumeConsumeBroken
+        if (take) {
+            if (event.action != KeyEvent.ACTION_DOWN) return true // the press was taken, so is its release
+            val direction = when (code) {
+                KeyEvent.KEYCODE_VOLUME_UP -> AudioManager.ADJUST_RAISE
+                KeyEvent.KEYCODE_VOLUME_DOWN -> AudioManager.ADJUST_LOWER
+                else -> AudioManager.ADJUST_TOGGLE_MUTE
+            }
+            val before = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val mutedBefore = audio.isStreamMute(AudioManager.STREAM_MUSIC)
+            audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0) // flag 0 = no bar from Android
+            showCurrent()
+            handler.postDelayed({ checkTaken(direction, before, mutedBefore) }, 350)
+            return true
+        }
+
+        if (event.action != KeyEvent.ACTION_DOWN) return false
         val before = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
         val mutedBefore = audio.isStreamMute(AudioManager.STREAM_MUSIC)
         // Give the system a moment to apply the key, then look at what it did to the level.
         handler.postDelayed({ afterVolumeKey(code, before, mutedBefore) }, 260)
         if (mode == LauncherSettings.VOLUME_REPLACE) hideSystemBar()
         return false
+    }
+
+    private fun markLevelReal() {
+        if (!levelReal) {
+            levelReal = true
+            settings.volumeLevelReal = true
+        }
+    }
+
+    /** A key the service took should have moved the volume; if that fails three times in a row, stop taking keys. */
+    private fun checkTaken(direction: Int, before: Int, mutedBefore: Boolean) {
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val changed = audio.getStreamVolume(AudioManager.STREAM_MUSIC) != before || audio.isStreamMute(AudioManager.STREAM_MUSIC) != mutedBefore
+        val atLimit = (direction == AudioManager.ADJUST_RAISE && before >= max) || (direction == AudioManager.ADJUST_LOWER && before <= 0)
+        if (changed || atLimit) {
+            consumeFailures = 0
+            return
+        }
+        consumeFailures++
+        ignoredAdjusts++
+        if (consumeFailures >= 3) {
+            settings.volumeConsumeBroken = true
+            Log.w(TAG, "taking the volume keys changed nothing three times: leaving them to Android")
+        }
     }
 
     /**
@@ -180,7 +226,7 @@ class SystemService : AccessibilityService() {
         val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
         val after = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
         val muteChanged = audio.isStreamMute(AudioManager.STREAM_MUSIC) != mutedBefore
-        if (abs(after - before) in 1 until max) levelReal = true
+        if (abs(after - before) in 1 until max) markLevelReal()
         if (levelReal || VolumeRouting.levelIsReal(audio) || (muteChanged && code == KeyEvent.KEYCODE_VOLUME_MUTE)) {
             showCurrent()
         } else {
@@ -258,6 +304,11 @@ class SystemService : AccessibilityService() {
 
         @Volatile
         var lastChangeAt = 0L
+            private set
+
+        /** Taken key presses that changed nothing (not counting the ends of the range). */
+        @Volatile
+        var ignoredAdjusts = 0
             private set
 
         val connected: Boolean get() = instance != null

@@ -156,6 +156,12 @@ class MainActivity : ComponentActivity() {
     /** Bumped by "next wallpaper" in the settings. */
     private var skipSignal by mutableIntStateOf(0)
 
+    /** Bumped when photos were sent from the phone or removed, so the wallpaper categories are listed again. */
+    private var userPhotosTick by mutableIntStateOf(0)
+
+    /** A wallpaper category the phone page asks to switch to (consumed by the screen). */
+    private var forcedCategory by mutableStateOf<String?>(null)
+
     /** The quick settings (hold OK on the gear, or the Menu key). */
     private var showQuick by mutableStateOf(false)
 
@@ -180,7 +186,12 @@ class MainActivity : ComponentActivity() {
         folderStore = FolderStore(this)
         updates = UpdateManager(this, settings)
         Performance.refresh(this, settings)
-        remoteServer = RemoteServer(token = { settings.remoteToken }, handle = ::handleRemote)
+        remoteServer = RemoteServer(
+            token = { settings.remoteToken },
+            handle = ::handleRemote,
+            tempDir = cacheDir,
+            upload = ::receivePhoto,
+        )
         handleIntent(intent)
 
         setContent {
@@ -228,10 +239,20 @@ class MainActivity : ComponentActivity() {
                     ImageBitmap.imageResource(resources, R.drawable.bg_hero_blur),
                 ))
             }
-            var catalog by remember { mutableStateOf(WallpaperCatalog.EMPTY) }
+            var baseCatalog by remember { mutableStateOf(WallpaperCatalog.EMPTY) }
+            // The repository's catalog plus the photos sent from the phone.
+            val catalog = remember(baseCatalog, userPhotosTick) { WallpaperRepository.withUserPhotos(this@MainActivity, baseCatalog) }
             var wallpaperCategory by remember { mutableStateOf(settings.wallpaperCategory) }
             var wallpaperInterval by remember { mutableIntStateOf(settings.wallpaperIntervalMinutes) }
             var photoCredit by remember { mutableStateOf<String?>(null) }
+            LaunchedEffect(forcedCategory) {
+                forcedCategory?.let {
+                    wallpaperCategory = it
+                    settings.wallpaperCategory = it
+                    skipSignal++
+                    forcedCategory = null
+                }
+            }
             var widgetKeys by remember { mutableStateOf(settings.enabledWidgets) }
             var widgetData by remember { mutableStateOf(WidgetData.EMPTY) }
             var agenda by remember { mutableStateOf(Agenda.EMPTY) }
@@ -334,7 +355,7 @@ class MainActivity : ComponentActivity() {
             }
 
             LaunchedEffect(resumeSignal) {
-                if (catalog.isEmpty) catalog = WallpaperRepository.catalog(this@MainActivity)
+                if (baseCatalog.isEmpty) baseCatalog = WallpaperRepository.catalog(this@MainActivity)
             }
 
             // The widgets page: numbers about the network, Bluetooth and the box, refreshed every few
@@ -1490,9 +1511,30 @@ class MainActivity : ComponentActivity() {
         KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_SETTINGS, KeyEvent.KEYCODE_TV_CONTENTS_MENU, KeyEvent.KEYCODE_TV_MEDIA_CONTEXT_MENU,
     )
 
+    private val MAX_USER_PHOTOS = 60
+
     private val keyCodes = mapOf(
         "UP" to 19, "DOWN" to 20, "LEFT" to 21, "RIGHT" to 22, "OK" to 23, "BACK" to 4, "HOME" to 3, "PLAYPAUSE" to 85,
     )
+
+    /** A photo sent from the phone: checked, copied to the launcher's own folder and shown. Runs on a server thread. */
+    private fun receivePhoto(name: String, file: java.io.File): String {
+        val extension = name.substringAfterLast('.', "").lowercase()
+        if (extension !in listOf("jpg", "jpeg", "png", "webp")) return "To nie wygląda na zdjęcie (jpg, png albo webp)."
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(file.path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return "Nie udało się odczytać tego zdjęcia."
+        val folder = WallpaperRepository.userDir(this).apply { mkdirs() }
+        if ((folder.listFiles()?.size ?: 0) >= MAX_USER_PHOTOS) return "Za dużo zdjęć (limit $MAX_USER_PHOTOS): najpierw usuń stare."
+        val safe = name.substringBeforeLast('.').filter { it.isLetterOrDigit() || it in "-_" }.take(40).ifEmpty { "zdjecie" }
+        val target = java.io.File(folder, "${System.currentTimeMillis()}-$safe.$extension")
+        file.copyTo(target, overwrite = true)
+        runOnUiThread {
+            userPhotosTick++
+            forcedCategory = WallpaperRepository.USER_CATEGORY
+        }
+        return "Zdjęcie dodane i ustawione jako tapeta"
+    }
 
     /** Runs one button of the phone's web page; called on a server thread, returns the line the page shows. */
     private fun handleRemote(action: String, value: String): String {
@@ -1550,6 +1592,14 @@ class MainActivity : ComponentActivity() {
             "wallpaper" -> {
                 runOnUiThread { skipSignal++ }
                 "Następna tapeta"
+            }
+            "clear_photos" -> {
+                WallpaperRepository.userDir(this).listFiles()?.forEach { it.delete() }
+                runOnUiThread {
+                    userPhotosTick++
+                    if (settings.wallpaperCategory == WallpaperRepository.USER_CATEGORY) forcedCategory = WallpaperCatalog.ALL
+                }
+                "Usunięto własne zdjęcia"
             }
             "screensaver" -> {
                 runOnUiThread { screensaverShowing = true }
@@ -1629,6 +1679,7 @@ class MainActivity : ComponentActivity() {
             appendLine("Klawisze widziane przez sam launcher:       $volumeKeysSeen (ostatni: ${lastVolumeKey.ifEmpty { "—" }} o ${at(lastVolumeKeyAt)})")
             appendLine("Zmiany głośności wykryte (sygnał/ustawienia): ${SystemService.changesSeen} (ostatnia: ${SystemService.lastChange.ifEmpty { "—" }} o ${at(SystemService.lastChangeAt)})")
             appendLine("Dokąd idzie dźwięk: ${com.liquidglass.tvlauncher.data.VolumeRouting.describe(audio)}")
+            appendLine("Poziom głośności Boxa uznany za prawdziwy: ${yes(settings.volumeLevelReal)}; przejmowanie przycisków zepsute: ${yes(settings.volumeConsumeBroken)} (nieudane: ${SystemService.ignoredAdjusts})")
             appendLine()
             appendLine("Ostatnie przyciski (nowe na górze), z nazwą urządzenia:")
             appendLine(KeyLog.dump())

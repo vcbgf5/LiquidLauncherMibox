@@ -36,7 +36,22 @@ class LauncherSettings(context: Context) {
     var volumeMode: Int
         get() = prefs.getInt(KEY_VOLUME_MODE, VOLUME_REPLACE).coerceIn(VOLUME_OFF, VOLUME_REPLACE)
         set(value) {
-            prefs.edit().putInt(KEY_VOLUME_MODE, value).apply()
+            // Choosing a mode again gives the key handling another chance.
+            prefs.edit().putInt(KEY_VOLUME_MODE, value).putBoolean(KEY_VOLUME_CONSUME_BROKEN, false).apply()
+        }
+
+    /** The box was seen changing the music volume by part of its range: its level is real (not a TV's over HDMI-CEC). */
+    var volumeLevelReal: Boolean
+        get() = prefs.getBoolean(KEY_VOLUME_LEVEL_REAL, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_VOLUME_LEVEL_REAL, value).apply()
+        }
+
+    /** Taking the volume keys over did nothing a few times in a row: they are left to Android from now on. */
+    var volumeConsumeBroken: Boolean
+        get() = prefs.getBoolean(KEY_VOLUME_CONSUME_BROKEN, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_VOLUME_CONSUME_BROKEN, value).apply()
         }
 
     /** The remote button taught to open the quick settings (a key code), 0 = none taught. */
@@ -322,6 +337,8 @@ class LauncherSettings(context: Context) {
         const val VOLUME_BESIDE = 1
         const val VOLUME_REPLACE = 2
         private const val KEY_VOLUME_MODE = "volume_mode"
+        private const val KEY_VOLUME_LEVEL_REAL = "volume_level_real"
+        private const val KEY_VOLUME_CONSUME_BROKEN = "volume_consume_broken"
         private const val KEY_QUICK_KEY = "quick_key"
         private const val KEY_TILE_LIGHTING = "tile_lighting"
         private const val KEY_SCREENSAVER = "screensaver_minutes"

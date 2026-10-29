@@ -1,6 +1,7 @@
 package com.liquidglass.tvlauncher.data
 
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.InputStream
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -21,6 +22,9 @@ import java.util.concurrent.Executors
 class RemoteServer(
     private val token: () -> String,
     private val handle: (action: String, value: String) -> String,
+    private val tempDir: File,
+    /** A file sent from the phone (name as the phone gave it, the file in a temporary place: copy it, it is deleted afterwards). */
+    private val upload: (name: String, file: File) -> String,
 ) {
     private var server: ServerSocket? = null
     private val pool = Executors.newFixedThreadPool(3)
@@ -89,15 +93,30 @@ class RemoteServer(
                 val target = request[1]
                 val path = target.substringBefore('?')
                 val query = parseForm(target.substringAfter('?', ""))
-                val length = lines.firstOrNull { it.startsWith("Content-Length:", ignoreCase = true) }
-                    ?.substringAfter(':')?.trim()?.toIntOrNull()?.coerceIn(0, MAX_BODY) ?: 0
-                val body = if (length > 0) String(readBytes(input, length), Charsets.UTF_8) else ""
+                val declared = lines.firstOrNull { it.startsWith("Content-Length:", ignoreCase = true) }
+                    ?.substringAfter(':')?.trim()?.toLongOrNull() ?: 0L
 
                 val output = client.getOutputStream()
                 if (!sameToken(query["t"].orEmpty())) {
                     respond(output, 403, "text/plain; charset=utf-8", "Zły albo stary link. Zeskanuj kod QR z ekranu telewizora jeszcze raz.")
                     return
                 }
+                if (method == "POST" && path == "/upload") {
+                    if (declared <= 0L || declared > MAX_UPLOAD) {
+                        respond(output, 413, "text/plain; charset=utf-8", "Plik jest za duży (limit ${MAX_UPLOAD / 1_000_000} MB) albo pusty.")
+                        return
+                    }
+                    val temp = File.createTempFile("upload", ".bin", tempDir)
+                    try {
+                        copyExactly(input, temp, declared)
+                        respond(output, 200, "text/plain; charset=utf-8", upload(query["name"].orEmpty(), temp))
+                    } finally {
+                        temp.delete()
+                    }
+                    return
+                }
+                val length = declared.coerceIn(0L, MAX_BODY.toLong()).toInt()
+                val body = if (length > 0) String(readBytes(input, length), Charsets.UTF_8) else ""
                 when {
                     method == "GET" && path == "/" -> respond(output, 200, "text/html; charset=utf-8", PAGE.replace("__TOKEN__", query["t"].orEmpty()))
                     method == "POST" && path == "/do" -> {
@@ -144,6 +163,20 @@ class RemoteServer(
         return buffer.copyOf(read)
     }
 
+    /** Writes exactly [length] bytes from [input] to [target] (a shorter body is an error: the phone dropped the connection). */
+    private fun copyExactly(input: InputStream, target: File, length: Long) {
+        target.outputStream().use { out ->
+            val buffer = ByteArray(64 * 1024)
+            var left = length
+            while (left > 0) {
+                val n = input.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
+                if (n < 0) throw java.io.IOException("połączenie przerwane")
+                out.write(buffer, 0, n)
+                left -= n
+            }
+        }
+    }
+
     private fun parseForm(text: String): Map<String, String> =
         text.split('&').filter { it.contains('=') }.associate {
             URLDecoder.decode(it.substringBefore('='), "UTF-8") to URLDecoder.decode(it.substringAfter('='), "UTF-8")
@@ -151,7 +184,12 @@ class RemoteServer(
 
     private fun respond(output: java.io.OutputStream, status: Int, type: String, text: String) {
         val bytes = text.toByteArray(Charsets.UTF_8)
-        val reason = if (status == 200) "OK" else if (status == 403) "Forbidden" else "Not Found"
+        val reason = when (status) {
+            200 -> "OK"
+            403 -> "Forbidden"
+            413 -> "Payload Too Large"
+            else -> "Not Found"
+        }
         output.write(
             ("HTTP/1.1 $status $reason\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\n" +
                 "Cache-Control: no-store\r\nConnection: close\r\n\r\n").toByteArray(),
@@ -164,6 +202,7 @@ class RemoteServer(
         const val FIRST_PORT = 8765
         private const val MAX_HEAD = 8 * 1024
         private const val MAX_BODY = 8 * 1024
+        private const val MAX_UPLOAD = 25_000_000L
 
         /** The control page; "__TOKEN__" is replaced with the secret of the request. */
         private val PAGE = """<!doctype html>
@@ -215,6 +254,12 @@ input{width:100%;box-sizing:border-box;font:inherit;color:#fff;background:#0b0c1
 <input id="city" placeholder="Miasto, np. Gdańsk">
 <button onclick="s('city',city.value)" style="width:100%">Ustaw miasto</button>
 </div>
+<h2>Własne tapety</h2>
+<div class="card">
+<input id="photos" type="file" accept="image/*" multiple>
+<button onclick="up()" style="width:100%">Wyślij zdjęcia na TV</button>
+<button onclick="if(confirm('Usunąć wszystkie wysłane zdjęcia?'))s('clear_photos')" style="width:100%;margin-top:8px">Usuń moje zdjęcia</button>
+</div>
 <h2>Launcher</h2>
 <div class="card"><div class="grid2">
 <button onclick="s('wallpaper')">Następna tapeta</button><button onclick="s('screensaver')">Wygaszacz teraz</button>
@@ -226,6 +271,10 @@ var T='__TOKEN__';
 function toast(t){var m=document.getElementById('msg');m.textContent=t;m.style.display='block';clearTimeout(window._t);window._t=setTimeout(function(){m.style.display='none'},2600)}
 function s(a,v){fetch('/do?t='+encodeURIComponent(T),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'a='+encodeURIComponent(a)+'&v='+encodeURIComponent(v||'')}).then(function(r){return r.text()}).then(toast).catch(function(){toast('Brak połączenia z Boxem')})}
 function k(n){s('key',n)}
+async function up(){var f=document.getElementById('photos').files;if(!f.length){toast('Najpierw wybierz zdjęcia');return}
+for(var i=0;i<f.length;i++){toast('Wysyłam '+(i+1)+' z '+f.length+'…');
+try{var r=await fetch('/upload?t='+encodeURIComponent(T)+'&name='+encodeURIComponent(f[i].name),{method:'POST',body:f[i]});var t=await r.text();if(!r.ok){toast(t);return}}catch(e){toast('Brak połączenia z Boxem');return}}
+toast('Wysłano zdjęć: '+f.length+'. Są w kategorii „Moje zdjęcia”.')}
 </script></body></html>"""
     }
 }
