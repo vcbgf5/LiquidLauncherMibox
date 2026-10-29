@@ -20,6 +20,13 @@ class LauncherSettings(context: Context) {
             prefs.edit().putInt(KEY_DOCK_SIZE, value.coerceIn(MIN_DOCK_SIZE, MAX_DOCK_SIZE)).apply()
         }
 
+    /** The Apple-style light on the app tiles: brighter near the top, darker toward the bottom. */
+    var tileLighting: Boolean
+        get() = prefs.getBoolean(KEY_TILE_LIGHTING, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_TILE_LIGHTING, value).apply()
+        }
+
     /** A big clock in the middle of the home screen instead of the small one in the corner. */
     var bigClock: Boolean
         get() = prefs.getBoolean(KEY_BIG_CLOCK, false)
@@ -92,6 +99,7 @@ class LauncherSettings(context: Context) {
         const val DEFAULT_SCREENSAVER_MINUTES = 3
         private const val KEY_DOCK_SIZE = "dock_size"
         private const val KEY_BIG_CLOCK = "big_clock"
+        private const val KEY_TILE_LIGHTING = "tile_lighting"
         private const val KEY_SCREENSAVER = "screensaver_minutes"
         const val DEFAULT_DOCK_TRANSPARENCY = 60
         private const val KEY_DOCK_TRANSPARENCY = "dock_transparency"

@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +57,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+/** Whether tiles get the tvOS-style light (set from the launcher's settings). */
+val LocalTileLighting = compositionLocalOf { true }
 
 private val TileShape = RoundedCornerShape(12.dp)
 private val GlowColor = Color(0xFF9DBBFF)
@@ -183,6 +187,22 @@ fun AppTile(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+            // The tvOS look: light falls from above, so the top of a tile is a little brighter
+            // and the bottom a little darker, whatever artwork the app brought.
+            if (LocalTileLighting.current) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0f to Color.White.copy(alpha = 0.17f),
+                                0.40f to Color.Transparent,
+                                0.58f to Color.Transparent,
+                                1f to Color.Black.copy(alpha = 0.36f),
+                            ),
+                        ),
+                )
+            }
             // Soft sheen across the top edge, only while focused.
             Box(
                 modifier = Modifier

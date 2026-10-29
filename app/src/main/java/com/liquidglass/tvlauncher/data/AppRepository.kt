@@ -22,6 +22,7 @@ object AppRepository {
         val self = context.packageName
         val seen = HashSet<String>()
         val result = ArrayList<AppInfo>()
+        val overrides = IconOverrides(context)
 
         for (category in listOf(Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER)) {
             val group = ArrayList<AppInfo>()
@@ -29,13 +30,20 @@ object AppRepository {
                 val pkg = info.activityInfo.packageName
                 if (pkg == self) continue
                 if (!seen.add(pkg + "/" + info.activityInfo.name)) continue
-                runCatching { toAppInfo(pm, info) }.getOrNull()?.let(group::add)
+                runCatching { toAppInfo(pm, info) }.getOrNull()?.let { group.add(withChosenIcon(context, overrides, it)) }
             }
             result += group.sortedBy { it.label.lowercase() }
         }
 
         // Stable sort: apps outside the priority list keep the order built above.
         result.sortedBy { PriorityApps.rank(it.packageName) }
+    }
+
+    /** The icon the user picked for this app from an icon pack, if any (and if the pack is still there). */
+    private fun withChosenIcon(context: Context, overrides: IconOverrides, app: AppInfo): AppInfo {
+        val choice = overrides.get(app.key) ?: return app
+        val drawable = IconPacks.drawable(context, choice.packageName, choice.drawable) ?: return app
+        return runCatching { app.copy(tile = TileArt.fromIcon(drawable).asImageBitmap()) }.getOrDefault(app)
     }
 
     private fun toAppInfo(pm: PackageManager, info: ResolveInfo): AppInfo {

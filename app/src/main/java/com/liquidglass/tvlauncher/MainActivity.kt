@@ -16,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -29,13 +30,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.ImageBitmap
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.liquidglass.tvlauncher.data.AccountProvider
 import com.liquidglass.tvlauncher.data.AppInfo
 import com.liquidglass.tvlauncher.data.AppRepository
 import com.liquidglass.tvlauncher.data.FavoritesStore
+import com.liquidglass.tvlauncher.data.IconOverrides
+import com.liquidglass.tvlauncher.data.IconPack
+import com.liquidglass.tvlauncher.data.IconPacks
 import com.liquidglass.tvlauncher.data.LauncherSettings
 import com.liquidglass.tvlauncher.data.PriorityApps
 import com.liquidglass.tvlauncher.data.UpdateInfo
@@ -47,6 +53,8 @@ import com.liquidglass.tvlauncher.data.WallpaperImage
 import com.liquidglass.tvlauncher.data.WallpaperRepository
 import com.liquidglass.tvlauncher.ui.AppMenu
 import com.liquidglass.tvlauncher.ui.HomeScreen
+import com.liquidglass.tvlauncher.ui.IconPicker
+import com.liquidglass.tvlauncher.ui.LocalTileLighting
 import com.liquidglass.tvlauncher.ui.PAGE_HOME
 import com.liquidglass.tvlauncher.ui.LaunchOverlay
 import com.liquidglass.tvlauncher.ui.LaunchRequest
@@ -104,6 +112,10 @@ class MainActivity : ComponentActivity() {
             var dockSize by remember { mutableIntStateOf(settings.dockSize) }
             var screensaverMinutes by remember { mutableIntStateOf(settings.screensaverMinutes) }
             var bigClock by remember { mutableStateOf(settings.bigClock) }
+            var tileLighting by remember { mutableStateOf(settings.tileLighting) }
+            var iconPickerApp by remember { mutableStateOf<AppInfo?>(null) }
+            var iconsVersion by remember { mutableIntStateOf(0) }
+            var iconPacks by remember { mutableStateOf<List<IconPack>>(emptyList()) }
             var accountName by remember { mutableStateOf(AccountProvider.googleAccountName(this@MainActivity)) }
 
             val wallpaper = remember {
@@ -186,8 +198,8 @@ class MainActivity : ComponentActivity() {
             // Screensaver: starts after the chosen time without any key press, while the launcher
             // is on screen and nothing (a dialog, an app opening) is going on. Every key press
             // (see dispatchKeyEvent) restarts the wait.
-            LaunchedEffect(inForeground, screensaverMinutes, showSettings, menuApp, launchRequest) {
-                if (!inForeground || screensaverMinutes <= 0 || showSettings || menuApp != null || launchRequest != null) {
+            LaunchedEffect(inForeground, screensaverMinutes, showSettings, menuApp, iconPickerApp, launchRequest) {
+                if (!inForeground || screensaverMinutes <= 0 || showSettings || menuApp != null || iconPickerApp != null || launchRequest != null) {
                     return@LaunchedEffect
                 }
                 snapshotFlow { lastInputAt }.collectLatest {
@@ -197,6 +209,10 @@ class MainActivity : ComponentActivity() {
             }
 
             LaunchedEffect(resumeSignal) {
+                iconPacks = withContext(Dispatchers.Default) { IconPacks.installed(this@MainActivity) }
+            }
+
+            LaunchedEffect(resumeSignal, iconsVersion) {
                 apps = AppRepository.load(this@MainActivity)
                 if (accountName == null) accountName = AccountProvider.googleAccountName(this@MainActivity)
             }
@@ -275,6 +291,7 @@ class MainActivity : ComponentActivity() {
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
+                CompositionLocalProvider(LocalTileLighting provides tileLighting) {
                 HomeScreen(
                     favorites = favorites,
                     allApps = apps,
@@ -282,7 +299,7 @@ class MainActivity : ComponentActivity() {
                     page = page,
                     onPage = { page = it },
                     resetSignal = resetSignal,
-                    focusPaused = showSettings || menuApp != null || launchRequest != null,
+                    focusPaused = showSettings || menuApp != null || iconPickerApp != null || launchRequest != null,
                     accountName = accountName,
                     updateAvailable = updateInfo != null,
                     wallpaper = wallpaper,
@@ -311,6 +328,7 @@ class MainActivity : ComponentActivity() {
                     },
                     modifier = Modifier.fillMaxSize(),
                 )
+                }
 
                 // Draws over everything: the tile growing to fill the screen as the app opens.
                 LaunchOverlay(
@@ -363,6 +381,11 @@ class MainActivity : ComponentActivity() {
                     onBigClockChange = {
                         bigClock = it
                         settings.bigClock = it
+                    },
+                    tileLighting = tileLighting,
+                    onTileLightingChange = {
+                        tileLighting = it
+                        settings.tileLighting = it
                     },
                     dockSizePercent = dockSize,
                     onDockSizeChange = {
@@ -429,10 +452,37 @@ class MainActivity : ComponentActivity() {
                             saveKeys(shown + app.key)
                         })
                     }
+                    add(MenuOption(stringResource(R.string.menu_change_icon)) { iconPickerApp = app })
+                    if (IconOverrides(this@MainActivity).get(app.key) != null) {
+                        add(MenuOption(stringResource(R.string.menu_reset_icon)) {
+                            IconOverrides(this@MainActivity).clear(app.key)
+                            iconsVersion++
+                        })
+                    }
                     add(MenuOption(stringResource(R.string.menu_app_info)) { openAppInfo(app) })
                     add(MenuOption(stringResource(R.string.menu_uninstall)) { uninstall(app) })
                 }
                 AppMenu(title = app.label, options = options, onDismiss = { menuApp = null })
+            }
+
+            iconPickerApp?.let { app ->
+                IconPicker(
+                    app = app,
+                    packs = iconPacks,
+                    loadContents = { IconPacks.contents(this@MainActivity, it) },
+                    loadIcon = { pack, name -> IconPacks.bitmap(this@MainActivity, pack, name, 160) },
+                    onPick = { pack, name ->
+                        IconOverrides(this@MainActivity).set(app.key, pack.packageName, name)
+                        iconsVersion++
+                        iconPickerApp = null
+                    },
+                    onReset = {
+                        IconOverrides(this@MainActivity).clear(app.key)
+                        iconsVersion++
+                        iconPickerApp = null
+                    },
+                    onDismiss = { iconPickerApp = null },
+                )
             }
         }
     }

@@ -101,6 +101,8 @@ fun SettingsDialog(
     onDockSizeChange: (Int) -> Unit,
     bigClock: Boolean,
     onBigClockChange: (Boolean) -> Unit,
+    tileLighting: Boolean,
+    onTileLightingChange: (Boolean) -> Unit,
     categoryOptions: List<Pair<String, String>>,
     categoryId: String,
     onCategoryChange: (String) -> Unit,
@@ -185,6 +187,8 @@ fun SettingsDialog(
                     )
                     Divider()
                     ToggleRow(stringResource(R.string.settings_big_clock), bigClock, onBigClockChange)
+                    Divider()
+                    ToggleRow(stringResource(R.string.settings_tile_lighting), tileLighting, onTileLightingChange)
                 }
 
                 Section(stringResource(R.string.group_wallpapers), Purple, { PhotoIcon(it) }) {
