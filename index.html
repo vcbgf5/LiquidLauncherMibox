@@ -601,9 +601,10 @@ python tv_adb.py 192.168.0.170 --screenshot</pre></div>
       box.appendChild(row);
     });
   }
-  function json(u){return fetch(u).then(function(r){return r.ok?r.json():Promise.reject()})}
+  function json(u,opts){return fetch(u,opts).then(function(r){return r.ok?r.json():Promise.reject()})}
   // releases.json is a copy made when the site is published (no rate limit); the live API is the fallback.
-  json("releases.json").catch(function(){return json("https://api.github.com/repos/"+repo+"/releases?per_page=8")}).then(show).catch(function(){
+  // "no-store" so a new release shows up right away instead of sitting behind the browser's cache.
+  json("releases.json",{cache:"no-store"}).catch(function(){return json("https://api.github.com/repos/"+repo+"/releases?per_page=8")}).then(show).catch(function(){
     document.getElementById("ver").textContent="Najnowsza wersja: przycisk powyżej zawsze pobiera aktualną.";
     document.getElementById("rel").innerHTML='<p style="color:var(--mut);margin:6px 0 0">Nie udało się wczytać listy. <a href="https://github.com/'+repo+'/releases">Zobacz wydania na GitHubie.</a></p>';
   });
