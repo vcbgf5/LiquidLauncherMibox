@@ -16,3 +16,6 @@ preview/__pycache__/
 
 __pycache__/
 *.pyc
+
+# Claude Code's own local tooling (agent worktrees etc.), never project content
+/.claude/
