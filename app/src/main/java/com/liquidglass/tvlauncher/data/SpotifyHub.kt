@@ -109,6 +109,8 @@ object SpotifyHub {
         if (read != null || problem.isEmpty()) {
             playback = read
             playbackAt = SystemClock.elapsedRealtime()
+            // Every caller of this already polls at its own pace, so Last.fm scrobbling just rides along.
+            LastFmHub.observe(read)
         }
     }
 

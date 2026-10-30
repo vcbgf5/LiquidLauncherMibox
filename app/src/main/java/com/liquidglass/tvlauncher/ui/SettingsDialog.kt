@@ -117,6 +117,11 @@ class SettingsExtras(
     val onClearQuickKey: () -> Unit,
     val topBarMinimal: Boolean,
     val onTopBarMinimal: (Boolean) -> Unit,
+    val lastfmConnected: Boolean,
+    val lastfmUser: String,
+    val lastfmScrobbling: Boolean,
+    val onLastfmScrobblingChange: (Boolean) -> Unit,
+    val onLastfmDisconnect: () -> Unit,
 )
 
 private val GroupColor = Color.White.copy(alpha = 0.07f)
@@ -427,6 +432,20 @@ fun SettingsDialog(
                     Note(stringResource(if (extras.notificationAccessOn) R.string.np_access_on else R.string.np_access_off), top = 10.dp)
                     if (!extras.notificationAccessOn) {
                         ActionRow(label = stringResource(R.string.np_grant_access), arrow = false, onClick = extras.onNotificationAccess)
+                    }
+                    Divider()
+                    Note(
+                        if (extras.lastfmConnected) {
+                            stringResource(R.string.widgets_lastfm_linked, extras.lastfmUser)
+                        } else {
+                            stringResource(R.string.widgets_lastfm_unlinked)
+                        },
+                        top = 10.dp,
+                    )
+                    if (extras.lastfmConnected) {
+                        ToggleRow(stringResource(R.string.settings_lastfm_scrobbling), extras.lastfmScrobbling, extras.onLastfmScrobblingChange)
+                        Divider()
+                        ActionRow(label = stringResource(R.string.widgets_disconnect_lastfm), arrow = false, onClick = extras.onLastfmDisconnect)
                     }
                 }
                 SettingsCategory.WALLPAPERS -> Group {

@@ -87,9 +87,13 @@ jobs:
 
       # The normal APK is built as it is; the lite one goes through R8 ("shrunk"), which makes it far smaller.
       # SPOTIFY_CLIENT_ID is the public id of the Spotify app (a repository secret), baked into the phone app.
+      # LASTFM_API_KEY/LASTFM_API_SECRET are Last.fm's app credentials (two repository secrets), needed by
+      # both apps since Last.fm's signed calls (even the mobile sign-in) need the secret, unlike Spotify's PKCE.
       - name: Build release APKs
         env:
           SPOTIFY_CLIENT_ID: ${{ secrets.CLIENT_ID_SPOTIFY }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
         run: ./gradlew --no-daemon :app:assembleFullRelease :app:assembleLiteShrunk :pilot:assembleRelease
 
       # Fixed file names, so .../releases/latest/download/LiquidTV.apk (and version.json) always work.

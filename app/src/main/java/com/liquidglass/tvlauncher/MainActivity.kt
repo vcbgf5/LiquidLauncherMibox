@@ -58,6 +58,7 @@ import com.liquidglass.tvlauncher.data.AppFolder
 import com.liquidglass.tvlauncher.data.AppInfo
 import com.liquidglass.tvlauncher.data.AppRepository
 import com.liquidglass.tvlauncher.data.SpotifyHub
+import com.liquidglass.tvlauncher.data.LastFmHub
 import com.liquidglass.tvlauncher.data.Edition
 import com.liquidglass.tvlauncher.data.Changelog
 import com.liquidglass.tvlauncher.data.FavoritesStore
@@ -208,6 +209,7 @@ class MainActivity : ComponentActivity() {
         store = FavoritesStore(this)
         settings = LauncherSettings(this)
         SpotifyHub.start(settings)
+        LastFmHub.start(settings)
         folderStore = FolderStore(this)
         updates = UpdateManager(this, settings)
         Performance.refresh(this, settings)
@@ -248,6 +250,7 @@ class MainActivity : ComponentActivity() {
             var clockPosition by remember { mutableIntStateOf(settings.clockPosition) }
             var statusIcons by remember { mutableStateOf(settings.statusIcons) }
             var topBarMinimal by remember { mutableStateOf(settings.topBarMinimal) }
+            var lastfmScrobbling by remember { mutableStateOf(settings.lastfmScrobbling) }
             var systemStatus by remember { mutableStateOf(SystemStatus.UNKNOWN) }
             var volumeMode by remember { mutableIntStateOf(settings.volumeMode) }
             var showVolumeDiag by remember { mutableStateOf(false) }
@@ -986,6 +989,14 @@ class MainActivity : ComponentActivity() {
                             grantNotificationAccess()
                             notificationAccessOn = SystemTools.notificationAccessOn(this@MainActivity)
                         },
+                        lastfmConnected = LastFmHub.connected,
+                        lastfmUser = LastFmHub.user,
+                        lastfmScrobbling = lastfmScrobbling,
+                        onLastfmScrobblingChange = {
+                            lastfmScrobbling = it
+                            settings.lastfmScrobbling = it
+                        },
+                        onLastfmDisconnect = { LastFmHub.logout() },
                     ),
                     onDismiss = { showSettings = false },
                 )
@@ -1768,6 +1779,13 @@ class MainActivity : ComponentActivity() {
             "spotify_logout" -> {
                 SpotifyHub.logout()
                 "Spotify odłączony od launchera"
+            }
+            "lastfm_login" -> {
+                if (LastFmHub.login(value)) {
+                    "Last.fm połączony z launcherem"
+                } else {
+                    "Nie udało się odczytać logowania do Last.fm"
+                }
             }
             "ping" -> "Liquid TV ${Updater.currentVersionName(this)}: połączono"
             "mirror_stop" -> {

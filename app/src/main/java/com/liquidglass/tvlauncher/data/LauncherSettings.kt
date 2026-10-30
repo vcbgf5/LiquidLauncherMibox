@@ -297,6 +297,31 @@ class LauncherSettings(context: Context) {
         prefs.edit().remove(KEY_SPOTIFY_ACCESS).remove(KEY_SPOTIFY_REFRESH).remove(KEY_SPOTIFY_EXPIRES).apply()
     }
 
+    /** The Last.fm session key the phone app handed over (Last.fm's "mobile session" auth; the key never expires). */
+    var lastfmSession: String?
+        get() = prefs.getString(KEY_LASTFM_SESSION, null)
+        set(value) {
+            prefs.edit().putString(KEY_LASTFM_SESSION, value).apply()
+        }
+
+    /** The Last.fm username, shown as "Połączono jako …" in Settings. */
+    var lastfmUser: String
+        get() = prefs.getString(KEY_LASTFM_USER, "").orEmpty()
+        set(value) {
+            prefs.edit().putString(KEY_LASTFM_USER, value).apply()
+        }
+
+    /** Whether what Spotify plays is scrobbled to Last.fm (only matters once a session is connected). */
+    var lastfmScrobbling: Boolean
+        get() = prefs.getBoolean(KEY_LASTFM_SCROBBLING, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_LASTFM_SCROBBLING, value).apply()
+        }
+
+    fun clearLastFm() {
+        prefs.edit().remove(KEY_LASTFM_SESSION).remove(KEY_LASTFM_USER).apply()
+    }
+
     /** Look of the windows and menus: 0 flat dark glass, 1 Liquid Glass (see GlassStyle). */
     var glassStyle: Int
         get() = prefs.getInt(KEY_GLASS_STYLE, if (Edition.lite) 0 else 1)
@@ -354,6 +379,9 @@ class LauncherSettings(context: Context) {
         private const val KEY_SPOTIFY_ACCESS = "spotify_access"
         private const val KEY_SPOTIFY_REFRESH = "spotify_refresh"
         private const val KEY_SPOTIFY_EXPIRES = "spotify_expires"
+        private const val KEY_LASTFM_SESSION = "lastfm_session"
+        private const val KEY_LASTFM_USER = "lastfm_user"
+        private const val KEY_LASTFM_SCROBBLING = "lastfm_scrobbling"
         private const val KEY_PARALLAX = "parallax"
         private const val KEY_TILE_TILT = "tile_tilt"
         private const val KEY_REMOTE_ALWAYS = "remote_always"

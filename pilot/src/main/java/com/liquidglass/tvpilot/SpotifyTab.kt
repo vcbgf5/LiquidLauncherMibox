@@ -447,6 +447,9 @@ fun SpotifyTab(
             }
         }
 
+        // ---- Last.fm scrobbling ----
+        LastFmCard(sendToBox, onStatus)
+
         // ---- playlists ----
         if (playlists.isNotEmpty()) {
             Text("Twoje playlisty", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(top = 4.dp))
