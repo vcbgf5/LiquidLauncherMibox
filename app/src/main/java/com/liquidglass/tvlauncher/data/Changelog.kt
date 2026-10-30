@@ -6,6 +6,7 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
+        "Kursor na TV żyroskopem telefonu: w aplikacji Pilot (zakładka Pilot → Otwórz touchpad) przechyl telefon, żeby ruszać kropką po ekranie, dotknij ekranu, żeby kliknąć. Wymaga skonfigurowanego adb.",
         "Animacja wyłączania: ekran zamyka się jak w starych telewizorach (pasek na środku, potem kropka) przed wysłaniem komendy wyłączenia.",
         "Animowana tapeta: wyślij krótki klip z aplikacji Pilot (zakładka Zdjęcia) — zapętla się bez dźwięku w tle ekranu głównego. Niedostępne w wersji Lite i w trybie oszczędnym.",
         "Poprawka: automatyczna aktualizacja już nie \"cichnie\" na zawsze, gdy cicha instalacja przez adb akurat zawiedzie — pokaże zwykłe okno instalacji zamiast nic nie robić.",

@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
@@ -95,6 +96,7 @@ import com.liquidglass.tvlauncher.data.WallpaperImage
 import com.liquidglass.tvlauncher.data.WallpaperRepository
 import com.liquidglass.tvlauncher.data.isFolder
 import com.liquidglass.tvlauncher.ui.AppMenu
+import com.liquidglass.tvlauncher.ui.CursorOverlay
 import com.liquidglass.tvlauncher.ui.DiagnosticsDialog
 import com.liquidglass.tvlauncher.ui.FolderDialog
 import com.liquidglass.tvlauncher.ui.HomeScreen
@@ -180,6 +182,11 @@ class MainActivity : ComponentActivity() {
     /** After Back on a shared screen the frames are refused for a while (and the phone is told to stop). */
     private var mirrorRefusedUntil = 0L
 
+    /** The on-screen position of the phone's gyroscope cursor (null when the feature isn't in use), and
+     * when it last moved: only Compose moves it, adb is only called for the tap itself (see receiveCursor). */
+    private var cursorPos by mutableStateOf<Offset?>(null)
+    private var cursorAt = 0L
+
     /** The quick settings (hold OK on the gear, or the Menu key). */
     private var showQuick by mutableStateOf(false)
 
@@ -217,6 +224,7 @@ class MainActivity : ComponentActivity() {
             tempDir = cacheDir,
             upload = ::receivePhoto,
             mirror = ::receiveFrame,
+            cursor = ::receiveCursor,
         )
         handleIntent(intent)
 
@@ -560,6 +568,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // The gyroscope cursor dot goes away a few seconds after the last update from the phone.
+            LaunchedEffect(cursorPos != null) {
+                while (cursorPos != null) {
+                    delay(1_000)
+                    if (System.currentTimeMillis() - cursorAt > 3_000L) cursorPos = null
+                }
+            }
+
             // The button taught in "learn" mode was saved: say which one it was.
             val learnedKey = KeyLearner.learned
             LaunchedEffect(learnedKey) {
@@ -677,6 +693,9 @@ class MainActivity : ComponentActivity() {
 
                 // The phone's screen, while it is being shared: full screen, black bars around a portrait picture.
                 mirrorFrame?.let { MirrorScreen(it) }
+
+                // The gyroscope cursor dot, while the phone's touchpad screen is sending updates.
+                cursorPos?.let { CursorOverlay(it) }
             }
 
             if (showSettings) {
@@ -1671,6 +1690,39 @@ class MainActivity : ComponentActivity() {
                 } catch (_: Exception) {
                 }
             }
+        }
+        return "ok"
+    }
+
+    /**
+     * A cursor delta from the phone's gyroscope (see /cursor in RemoteServer): added to an on-screen
+     * position that Compose alone moves — adb is only invoked at the moment of a tap, with that
+     * position as the coordinates, which is what keeps the dot smooth despite adb's own latency.
+     * Runs on a server thread, much more often than [handleRemote].
+     */
+    private fun receiveCursor(dx: Float, dy: Float, tap: Boolean): String {
+        val now = System.currentTimeMillis()
+        val metrics = resources.displayMetrics
+        val maxX = (metrics.widthPixels - 1).toFloat()
+        val maxY = (metrics.heightPixels - 1).toFloat()
+        val base = cursorPos ?: Offset(maxX / 2f, maxY / 2f)
+        val next = Offset((base.x + dx).coerceIn(0f, maxX), (base.y + dy).coerceIn(0f, maxY))
+        val first = cursorPos == null
+        runOnUiThread {
+            cursorPos = next
+            cursorAt = now
+            screensaverShowing = false
+            if (first && !inForeground) {
+                // The touchpad was opened while another app is in front: bring the launcher up to show the dot.
+                try {
+                    startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+                } catch (_: Exception) {
+                }
+            }
+        }
+        if (tap) {
+            // adb reaches whatever app is in front, same as the D-pad keys; only the tap itself pays that latency.
+            runBlocking { SelfAdb.shell(this@MainActivity, "input tap ${next.x.roundToInt()} ${next.y.roundToInt()}") }
         }
         return "ok"
     }

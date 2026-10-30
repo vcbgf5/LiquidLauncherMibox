@@ -185,12 +185,14 @@ Bez sekretu aplikacja Pilot pozwala wpisać Client ID ręcznie.
 
 W każdym wydaniu jest drugi plik, `LiquidTVPilot.apk` (aplikacja na telefon z Androidem 8+):
 **pilot** (strzałki, OK, Wstecz, Home, głośność, uśpienie, włączenie telewizora), **wpisywanie tekstu** na TV i
-**otwieranie adresu** na TV, **wysyłanie zdjęć jako tapet** (zmniejszane i obracane do pionu) oraz **udostępnianie ekranu
-telefonu** na telewizorze (obraz bez dźwięku, kilka klatek na sekundę; na TV przycisk Wstecz kończy). Pozycja „Udostępnij”
+**otwieranie adresu** na TV, **wysyłanie zdjęć jako tapet** (zmniejszane i obracane do pionu), **udostępnianie ekranu
+telefonu** na telewizorze (obraz bez dźwięku, kilka klatek na sekundę; na TV przycisk Wstecz kończy) oraz **kursor
+myszy przechyleniem telefonu** (zakładka Pilot → „Otwórz touchpad”): żyroskop rusza kropką po ekranie TV, dotknięcie
+ekranu telefonu klika w jej miejscu. Pozycja „Udostępnij”
 w galerii i przeglądarce też tu trafia: zdjęcie staje się tapetą, link otwiera się na TV, a inny tekst jest wpisywany w
 zaznaczone na TV pole. Połączenie: na TV Ustawienia → Narzędzia (adb) → Pilot z telefonu, w aplikacji zakładka Box →
-„Skanuj kod QR”. Telefon i Box muszą być w tej samej sieci. Wpisywanie tekstu i pilot poza launcherem wymagają
-skonfigurowanego adb (Ustawienia → Narzędzia → Skonfiguruj adb); `input text` zna tylko znaki ASCII.
+„Skanuj kod QR”. Telefon i Box muszą być w tej samej sieci. Wpisywanie tekstu, pilot poza launcherem i kliknięcia
+touchpada wymagają skonfigurowanego adb (Ustawienia → Narzędzia → Skonfiguruj adb); `input text` zna tylko znaki ASCII.
 Filmy i muzykę z telefonu najlepiej wysyłać wbudowanym Chromecastem Mi Box S.
 
 ## LG webOS

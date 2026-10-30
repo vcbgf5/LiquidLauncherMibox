@@ -44,4 +44,5 @@ object PilotIcons {
     val Trash: ImageVector by lazy { vector("Trash", "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z") }
     val Shuffle: ImageVector by lazy { vector("Shuffle", "M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z") }
     val Check: ImageVector by lazy { vector("Check", "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z") }
+    val Cursor: ImageVector by lazy { vector("Cursor", "M4 2L4 16L7 13L9 18L11 17L9 12L13 12Z") }
 }

@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -114,6 +115,7 @@ private fun PilotApp(activity: MainActivity) {
     var link by remember { mutableStateOf(store.load()) }
     var tab by remember { mutableIntStateOf(if (store.load() == null) TAB_BOX else 0) }
     var status by remember { mutableStateOf("") }
+    var touchpadOpen by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val send: (String, String) -> Unit = { action, value ->
@@ -124,6 +126,18 @@ private fun PilotApp(activity: MainActivity) {
             scope.launch { status = Box.action(current, action, value) }
         }
     }
+
+    val openTouchpad: () -> Unit = {
+        if (link == null) {
+            status = "Najpierw połącz z Boxem (zakładka Box)"
+            tab = TAB_BOX
+        } else {
+            touchpadOpen = true
+        }
+    }
+
+    // The phone's own Back also leaves the touchpad screen cleanly (same as its "Zamknij" button).
+    BackHandler(enabled = touchpadOpen) { touchpadOpen = false }
 
     // The status line fades after a few seconds.
     LaunchedEffect(status) {
@@ -168,45 +182,50 @@ private fun PilotApp(activity: MainActivity) {
     }
 
     MaterialTheme(colorScheme = darkColorScheme()) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            modifier = Modifier.background(Brush.verticalGradient(listOf(Pal.top, Pal.bottom))),
-            bottomBar = { GlassNav(navItems, tab) { tab = it } },
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-            ) {
-                Header(link) { tab = TAB_BOX }
-                Box(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
-                    when (tab) {
-                        0 -> RemoteTab(send)
-                        1 -> PhotosTab(link, send) { status = it }
-                        2 -> ScreenTab(link) { status = it }
-                        TAB_SPOTIFY -> SpotifyTab(spotify, spotifyVersion, link, { status = it }, send)
-                        else -> LinkTab(
-                            link = link,
-                            onLink = {
-                                link = it
-                                store.save(it)
-                            },
-                            onStatus = { status = it },
-                            onCheck = { send("ping", "") },
-                        )
-                    }
-                    if (status.isNotEmpty()) {
-                        Text(
-                            status,
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 6.dp)
-                                .glass(RoundedCornerShape(50), strong = true)
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                        )
+        val current = link
+        if (touchpadOpen && current != null) {
+            TouchpadScreen(current) { touchpadOpen = false }
+        } else {
+            Scaffold(
+                containerColor = Color.Transparent,
+                modifier = Modifier.background(Brush.verticalGradient(listOf(Pal.top, Pal.bottom))),
+                bottomBar = { GlassNav(navItems, tab) { tab = it } },
+            ) { padding ->
+                Column(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                ) {
+                    Header(link) { tab = TAB_BOX }
+                    Box(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
+                        when (tab) {
+                            0 -> RemoteTab(send, openTouchpad)
+                            1 -> PhotosTab(link, send) { status = it }
+                            2 -> ScreenTab(link) { status = it }
+                            TAB_SPOTIFY -> SpotifyTab(spotify, spotifyVersion, link, { status = it }, send)
+                            else -> LinkTab(
+                                link = link,
+                                onLink = {
+                                    link = it
+                                    store.save(it)
+                                },
+                                onStatus = { status = it },
+                                onCheck = { send("ping", "") },
+                            )
+                        }
+                        if (status.isNotEmpty()) {
+                            Text(
+                                status,
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 6.dp)
+                                    .glass(RoundedCornerShape(50), strong = true)
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -300,7 +319,7 @@ private fun DPad(send: (String, String) -> Unit) {
 }
 
 @Composable
-private fun RemoteTab(send: (String, String) -> Unit) {
+private fun RemoteTab(send: (String, String) -> Unit, onTouchpad: () -> Unit) {
     var text by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     Column(
@@ -346,6 +365,11 @@ private fun RemoteTab(send: (String, String) -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
             PilotButton("Otwórz na TV", { send("open", url) }, Modifier.fillMaxWidth(), icon = PilotIcons.Send, primary = true)
+        }
+        GlassCard {
+            Heading(PilotIcons.Cursor, "Kursor na TV")
+            BodyText("Przechylaj telefon jak myszkę: kropka rusza się po ekranie TV, dotknięcie ekranu telefonu klika w jej miejscu.")
+            PilotButton("Otwórz touchpad", onTouchpad, Modifier.fillMaxWidth(), icon = PilotIcons.Cursor, primary = true)
         }
         Spacer(Modifier.height(6.dp))
     }

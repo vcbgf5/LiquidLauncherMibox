@@ -69,6 +69,18 @@ object Box {
     fun frame(link: BoxLink, jpeg: ByteArray): String =
         request("${link.base}/mirror?t=${enc(link.token)}", jpeg.size.toLong(), "image/jpeg") { it.write(jpeg) }
 
+    /**
+     * A cursor delta from the touchpad screen's gyroscope (screen pixels), and whether it is also a tap.
+     * Fire-and-forget: a dropped update just means one frame of the dot doesn't move, not worth a status
+     * message, so failures are swallowed. Blocking: call it off the sensor thread.
+     */
+    fun cursor(link: BoxLink, dx: Float, dy: Float, tap: Boolean): String = try {
+        val body = "dx=${enc(dx.toString())}&dy=${enc(dy.toString())}&tap=${if (tap) "1" else "0"}".toByteArray()
+        request("${link.base}/cursor?t=${enc(link.token)}", body.size.toLong(), "application/x-www-form-urlencoded") { it.write(body) }
+    } catch (_: Exception) {
+        ""
+    }
+
     /** Shrinks a photo (and turns it upright) and sends it as a wallpaper. */
     suspend fun uploadPhoto(context: Context, link: BoxLink, uri: Uri): String = withContext(Dispatchers.IO) {
         val prepared = Photos.prepare(context, uri) ?: return@withContext "Nie udało się odczytać zdjęcia"
