@@ -22,6 +22,8 @@
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <!-- Widgets: Wi-Fi signal, paired Bluetooth devices, the system calendar (if there is one). -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Advertising this box to the Pilot app over mDNS (NsdManager), so it can be found without typing an IP. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
@@ -38,7 +40,6 @@
     -->
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />

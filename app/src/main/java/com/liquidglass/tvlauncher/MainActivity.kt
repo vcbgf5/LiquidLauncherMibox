@@ -57,6 +57,7 @@ import com.liquidglass.tvlauncher.data.AdbResult
 import com.liquidglass.tvlauncher.data.AppFolder
 import com.liquidglass.tvlauncher.data.AppInfo
 import com.liquidglass.tvlauncher.data.AppRepository
+import com.liquidglass.tvlauncher.data.BoxDiscovery
 import com.liquidglass.tvlauncher.data.SpotifyHub
 import com.liquidglass.tvlauncher.data.Edition
 import com.liquidglass.tvlauncher.data.Changelog
@@ -198,6 +199,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var folderStore: FolderStore
     private lateinit var updates: UpdateManager
     private lateinit var remoteServer: RemoteServer
+    private lateinit var boxDiscovery: BoxDiscovery
     private var frameMonitor: FrameMonitor? = null
 
     /** Bumped when the phone page asks for another mode, so the screen reads the setting again. */
@@ -218,6 +220,7 @@ class MainActivity : ComponentActivity() {
             upload = ::receivePhoto,
             mirror = ::receiveFrame,
         )
+        boxDiscovery = BoxDiscovery(this)
         handleIntent(intent)
 
         setContent {
@@ -429,9 +432,11 @@ class MainActivity : ComponentActivity() {
                     withContext(Dispatchers.IO) { remoteServer.start() }
                     remotePort = remoteServer.port
                     remoteIp = withContext(Dispatchers.Default) { WidgetDataReader.localAddress() }
+                    boxDiscovery.start(remoteServer.port)
                 } else {
                     remoteServer.stop()
                     remotePort = 0
+                    boxDiscovery.stop()
                 }
             }
 
@@ -1440,6 +1445,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         remoteServer.stop()
+        boxDiscovery.stop()
         appScope.cancel()
         super.onDestroy()
     }
