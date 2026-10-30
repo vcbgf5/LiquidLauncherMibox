@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -66,8 +67,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.palette.graphics.Palette
+import com.liquidglass.spotify.Lyrics
+import com.liquidglass.spotify.LyricsClient
 import com.liquidglass.spotify.SpotifyClient
 import com.liquidglass.spotify.SpotifyImages
+import com.liquidglass.spotify.SpotifyPlayback
 import com.liquidglass.spotify.SpotifyPlaylist
 import com.liquidglass.spotify.SpotifyTrack
 import com.liquidglass.tvlauncher.data.Edition
@@ -148,6 +152,33 @@ private fun clock(ms: Long): String {
     return "%d:%02d".format(seconds / 60, seconds % 60)
 }
 
+private sealed interface LyricsState {
+    object Loading : LyricsState
+    object NotFound : LyricsState
+    class Found(val lyrics: Lyrics) : LyricsState
+}
+
+/** Looked up once per track (by title+artist) and kept here, so flipping back to "Tekst" doesn't re-fetch lrclib.net. */
+private val lyricsCache = mutableMapOf<String, LyricsState>()
+
+/** The lyrics of one track, fetched off the main thread the first time it's asked for and cached by [lyricsCache] after. */
+@Composable
+private fun rememberLyrics(title: String, artist: String, album: String, durationMs: Long): LyricsState {
+    val key = "$title|$artist"
+    val state by produceState(lyricsCache[key] ?: LyricsState.Loading, key) {
+        val cached = lyricsCache[key]
+        if (cached != null) {
+            value = cached
+            return@produceState
+        }
+        val found = withContext(Dispatchers.IO) { LyricsClient.lookup(title, artist, album, durationMs) }
+        val resolved = if (found == null) LyricsState.NotFound else LyricsState.Found(found)
+        lyricsCache[key] = resolved
+        value = resolved
+    }
+    return state
+}
+
 @Composable
 private fun RoundButton(icon: ImageVector, size: Dp, tint: Color = Color.White, requester: FocusRequester? = null, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
@@ -172,11 +203,11 @@ private fun RoundButton(icon: ImageVector, size: Dp, tint: Color = Color.White, 
 }
 
 @Composable
-private fun PillButton(label: String, requester: FocusRequester? = null, onClick: () -> Unit) {
+private fun PillButton(label: String, requester: FocusRequester? = null, selected: Boolean = false, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Text(
         text = label,
-        color = if (focused) Color(0xFF101010) else Color.White,
+        color = if (focused) Color(0xFF101010) else Color.White.copy(alpha = if (selected) 1f else 0.7f),
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier
@@ -185,7 +216,7 @@ private fun PillButton(label: String, requester: FocusRequester? = null, onClick
             .okAction(onClick)
             .then(if (requester != null) Modifier.focusRequester(requester) else Modifier)
             .focusable()
-            .background(if (focused) Color.White else Color.White.copy(alpha = 0.16f))
+            .background(if (focused) Color.White else Color.White.copy(alpha = if (selected) 0.28f else 0.16f))
             .padding(horizontal = 22.dp, vertical = 11.dp),
     )
 }
@@ -266,6 +297,58 @@ private fun TrackRow(index: Int, track: SpotifyTrack, playing: Boolean, requeste
     }
 }
 
+/** The "Tekst" panel: loading, "brak tekstu", or the lyrics (synced scrolls itself, plain is one block of text). */
+@Composable
+private fun LyricsPanel(playback: SpotifyPlayback, progressMs: Long) {
+    when (val state = rememberLyrics(playback.title, playback.artist, playback.album, playback.durationMs)) {
+        LyricsState.Loading -> Text("Wczytuję tekst…", color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp)
+        LyricsState.NotFound -> Text("Brak tekstu dla tego utworu.", color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp)
+        is LyricsState.Found -> {
+            val synced = state.lyrics.synced
+            if (!synced.isNullOrEmpty()) {
+                SyncedLyricsView(synced, progressMs)
+            } else {
+                LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), modifier = Modifier.fillMaxSize()) {
+                    item {
+                        Text(
+                            state.lyrics.plain.orEmpty(),
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** LRC-timed lyrics: the line at [progressMs] is bright and bold like [TrackRow]'s playing track, the rest dim; the list keeps it roughly centered. */
+@Composable
+private fun SyncedLyricsView(lines: List<Pair<Long, String>>, progressMs: Long) {
+    val current = remember(lines, progressMs) { lines.indexOfLast { it.first <= progressMs } }
+    val listState = rememberLazyListState()
+    LaunchedEffect(current) {
+        if (current >= 0) listState.animateScrollToItem((current - 2).coerceAtLeast(0))
+    }
+    LazyColumn(
+        state = listState,
+        contentPadding = PaddingValues(vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        itemsIndexed(lines, key = { index, _ -> index }) { index, line ->
+            val active = index == current
+            Text(
+                line.second.ifBlank { "♪" },
+                color = if (active) Color.White else Color.White.copy(alpha = 0.4f),
+                fontSize = if (active) 18.sp else 15.sp,
+                fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+            )
+        }
+    }
+}
+
 /**
  * The Spotify player, full screen: the big cover, title, progress and controls on the left, your playlists on the
  * right (OK opens a playlist's tracks; OK on a track plays it). It uses the session the phone app handed over
@@ -280,6 +363,7 @@ fun SpotifyScreen(ensureDevice: suspend () -> String?, onDismiss: () -> Unit) {
     var loading by remember { mutableStateOf(true) }
     var open by remember { mutableStateOf<SpotifyPlaylist?>(null) }
     var tracks by remember { mutableStateOf<List<SpotifyTrack>?>(null) }
+    var showLyrics by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
     val playRequester = remember { FocusRequester() }
     val firstItem = remember { FocusRequester() }
@@ -408,10 +492,18 @@ fun SpotifyScreen(ensureDevice: suspend () -> String?, onDismiss: () -> Unit) {
                     }
                 }
 
-                // ---- playlists, or the tracks of one ----
+                // ---- playlists / a playlist's tracks, or the lyrics of what's playing ----
                 val chosen = open
                 Column(modifier = Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (chosen == null) {
+                    if (playback != null && playback.title.isNotBlank()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            PillButton("Playlisty", selected = !showLyrics) { showLyrics = false }
+                            PillButton("Tekst", selected = showLyrics) { showLyrics = true }
+                        }
+                    }
+                    if (showLyrics && playback != null && playback.title.isNotBlank()) {
+                        LyricsPanel(playback, progress)
+                    } else if (chosen == null) {
                         Text("Twoje playlisty", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         if (playlists.isEmpty()) {
                             Text(
