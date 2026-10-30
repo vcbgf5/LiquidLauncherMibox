@@ -190,6 +190,24 @@ potrzebny** (logowanie PKCE) i nie wolno go wkładać do aplikacji ani repozytor
 właściciela (Premium) i kilku użytkowników dodanych w *User Management*; utwory pokazuje tylko dla własnych playlist (cudze odtworzysz w całości).
 Bez sekretu aplikacja Pilot pozwala wpisać Client ID ręcznie.
 
+## Last.fm
+
+Scrobbluje to, co gra przez Spotify na Boksie, na Twoje konto Last.fm — bez tego nic dodatkowego nie trzeba instalować.
+
+1. W aplikacji **Liquid TV Pilot** na telefonie otwórz zakładkę **Spotify** (karta **Last.fm** jest niżej, pod Spotify) i wpisz swoją
+   **nazwę użytkownika** i **hasło** do Last.fm, potem **Połącz z Last.fm**. Logowanie dzieje się od razu na telefonie (tzw. „sesja
+   mobilna” Last.fm) — na launcher trafia tylko klucz sesji, nigdy samo hasło.
+2. Jeśli telefon jest połączony z Boxem (zakładka Box), klucz sesji od razu trafia do launchera.
+3. Od tej pory launcher sam scrobbluje to, co gra przez Spotify: „teraz gra” wysyła od razu, a utwór liczy się jako odsłuchany (i
+   trafia na profil) po połowie swojej długości albo 4 minutach, zależnie co krótsze — tak jak robią to oficjalne aplikacje Last.fm.
+4. Włącznik i rozłączenie: na telewizorze, zębatka → **Widżety** (przewiń niżej, pod widżetami i kalendarzem).
+
+**Jednorazowa konfiguracja projektu** (właściciel): załóż konto API na [last.fm/api/account/create](https://www.last.fm/api/account/create)
+(wystarczy zwykłe konto Last.fm) — dostaniesz **API Key** i **Shared Secret**. Wpisz je w GitHubie jako dwa sekrety Actions,
+`LASTFM_API_KEY` i `LASTFM_API_SECRET` (Settings → Secrets and variables → Actions); buildy wkładają je do obu aplikacji (podpisane
+wywołania Last.fm, nawet samo logowanie, potrzebują i klucza, i sekretu — inaczej niż logowanie PKCE Spotify). Bez obu sekretów karta
+Last.fm w aplikacji Pilot poinformuje, że ta kompilacja nie ma klucza API.
+
 ## Aplikacja na telefon: Liquid TV Pilot
 
 W każdym wydaniu jest drugi plik, `LiquidTVPilot.apk` (aplikacja na telefon z Androidem 8+):

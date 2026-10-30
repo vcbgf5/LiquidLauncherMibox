@@ -17,6 +17,10 @@ android {
         // The public Client ID of the Spotify app (CI passes it from a secret). It is not a secret, only an id;
         // sign-in uses PKCE, so the app never needs (and must never contain) the Client Secret.
         buildConfigField("String", "SPOTIFY_CLIENT_ID", "\"${System.getenv("SPOTIFY_CLIENT_ID").orEmpty().trim()}\"")
+        // Last.fm has no PKCE-style flow: signing in (even with just a username and password) needs the
+        // app's own API key and secret, so both are baked in here too.
+        buildConfigField("String", "LASTFM_API_KEY", "\"${System.getenv("LASTFM_API_KEY").orEmpty().trim()}\"")
+        buildConfigField("String", "LASTFM_API_SECRET", "\"${System.getenv("LASTFM_API_SECRET").orEmpty().trim()}\"")
     }
 
     // The same key as the launcher: one release, two apps signed alike.

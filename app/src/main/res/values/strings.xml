@@ -296,6 +296,11 @@
     <string name="np_access_on">Dostęp do powiadomień włączony: widżet „Teraz gra” działa.</string>
     <string name="np_access_off">Widżet „Teraz gra” potrzebuje dostępu do powiadomień.</string>
     <string name="np_grant_access">Nadaj dostęp do powiadomień</string>
+    <!-- Last.fm -->
+    <string name="settings_lastfm_scrobbling">Scrobbluj do Last.fm</string>
+    <string name="widgets_lastfm_linked">Last.fm połączony jako %1$s. Scrobbluje to, co gra przez Spotify.</string>
+    <string name="widgets_lastfm_unlinked">Last.fm niepołączony. Połącz się w aplikacji Pilot (zakładka Spotify).</string>
+    <string name="widgets_disconnect_lastfm">Odłącz Last.fm</string>
     <!-- Pilot z telefonu -->
     <string name="remote_title">Pilot z telefonu</string>
     <string name="remote_hint">Zeskanuj kod aparatem telefonu (telefon i Box w tej samej sieci Wi-Fi). Otworzy się strona z pilotem, głośnością, zasilaniem i polami na link kalendarza, miasto i adres do otwarcia.</string>

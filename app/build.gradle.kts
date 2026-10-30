@@ -14,6 +14,9 @@ android {
         // CI sets these (build number, release tag); local builds keep the defaults.
         versionCode = (System.getenv("VERSION_CODE") ?: "2").toInt()
         versionName = System.getenv("VERSION_NAME") ?: "1.1.0"
+        // Last.fm's signed calls (scrobbling) need both an API key and a secret, unlike Spotify's PKCE sign-in.
+        buildConfigField("String", "LASTFM_API_KEY", "\"${System.getenv("LASTFM_API_KEY").orEmpty().trim()}\"")
+        buildConfigField("String", "LASTFM_API_SECRET", "\"${System.getenv("LASTFM_API_SECRET").orEmpty().trim()}\"")
     }
 
     // The release key lives outside the repo: CI decrypts it and points KEYSTORE_PATH at it.
