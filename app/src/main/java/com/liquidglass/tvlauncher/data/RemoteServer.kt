@@ -27,6 +27,9 @@ class RemoteServer(
     private val upload: (name: String, file: File) -> String,
     /** One JPEG frame of the phone's screen; the answer is "ok", or "stop" to tell the phone to quit sharing. */
     private val mirror: (frame: ByteArray) -> String,
+    /** A cursor delta from the phone's gyroscope (screen pixels) and whether it is also a tap; the
+     * answer is always "ok". Called far more often than [handle], so it gets its own light endpoint. */
+    private val cursor: (dx: Float, dy: Float, tap: Boolean) -> String,
 ) {
     private var server: ServerSocket? = null
     private val pool = Executors.newFixedThreadPool(3)
@@ -126,6 +129,16 @@ class RemoteServer(
                     respond(output, 200, "text/plain; charset=utf-8", mirror(frame))
                     return
                 }
+                if (method == "POST" && path == "/cursor") {
+                    // Small and frequent (a gyroscope stream): no detour through parseForm's generic
+                    // body length, straight to a tiny read, same shape as the /mirror block above.
+                    val form = parseForm(String(readBytes(input, declared.coerceIn(0L, MAX_CURSOR).toInt()), Charsets.UTF_8))
+                    val dx = form["dx"]?.toFloatOrNull() ?: 0f
+                    val dy = form["dy"]?.toFloatOrNull() ?: 0f
+                    val tap = form["tap"] == "1"
+                    respond(output, 200, "text/plain; charset=utf-8", cursor(dx, dy, tap))
+                    return
+                }
                 val length = declared.coerceIn(0L, MAX_BODY.toLong()).toInt()
                 val body = if (length > 0) String(readBytes(input, length), Charsets.UTF_8) else ""
                 when {
@@ -215,6 +228,7 @@ class RemoteServer(
         private const val MAX_BODY = 8 * 1024
         private const val MAX_UPLOAD = 25_000_000L
         private const val MAX_FRAME = 4_000_000L
+        private const val MAX_CURSOR = 512L
 
         /** The control page; "__TOKEN__" is replaced with the secret of the request. */
         private val PAGE = """<!doctype html>

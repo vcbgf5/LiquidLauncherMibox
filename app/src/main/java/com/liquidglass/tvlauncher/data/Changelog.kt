@@ -6,6 +6,7 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
+        "Kursor na TV żyroskopem telefonu: w aplikacji Pilot (zakładka Pilot → Otwórz touchpad) przechyl telefon, żeby ruszać kropką po ekranie, dotknij ekranu, żeby kliknąć. Wymaga skonfigurowanego adb.",
         "Piloty z gładzikiem: przesunięcie działa jak strzałki (zmiana ekranu, przesuwanie fokusu), stuknięcie jak OK.",
         "Tekst piosenki w pełnoekranowym odtwarzaczu Spotify: przycisk „Tekst” obok playlist, podświetla aktualną linijkę (z lrclib.net).",
         "Sterowanie głosem w aplikacji Pilot: powiedz „głośniej”, „następny”, „pauza” albo „do góry” zamiast szukać przycisku.",
