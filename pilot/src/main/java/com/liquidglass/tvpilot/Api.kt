@@ -7,6 +7,8 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import android.provider.OpenableColumns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -42,6 +44,71 @@ class LinkStore(context: Context) {
 
     fun save(link: BoxLink) {
         prefs.edit().putString("host", link.host).putInt("port", link.port).putString("token", link.token).apply()
+    }
+}
+
+/** A box seen on the network, before it is chosen: its name and address, never its token (see [BoxFinder]). */
+data class FoundBox(val name: String, val host: String, val port: Int)
+
+/**
+ * Looks for other Liquid TV boxes on the Wi-Fi (NsdManager/mDNS; the box registers itself under
+ * [SERVICE_TYPE] — see BoxDiscovery.kt in the launcher). Only the name, host and port ever travel
+ * this way, never the secret token, so a box found here still needs its QR code / a saved link
+ * before it can be controlled. [start] keeps calling [onFound] with the growing list found so far;
+ * call [stop] once the screen that is searching goes away.
+ */
+class BoxFinder(private val context: Context) {
+    private val manager by lazy { context.getSystemService(Context.NSD_SERVICE) as NsdManager }
+    private var discovery: NsdManager.DiscoveryListener? = null
+    private val found = mutableMapOf<String, FoundBox>()
+
+    fun start(onFound: (List<FoundBox>) -> Unit) {
+        if (discovery != null) return
+        found.clear()
+        val listener = object : NsdManager.DiscoveryListener {
+            override fun onDiscoveryStarted(serviceType: String) {}
+            override fun onServiceFound(service: NsdServiceInfo) {
+                manager.resolveService(
+                    service,
+                    object : NsdManager.ResolveListener {
+                        override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) {}
+                        override fun onServiceResolved(info: NsdServiceInfo) {
+                            val host = info.host?.hostAddress ?: return
+                            found[info.serviceName] = FoundBox(info.serviceName, host, info.port)
+                            onFound(found.values.sortedBy { it.name })
+                        }
+                    },
+                )
+            }
+            override fun onServiceLost(service: NsdServiceInfo) {
+                found.remove(service.serviceName)
+                onFound(found.values.sortedBy { it.name })
+            }
+            override fun onDiscoveryStopped(serviceType: String) {}
+            override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
+                runCatching { manager.stopServiceDiscovery(this) }
+            }
+            override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {}
+        }
+        try {
+            manager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, listener)
+            discovery = listener
+        } catch (_: Exception) {
+            // no NSD on this phone: the list stays empty, QR code / manual entry still work
+        }
+    }
+
+    fun stop() {
+        val listener = discovery ?: return
+        discovery = null
+        try {
+            manager.stopServiceDiscovery(listener)
+        } catch (_: Exception) {
+        }
+    }
+
+    companion object {
+        private const val SERVICE_TYPE = "_liquidtv._tcp."
     }
 }
 

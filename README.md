@@ -91,7 +91,9 @@ są pierwsze na liście wszystkich aplikacji; aplikacja w folderze znika z głó
 **Pilot z telefonu.** Ustawienia → Narzędzia → „Pilot z telefonu”: kod QR z adresem strony działającej w launcherze (ta sama sieć
 Wi-Fi). Na telefonie: pilot (strzałki, OK, wstecz, home), głośność, uśpienie/restart, pola na link kalendarza Google, miasto
 pogody i adres do otwarcia na TV, a także **wysyłanie własnych zdjęć na tapetę** (kategoria „Moje zdjęcia”, do 60 zdjęć po 25 MB). W adresie jest sekret; „Nowy link” unieważnia stary. Strona działa tylko przy otwartym oknie,
-chyba że włączysz „działa cały czas”.
+chyba że włączysz „działa cały czas”. W zakładce **Box** telefon sam wyszukuje Boksy w sieci (NSD/mDNS) i pokazuje je
+na liście — znany Box (taki, z którym telefon już się łączył) wybiera się jednym dotknięciem, a nowy trzeba najpierw
+podpiąć kodem QR, bo sam adres bez sekretu nic nie daje.
 
 **Animowana tapeta (wideo).** W tej samej zakładce (Zdjęcia) możesz zamiast tego wysłać krótki klip wideo (limit 25 MB, nie jest
 skracany — wybierz sam coś krótkiego): zapętla się bez dźwięku w tle ekranu głównego. Pierwsza klatka klipu służy jako zwykłe
@@ -189,7 +191,8 @@ W każdym wydaniu jest drugi plik, `LiquidTVPilot.apk` (aplikacja na telefon z A
 telefonu** na telewizorze (obraz bez dźwięku, kilka klatek na sekundę; na TV przycisk Wstecz kończy). Pozycja „Udostępnij”
 w galerii i przeglądarce też tu trafia: zdjęcie staje się tapetą, link otwiera się na TV, a inny tekst jest wpisywany w
 zaznaczone na TV pole. Połączenie: na TV Ustawienia → Narzędzia (adb) → Pilot z telefonu, w aplikacji zakładka Box →
-„Skanuj kod QR”. Telefon i Box muszą być w tej samej sieci. Wpisywanie tekstu i pilot poza launcherem wymagają
+„Skanuj kod QR” albo „Szukaj w sieci” (automatyczne wykrywanie Boksów, przełączanie między kilkoma jednym dotknięciem).
+Telefon i Box muszą być w tej samej sieci. Wpisywanie tekstu i pilot poza launcherem wymagają
 skonfigurowanego adb (Ustawienia → Narzędzia → Skonfiguruj adb); `input text` zna tylko znaki ASCII.
 Filmy i muzykę z telefonu najlepiej wysyłać wbudowanym Chromecastem Mi Box S.
 

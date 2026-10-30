@@ -37,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -495,6 +496,14 @@ private fun LinkTab(link: BoxLink?, onLink: (BoxLink) -> Unit, onStatus: (String
     var host by remember { mutableStateOf(link?.host.orEmpty()) }
     var port by remember { mutableStateOf((link?.port ?: 8765).toString()) }
     var token by remember { mutableStateOf(link?.token.orEmpty()) }
+    var nearby by remember { mutableStateOf<List<FoundBox>>(emptyList()) }
+
+    // Only looks while this tab is open: a dead QR/manual flow still works if NSD finds nothing.
+    DisposableEffect(Unit) {
+        val finder = BoxFinder(context)
+        finder.start { nearby = it }
+        onDispose { finder.stop() }
+    }
 
     Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         GlassCard {
@@ -529,6 +538,45 @@ private fun LinkTab(link: BoxLink?, onLink: (BoxLink) -> Unit, onStatus: (String
                 icon = PilotIcons.Remote,
                 primary = true,
             )
+        }
+        GlassCard {
+            Heading(PilotIcons.Search, "Szukaj w sieci")
+            BodyText("Boksy w tej samej sieci Wi-Fi, znalezione automatycznie (bez kodu QR).")
+            if (nearby.isEmpty()) {
+                BodyText("Szukam… jeszcze nic nie widać.")
+            } else {
+                nearby.forEach { box ->
+                    val known = link != null && link.host == box.host
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable {
+                                if (known && link != null) {
+                                    onLink(BoxLink(box.host, box.port, link.token))
+                                    onStatus("Połączono z ${box.name}")
+                                } else {
+                                    host = box.host
+                                    port = box.port.toString()
+                                    onStatus("${box.name}: nieznany — zeskanuj kod QR z tego telewizora")
+                                }
+                            }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(if (known) Pal.good else Pal.dim))
+                        Column(Modifier.weight(1f)) {
+                            Text(box.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                if (known) box.host else "${box.host} · zeskanuj kod QR, żeby się połączyć",
+                                color = Pal.muted,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                }
+            }
         }
         GlassCard {
             OutlinedTextField(host, { host = it.trim() }, label = { Text("Adres IP Boksa") }, singleLine = true, modifier = Modifier.fillMaxWidth())
