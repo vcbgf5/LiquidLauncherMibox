@@ -367,6 +367,7 @@ fun SettingsDialog(
                                     WidgetType.AGENDA -> R.string.widget_pick_agenda
                                     WidgetType.WEATHER -> R.string.widget_pick_weather
                                     WidgetType.NOW_PLAYING -> R.string.widget_pick_now_playing
+                                    WidgetType.SPOTIFY -> R.string.widget_pick_spotify
                                     WidgetType.NETWORK -> R.string.widget_pick_network
                                     WidgetType.BLUETOOTH -> R.string.widget_pick_bluetooth
                                     WidgetType.SYSTEM -> R.string.widget_pick_system

@@ -53,6 +53,7 @@ import com.liquidglass.tvlauncher.data.Agenda
 import com.liquidglass.tvlauncher.data.AgendaSource
 import com.liquidglass.tvlauncher.data.NetworkKind
 import com.liquidglass.tvlauncher.data.NowPlayingState
+import com.liquidglass.tvlauncher.data.SpotifyHub
 import com.liquidglass.tvlauncher.data.Weather
 import com.liquidglass.tvlauncher.data.WidgetData
 import com.liquidglass.tvlauncher.data.WidgetType
@@ -154,6 +155,15 @@ fun InfoPage(
                                 onLongClick = { onWidgetLong(type) },
                             ) {
                                 NowPlayingContent(nowPlaying)
+                            }
+                            WidgetType.SPOTIFY -> WidgetCard(
+                                330.dp,
+                                stringResource(R.string.widget_spotify),
+                                focus,
+                                onClick = { onWidget(type) },
+                                onLongClick = { onWidgetLong(type) },
+                            ) {
+                                SpotifyContent()
                             }
                             WidgetType.NETWORK -> WidgetCard(270.dp, stringResource(R.string.widget_network_title), focus, onClick = { onWidget(type) }) {
                                 NetworkContent(data)
@@ -418,6 +428,59 @@ private fun NowPlayingContent(state: NowPlayingState) {
     }
     Spacer(Modifier.height(8.dp))
     Muted(stringResource(R.string.np_hint))
+}
+
+// ---- Spotify -----------------------------------------------------------------------------------------
+
+@Composable
+private fun SpotifyContent() {
+    if (!SpotifyHub.connected) {
+        Muted(stringResource(R.string.spotify_connect_hint))
+        return
+    }
+    val playback = SpotifyHub.playback
+    if (playback == null || playback.title.isBlank()) {
+        Muted(stringResource(R.string.spotify_nothing))
+        return
+    }
+    val cover = rememberSpotifyCover(playback.imageUrl, 200)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(78.dp).clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.12f))) {
+            if (cover != null) Image(bitmap = cover, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(playback.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (playback.artist.isNotEmpty()) {
+                Text(playback.artist, color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text(
+                text = (playback.device?.name?.let { it + " · " } ?: "") + stringResource(if (playback.playing) R.string.np_playing else R.string.np_paused),
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 11.sp,
+                maxLines = 1,
+            )
+        }
+    }
+    if (playback.durationMs > 0) {
+        Box(
+            modifier = Modifier
+                .padding(top = 12.dp)
+                .fillMaxWidth()
+                .height(5.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color.White.copy(alpha = 0.2f)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth((playback.progressMs.toFloat() / playback.durationMs).coerceIn(0f, 1f))
+                    .height(5.dp)
+                    .background(Color(0xFF1ED760)),
+            )
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    Muted(stringResource(R.string.spotify_widget_hint))
 }
 
 // ---- Network, Bluetooth, system --------------------------------------------------------------------

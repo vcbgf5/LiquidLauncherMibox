@@ -103,4 +103,6 @@ dependencies {
     implementation("dev.mobile:dadb:2.0.0")
     // The QR code of the phone remote's address (pure Java, no camera or Google services).
     implementation("com.google.zxing:core:3.5.3")
+    // The Spotify Web API (the phone app signs in and hands the session to the launcher's player).
+    implementation(project(":spotify"))
 }

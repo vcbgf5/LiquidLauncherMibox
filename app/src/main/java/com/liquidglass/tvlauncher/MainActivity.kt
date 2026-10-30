@@ -57,6 +57,7 @@ import com.liquidglass.tvlauncher.data.AdbResult
 import com.liquidglass.tvlauncher.data.AppFolder
 import com.liquidglass.tvlauncher.data.AppInfo
 import com.liquidglass.tvlauncher.data.AppRepository
+import com.liquidglass.tvlauncher.data.SpotifyHub
 import com.liquidglass.tvlauncher.data.Edition
 import com.liquidglass.tvlauncher.data.Changelog
 import com.liquidglass.tvlauncher.data.FavoritesStore
@@ -119,6 +120,7 @@ import com.liquidglass.tvlauncher.ui.RemoteDialog
 import com.liquidglass.tvlauncher.ui.Screensaver
 import com.liquidglass.tvlauncher.ui.SettingsDialog
 import com.liquidglass.tvlauncher.ui.SettingsExtras
+import com.liquidglass.tvlauncher.ui.SpotifyScreen
 import com.liquidglass.tvlauncher.ui.TileMotion
 import com.liquidglass.tvlauncher.ui.WallpaperState
 
@@ -179,6 +181,12 @@ class MainActivity : ComponentActivity() {
     /** The quick settings (hold OK on the gear, or the Menu key). */
     private var showQuick by mutableStateOf(false)
 
+    /** The Spotify player screen (opened from its widget, or from the phone). */
+    private var showSpotify by mutableStateOf(false)
+
+    /** Raised when the set of widgets was changed from outside the settings window (the phone sent Spotify). */
+    private var widgetsTick by mutableIntStateOf(0)
+
     // Bookkeeping for the rotation: what it last did, so coming back from an app doesn't reshuffle.
     private var lastRotationKey = ""
     private var lastWallpaperAt = 0L
@@ -197,6 +205,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         store = FavoritesStore(this)
         settings = LauncherSettings(this)
+        SpotifyHub.start(settings)
         folderStore = FolderStore(this)
         updates = UpdateManager(this, settings)
         Performance.refresh(this, settings)
@@ -269,7 +278,7 @@ class MainActivity : ComponentActivity() {
                     forcedCategory = null
                 }
             }
-            var widgetKeys by remember { mutableStateOf(settings.enabledWidgets) }
+            var widgetKeys by remember(widgetsTick) { mutableStateOf(settings.enabledWidgets) }
             var widgetData by remember { mutableStateOf(WidgetData.EMPTY) }
             var agenda by remember { mutableStateOf(Agenda.EMPTY) }
             var weather by remember { mutableStateOf(WeatherRepository.cached(this@MainActivity)) }
@@ -339,7 +348,7 @@ class MainActivity : ComponentActivity() {
             // Anything on top of the home screen: while it is open the screensaver doesn't start and
             // the breathing wallpaper stands still.
             val dialogOpen = showSettings || menuApp != null || iconPickerApp != null || showPower || showQuick ||
-                openFolder != null || folderPickApp != null || showRemote || showChangelog || reportDialog != null ||
+                openFolder != null || folderPickApp != null || showRemote || showChangelog || reportDialog != null || showSpotify ||
                 confirm != null || disableList || restoreList != null || showAdbDiag || showVolumeDiag || launchRequest != null
 
             // Screensaver: starts after the chosen time without any key press, while the launcher
@@ -392,6 +401,16 @@ class MainActivity : ComponentActivity() {
                     while (true) {
                         nowPlaying = withContext(Dispatchers.Default) { NowPlayingReader.read(this@MainActivity) }
                         delay(1_500)
+                    }
+                }
+            }
+
+            // What Spotify is playing, for its widget: only while the widgets page is shown (the player screen reads it by itself).
+            LaunchedEffect(inForeground, page, widgetKeys, SpotifyHub.connected) {
+                if (inForeground && SpotifyHub.connected && page == PAGE_INFO && WidgetType.SPOTIFY.key in widgetKeys) {
+                    while (true) {
+                        SpotifyHub.refreshPlayback()
+                        delay(4_000)
                     }
                 }
             }
@@ -576,11 +595,13 @@ class MainActivity : ComponentActivity() {
                                     grantNotificationAccess()
                                 }
                             }
+                            WidgetType.SPOTIFY -> if (SpotifyHub.connected) showSpotify = true else toast(getString(R.string.spotify_connect_hint))
                             WidgetType.CALENDAR -> Unit
                         }
                     },
                     onWidgetLong = { type ->
                         if (type == WidgetType.NOW_PLAYING) nowPlaying.item?.next()
+                        if (type == WidgetType.SPOTIFY) spotifyPlayPause()
                     },
                     page = page,
                     onPage = { page = it },
@@ -1197,6 +1218,10 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
+            if (showSpotify && SpotifyHub.connected) {
+                SpotifyScreen(ensureDevice = { spotifyDevice() }, onDismiss = { showSpotify = false })
+            }
+
             if (showRemote) {
                 val token = remember(remoteTokenVersion) { settings.remoteToken }
                 val url = if (remoteIp != null && remotePort > 0) "http://$remoteIp:$remotePort/?t=$token" else null
@@ -1500,6 +1525,43 @@ class MainActivity : ComponentActivity() {
 
     // ---- adb tools: results and messages -----------------------------------------------------------
 
+    /** Play or pause Spotify (hold OK on its widget). */
+    private fun spotifyPlayPause() {
+        appScope.launch {
+            val playing = SpotifyHub.playback?.playing == true
+            SpotifyHub.call { client -> if (playing) client.pause() else client.play() }
+            delay(400)
+            SpotifyHub.refreshPlayback()
+        }
+    }
+
+    /**
+     * The Spotify device that is this box. It only shows up while the Spotify app runs on the box, so when it is
+     * not there the app is started, waited for, and the launcher brought back to the front.
+     */
+    private suspend fun spotifyDevice(): String? {
+        SpotifyHub.deviceForThisBox(this)?.let { return it.id }
+        val launch = packageManager.getLaunchIntentForPackage("com.spotify.tv.android")
+            ?: packageManager.getLaunchIntentForPackage("com.spotify.music")
+        if (launch == null) {
+            toast("Zainstaluj aplikację Spotify na Boksie")
+            return null
+        }
+        toast("Uruchamiam Spotify na Boksie…")
+        withContext(Dispatchers.Main) { startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        var found: String? = null
+        repeat(10) {
+            if (found == null) {
+                delay(1_500)
+                found = SpotifyHub.deviceForThisBox(this)?.id
+            }
+        }
+        withContext(Dispatchers.Main) {
+            startActivity(Intent(this@MainActivity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        }
+        return found
+    }
+
     private fun toast(text: String) {
         Toast.makeText(this, text, Toast.LENGTH_LONG).show()
     }
@@ -1618,6 +1680,27 @@ class MainActivity : ComponentActivity() {
                 val now = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
                 runOnUiThread { SystemService.testOverlay(now * 100 / max, audio.isStreamMute(AudioManager.STREAM_MUSIC)) }
                 "Głośność: ${now * 100 / max}%"
+            }
+            "spotify_login" -> {
+                if (SpotifyHub.login(value)) {
+                    // The widget is switched on the first time, so the new player is found right away.
+                    runOnUiThread {
+                        if (WidgetType.SPOTIFY.key !in settings.enabledWidgets) settings.enabledWidgets = settings.enabledWidgets + WidgetType.SPOTIFY.key
+                        widgetsTick++
+                    }
+                    "Spotify połączony z launcherem"
+                } else {
+                    "Nie udało się odczytać logowania do Spotify"
+                }
+            }
+            "spotify_open" -> {
+                if (!SpotifyHub.connected) return "Najpierw zaloguj się do Spotify w aplikacji Pilot"
+                runOnUiThread { showSpotify = true }
+                "Odtwarzacz Spotify na TV"
+            }
+            "spotify_logout" -> {
+                SpotifyHub.logout()
+                "Spotify odłączony od launchera"
             }
             "ping" -> "Liquid TV ${Updater.currentVersionName(this)}: połączono"
             "mirror_stop" -> {

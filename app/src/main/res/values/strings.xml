@@ -273,6 +273,11 @@
     <!-- Teraz gra -->
     <string name="widget_pick_now_playing">Teraz gra (Spotify, YouTube Music…)</string>
     <string name="widget_now_playing">Teraz gra</string>
+    <string name="widget_pick_spotify">Spotify (okładki, playlisty, sterowanie)</string>
+    <string name="widget_spotify">Spotify</string>
+    <string name="spotify_connect_hint">Połącz Spotify w aplikacji Liquid TV Pilot (zakładka Spotify): tutaj pojawi się odtwarzacz z okładkami i playlistami.</string>
+    <string name="spotify_widget_hint">OK: otwórz odtwarzacz · przytrzymaj: pauza lub wznów</string>
+    <string name="spotify_nothing">Nic teraz nie gra na Spotify. OK otwiera odtwarzacz z playlistami.</string>
     <string name="np_no_access">Żeby zobaczyć, co gra, Liquid TV potrzebuje dostępu do powiadomień. OK nadaje go (po skonfigurowaniu adb) albo otwiera ustawienia Androida.</string>
     <string name="np_nothing">Nic teraz nie gra. Uruchom muzykę lub film w aplikacji.</string>
     <string name="np_playing">gra</string>

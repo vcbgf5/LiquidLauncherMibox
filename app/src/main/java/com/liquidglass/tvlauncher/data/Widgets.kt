@@ -18,6 +18,7 @@ enum class WidgetType(val key: String) {
     AGENDA("agenda"),
     WEATHER("weather"),
     NOW_PLAYING("nowplaying"),
+    SPOTIFY("spotify"),
     NETWORK("network"),
     BLUETOOTH("bluetooth"),
     SYSTEM("system"),

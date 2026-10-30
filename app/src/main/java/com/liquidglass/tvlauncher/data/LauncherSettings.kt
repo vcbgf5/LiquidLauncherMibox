@@ -1,5 +1,6 @@
 package com.liquidglass.tvlauncher.data
 
+import com.liquidglass.spotify.SpotifyTokens
 import android.content.Context
 
 /** The launcher's own options, remembered between runs. */
@@ -257,6 +258,31 @@ class LauncherSettings(context: Context) {
             prefs.edit().putInt(KEY_GLASS_TINT, value).apply()
         }
 
+    /** The Spotify session the phone app handed over (the Client ID is public; the tokens are this app's alone). */
+    var spotifyClientId: String
+        get() = prefs.getString(KEY_SPOTIFY_CLIENT, "").orEmpty()
+        set(value) {
+            prefs.edit().putString(KEY_SPOTIFY_CLIENT, value).apply()
+        }
+
+    val spotifyAccess: String? get() = prefs.getString(KEY_SPOTIFY_ACCESS, null)
+
+    val spotifyRefresh: String? get() = prefs.getString(KEY_SPOTIFY_REFRESH, null)
+
+    val spotifyExpiresAt: Long get() = prefs.getLong(KEY_SPOTIFY_EXPIRES, 0L)
+
+    fun saveSpotifyTokens(tokens: SpotifyTokens) {
+        prefs.edit()
+            .putString(KEY_SPOTIFY_ACCESS, tokens.access)
+            .putString(KEY_SPOTIFY_REFRESH, tokens.refresh)
+            .putLong(KEY_SPOTIFY_EXPIRES, tokens.expiresAt)
+            .apply()
+    }
+
+    fun clearSpotify() {
+        prefs.edit().remove(KEY_SPOTIFY_ACCESS).remove(KEY_SPOTIFY_REFRESH).remove(KEY_SPOTIFY_EXPIRES).apply()
+    }
+
     /** Look of the windows and menus: 0 flat dark glass, 1 Liquid Glass (see GlassStyle). */
     var glassStyle: Int
         get() = prefs.getInt(KEY_GLASS_STYLE, if (Edition.lite) 0 else 1)
@@ -310,6 +336,10 @@ class LauncherSettings(context: Context) {
         private const val KEY_ACCENT = "accent"
         private const val KEY_GLASS_TINT = "glass_tint"
         private const val KEY_GLASS_STYLE = "glass_style"
+        private const val KEY_SPOTIFY_CLIENT = "spotify_client"
+        private const val KEY_SPOTIFY_ACCESS = "spotify_access"
+        private const val KEY_SPOTIFY_REFRESH = "spotify_refresh"
+        private const val KEY_SPOTIFY_EXPIRES = "spotify_expires"
         private const val KEY_PARALLAX = "parallax"
         private const val KEY_TILE_TILT = "tile_tilt"
         private const val KEY_REMOTE_ALWAYS = "remote_always"
