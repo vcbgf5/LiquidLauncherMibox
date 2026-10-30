@@ -6,6 +6,7 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
+        "Animowana tapeta: wyślij krótki klip z aplikacji Pilot (zakładka Zdjęcia) — zapętla się bez dźwięku w tle ekranu głównego. Niedostępne w wersji Lite i w trybie oszczędnym.",
         "Poprawka: automatyczna aktualizacja już nie \"cichnie\" na zawsze, gdy cicha instalacja przez adb akurat zawiedzie — pokaże zwykłe okno instalacji zamiast nic nie robić.",
         "Gotowe motywy kolorystyczne, sezonowe tło (śnieg/liście/kwiaty) i widżet Spotify w kolorze okładki (Ustawienia → Wygląd).",
         "Poprawka: widżet Spotify (OK = pauza/wznów, przytrzymanie OK = pełny odtwarzacz) nie blokuje już reszty strony widżetów.",

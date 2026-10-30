@@ -35,6 +35,13 @@ class LauncherSettings(context: Context) {
             prefs.edit().putBoolean(KEY_SEASONAL_THEME, value).apply()
         }
 
+    /** Play the uploaded video clip (if any) as the home screen's wallpaper instead of a photo. */
+    var animatedWallpaper: Boolean
+        get() = prefs.getBoolean(KEY_ANIMATED_WALLPAPER, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_ANIMATED_WALLPAPER, value).apply()
+        }
+
     /**
      * The launcher's own volume bar (it needs its accessibility service): [VOLUME_OFF];
      * [VOLUME_BESIDE], where the bar shows every change of the volume and Android's own bar is left alone;
@@ -387,6 +394,7 @@ class LauncherSettings(context: Context) {
         private const val KEY_QUICK_KEY = "quick_key"
         private const val KEY_TILE_LIGHTING = "tile_lighting"
         private const val KEY_SEASONAL_THEME = "seasonal_theme"
+        private const val KEY_ANIMATED_WALLPAPER = "animated_wallpaper"
         private const val KEY_SCREENSAVER = "screensaver_minutes"
         const val DEFAULT_DOCK_TRANSPARENCY = 60
         private const val KEY_DOCK_TRANSPARENCY = "dock_transparency"

@@ -167,6 +167,7 @@ class MainActivity : ComponentActivity() {
 
     /** Bumped when photos were sent from the phone or removed, so the wallpaper categories are listed again. */
     private var userPhotosTick by mutableIntStateOf(0)
+    private var videoWallpaperTick by mutableIntStateOf(0)
 
     /** A wallpaper category the phone page asks to switch to (consumed by the screen). */
     private var forcedCategory by mutableStateOf<String?>(null)
@@ -232,6 +233,10 @@ class MainActivity : ComponentActivity() {
             var bigClock by remember { mutableStateOf(settings.bigClock) }
             var tileLighting by remember { mutableStateOf(settings.tileLighting) }
             var seasonalTheme by remember { mutableStateOf(settings.seasonalTheme) }
+            var animatedWallpaper by remember { mutableStateOf(settings.animatedWallpaper) }
+            val videoWallpaperFile by remember(videoWallpaperTick) {
+                mutableStateOf(WallpaperRepository.videoFile(this).takeIf { it.isFile })
+            }
             var tileTilt by remember { mutableStateOf(settings.tileTilt) }
             var parallax by remember { mutableStateOf(settings.parallax) }
             var accentIndex by remember { mutableIntStateOf(settings.accentIndex) }
@@ -646,6 +651,7 @@ class MainActivity : ComponentActivity() {
                     parallaxOn = parallax,
                     minimalTopBar = topBarMinimal,
                     seasonalTheme = seasonalTheme,
+                    videoWallpaper = if (animatedWallpaper) videoWallpaperFile else null,
                     idle = dialogOpen || screensaverShowing || !inForeground,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -735,6 +741,12 @@ class MainActivity : ComponentActivity() {
                     onSeasonalThemeChange = {
                         seasonalTheme = it
                         settings.seasonalTheme = it
+                    },
+                    animatedWallpaper = animatedWallpaper,
+                    hasVideoWallpaper = videoWallpaperFile != null,
+                    onAnimatedWallpaperChange = {
+                        animatedWallpaper = it
+                        settings.animatedWallpaper = it
                     },
                     clockContent = clockContent,
                     onClockContentChange = {
@@ -1650,6 +1662,7 @@ class MainActivity : ComponentActivity() {
     /** A photo sent from the phone: checked, copied to the launcher's own folder and shown. Runs on a server thread. */
     private fun receivePhoto(name: String, file: java.io.File): String {
         val extension = name.substringAfterLast('.', "").lowercase()
+        if (extension == "mp4") return receiveVideo(file)
         if (extension !in listOf("jpg", "jpeg", "png", "webp")) return "To nie wygląda na zdjęcie (jpg, png albo webp)."
         val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         android.graphics.BitmapFactory.decodeFile(file.path, bounds)
@@ -1664,6 +1677,37 @@ class MainActivity : ComponentActivity() {
             forcedCategory = WallpaperRepository.USER_CATEGORY
         }
         return "Zdjęcie dodane i ustawione jako tapeta"
+    }
+
+    /** Saves the clip, pulls its first frame as a still picture (used everywhere a video can't play:
+     * glass blur, screensaver, the Lite edition) and turns animated wallpaper on. */
+    private fun receiveVideo(file: java.io.File): String {
+        val target = WallpaperRepository.videoFile(this)
+        file.copyTo(target, overwrite = true)
+        val retriever = android.media.MediaMetadataRetriever()
+        val poster = try {
+            retriever.setDataSource(target.path)
+            retriever.getFrameAtTime(0)
+        } catch (_: Throwable) {
+            null
+        } finally {
+            retriever.release()
+        }
+        if (poster == null) {
+            target.delete()
+            return "Nie udało się odczytać tego wideo (nieobsługiwany format?)."
+        }
+        val folder = WallpaperRepository.userDir(this).apply { mkdirs() }
+        java.io.File(folder, WallpaperRepository.VIDEO_POSTER_NAME).outputStream().use {
+            poster.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it)
+        }
+        settings.animatedWallpaper = true
+        runOnUiThread {
+            userPhotosTick++
+            videoWallpaperTick++
+            forcedCategory = WallpaperRepository.USER_CATEGORY
+        }
+        return "Animowana tapeta ustawiona"
     }
 
     /** Runs one button of the phone's web page; called on a server thread, returns the line the page shows. */
@@ -1763,6 +1807,16 @@ class MainActivity : ComponentActivity() {
                     if (settings.wallpaperCategory == WallpaperRepository.USER_CATEGORY) forcedCategory = WallpaperCatalog.ALL
                 }
                 "Usunięto własne zdjęcia"
+            }
+            "clear_video" -> {
+                WallpaperRepository.videoFile(this).delete()
+                java.io.File(WallpaperRepository.userDir(this), WallpaperRepository.VIDEO_POSTER_NAME).delete()
+                settings.animatedWallpaper = false
+                runOnUiThread {
+                    userPhotosTick++
+                    videoWallpaperTick++
+                }
+                "Wyłączono animowaną tapetę"
             }
             "screensaver" -> {
                 runOnUiThread { screensaverShowing = true }

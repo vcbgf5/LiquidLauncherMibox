@@ -156,6 +156,9 @@ fun SettingsDialog(
     onTileLightingChange: (Boolean) -> Unit,
     seasonalTheme: Boolean,
     onSeasonalThemeChange: (Boolean) -> Unit,
+    animatedWallpaper: Boolean,
+    hasVideoWallpaper: Boolean,
+    onAnimatedWallpaperChange: (Boolean) -> Unit,
     clockContent: Int,
     onClockContentChange: (Int) -> Unit,
     clockPosition: Int,
@@ -337,6 +340,9 @@ fun SettingsDialog(
                     ToggleRow(stringResource(R.string.settings_tile_lighting), tileLighting, onTileLightingChange)
                     Divider()
                     ToggleRow(stringResource(R.string.settings_seasonal_theme), seasonalTheme, onSeasonalThemeChange)
+                    Divider()
+                    ToggleRow(stringResource(R.string.settings_animated_wallpaper), animatedWallpaper, onAnimatedWallpaperChange)
+                    if (!hasVideoWallpaper) Note(stringResource(R.string.animated_wallpaper_note))
                     Divider()
                     ChoiceRow(
                         label = stringResource(R.string.settings_accent),

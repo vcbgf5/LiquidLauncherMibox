@@ -31,6 +31,8 @@
     <string name="settings_big_clock">Duży zegar na środku zamiast małego</string>
     <string name="settings_tile_lighting">Efekt światła na ikonach</string>
     <string name="settings_seasonal_theme">Sezonowe tło (śnieg, liście, kwiaty)</string>
+    <string name="settings_animated_wallpaper">Animowana tapeta (wideo)</string>
+    <string name="animated_wallpaper_note">Wyślij krótki klip z aplikacji Pilot (zakładka Zdjęcia), żeby to działało.</string>
     <string name="settings_custom_volume">Pasek głośności Liquid TV</string>
     <string name="volume_mode_off">Wyłączony</string>
     <string name="volume_mode_beside">Pasek Liquid TV (systemowy zostaje)</string>

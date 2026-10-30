@@ -44,6 +44,13 @@ object WallpaperRepository {
     /** Where the photos sent from the phone live (never in the cache, so clearing caches does not lose them). */
     fun userDir(context: Context): File = File(context.filesDir, "user_wallpapers")
 
+    /** The one animated (video) wallpaper the phone sent, if any; a new one replaces it. */
+    fun videoFile(context: Context): File = File(context.filesDir, "wallpaper_video.mp4")
+
+    /** The still picture pulled from [videoFile]'s first frame, shown as its "photo" everywhere else
+     * (glass blur, screensaver) while the live video plays only on the home screen itself. */
+    const val VIDEO_POSTER_NAME = "video-poster.jpg"
+
     /** [base] plus a "Moje zdjęcia" category made of the photos the user sent, when there are any. */
     fun withUserPhotos(context: Context, base: WallpaperCatalog): WallpaperCatalog {
         val files = userDir(context).listFiles()?.filter { it.isFile }?.sortedBy { it.name }

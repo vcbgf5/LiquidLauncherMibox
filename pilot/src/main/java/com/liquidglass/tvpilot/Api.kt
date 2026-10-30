@@ -83,6 +83,21 @@ object Box {
         }
     }
 
+    /** Sends a short video clip as an animated wallpaper; not shrunk, so pick a short one yourself. */
+    suspend fun uploadVideo(context: Context, link: BoxLink, uri: Uri): String = withContext(Dispatchers.IO) {
+        val prepared = Videos.prepare(context, uri) ?: return@withContext "Nie udało się odczytać tego pliku"
+        try {
+            if (prepared.tooBig) return@withContext "Plik jest za duży (limit ${Videos.MAX_BYTES / 1_000_000} MB) — wybierz krótszy klip."
+            request("${link.base}/upload?t=${enc(link.token)}&name=${enc(prepared.name)}", prepared.file.length(), "video/mp4") { out ->
+                prepared.file.inputStream().use { it.copyTo(out) }
+            }
+        } catch (e: Exception) {
+            "Brak połączenia z Boxem (${e.message ?: e.javaClass.simpleName})"
+        } finally {
+            prepared.file.delete()
+        }
+    }
+
     private fun request(url: String, length: Long, type: String, write: (OutputStream) -> Unit): String {
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
@@ -156,5 +171,23 @@ object Photos {
             if (cursor.moveToFirst()) cursor.getString(0)?.let { return it }
         }
         return uri.lastPathSegment ?: "zdjecie"
+    }
+}
+
+class PreparedVideo(val file: File, val name: String, val tooBig: Boolean)
+
+/** Just a straight copy to a temp file (no re-encoding: Android has no simple on-device video trimmer),
+ * so the box can reject it if it is bigger than the upload limit. Pick a short clip yourself. */
+object Videos {
+    const val MAX_BYTES = 25_000_000L
+
+    fun prepare(context: Context, uri: Uri): PreparedVideo? = try {
+        val file = File(context.cacheDir, "up-${System.nanoTime()}.mp4")
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            file.outputStream().use { output -> input.copyTo(output) }
+        }
+        if (file.length() <= 0L) null else PreparedVideo(file, "wideo-${System.nanoTime()}.mp4", file.length() > MAX_BYTES)
+    } catch (_: Throwable) {
+        null
     }
 }

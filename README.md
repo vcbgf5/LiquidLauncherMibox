@@ -93,6 +93,12 @@ Wi-Fi). Na telefonie: pilot (strzałki, OK, wstecz, home), głośność, uśpien
 pogody i adres do otwarcia na TV, a także **wysyłanie własnych zdjęć na tapetę** (kategoria „Moje zdjęcia”, do 60 zdjęć po 25 MB). W adresie jest sekret; „Nowy link” unieważnia stary. Strona działa tylko przy otwartym oknie,
 chyba że włączysz „działa cały czas”.
 
+**Animowana tapeta (wideo).** W tej samej zakładce (Zdjęcia) możesz zamiast tego wysłać krótki klip wideo (limit 25 MB, nie jest
+skracany — wybierz sam coś krótkiego): zapętla się bez dźwięku w tle ekranu głównego. Pierwsza klatka klipu służy jako zwykłe
+zdjęcie wszędzie indziej (rozmyte tło okien, wygaszacz), więc reszta launchera działa bez zmian. Można to wyłączyć w Ustawieniach
+(Wygląd → Animowana tapeta) albo przyciskiem na telefonie. Niedostępne w wersji Lite i w trybie oszczędnym — dekodowanie wideo
+cały czas jest zbyt dużym obciążeniem dla słabego Boksa.
+
 **Teraz gra.** Widżet pokazuje utwór, wykonawcę, okładkę i postęp z aplikacji muzycznych i wideo (Spotify, YouTube Music itd.);
 OK = odtwórz/pauza, przytrzymanie OK = następny utwór. Wymaga dostępu do powiadomień (nadawany przyciskiem w Narzędziach
 albo w ustawieniach Androida).

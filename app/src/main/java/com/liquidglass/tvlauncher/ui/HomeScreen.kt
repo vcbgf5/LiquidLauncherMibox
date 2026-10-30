@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -143,6 +144,7 @@ fun HomeScreen(
     idle: Boolean,
     minimalTopBar: Boolean,
     seasonalTheme: Boolean,
+    videoWallpaper: java.io.File?,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -296,6 +298,16 @@ fun HomeScreen(
                         .fillMaxSize()
                         .graphicsLayer { alpha = if (wallpaper.previous != null) wallpaper.fade.value else 1f },
                 )
+            }
+
+            // The video plays only here, over its own first frame (already showing above as the
+            // "photo"); paused whenever idle so it isn't decoding behind the screensaver for nothing.
+            // Keyed on the file itself, so sending a new clip tears down the old player instead of
+            // trying (and failing) to feed it a different file after it has already started.
+            if (videoWallpaper != null && !idle) {
+                key(videoWallpaper.path, videoWallpaper.lastModified()) {
+                    VideoWallpaper(videoWallpaper, modifier = Modifier.fillMaxSize())
+                }
             }
 
             SeasonalOverlay(enabled = seasonalTheme, modifier = Modifier.fillMaxSize())

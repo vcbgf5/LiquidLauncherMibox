@@ -358,6 +358,7 @@ private fun PhotosTab(link: BoxLink?, send: (String, String) -> Unit, onStatus: 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
+    var videoBusy by remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         val target = link
         if (target == null) {
@@ -372,6 +373,19 @@ private fun PhotosTab(link: BoxLink?, send: (String, String) -> Unit, onStatus: 
                 }
                 onStatus(last)
                 busy = false
+            }
+        }
+    }
+    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val target = link
+        if (target == null) {
+            onStatus("Najpierw połącz z Boxem (zakładka Box)")
+        } else if (uri != null) {
+            scope.launch {
+                videoBusy = true
+                onStatus("Wysyłam wideo…")
+                onStatus(Box.uploadVideo(context, target, uri))
+                videoBusy = false
             }
         }
     }
@@ -392,6 +406,22 @@ private fun PhotosTab(link: BoxLink?, send: (String, String) -> Unit, onStatus: 
             )
             PilotButton("Następna tapeta", { send("wallpaper", "") }, Modifier.fillMaxWidth(), icon = PilotIcons.Refresh)
             PilotButton("Usuń moje zdjęcia z Boksa", { send("clear_photos", "") }, Modifier.fillMaxWidth(), icon = PilotIcons.Trash)
+        }
+        GlassCard {
+            Heading(PilotIcons.Video, "Animowana tapeta (wideo)")
+            BodyText(
+                "Wybierz krótki klip (kilka–kilkanaście sekund, limit 25 MB): będzie się zapętlał bez dźwięku w tle " +
+                    "ekranu głównego zamiast zdjęcia. Nie jest skracany ani kompresowany, więc wybierz sam coś krótkiego. " +
+                    "Niedostępne na starych telewizorach (wersja Lite albo tryb oszczędny).",
+            )
+            PilotButton(
+                if (videoBusy) "Wysyłam…" else "Wybierz wideo i wyślij",
+                { videoPicker.launch("video/*") },
+                Modifier.fillMaxWidth(),
+                icon = PilotIcons.Video,
+                enabled = !videoBusy,
+            )
+            PilotButton("Wyłącz animowaną tapetę", { send("clear_video", "") }, Modifier.fillMaxWidth(), icon = PilotIcons.Trash)
         }
     }
 }
