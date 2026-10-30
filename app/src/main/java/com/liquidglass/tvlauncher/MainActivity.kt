@@ -113,6 +113,7 @@ import com.liquidglass.tvlauncher.ui.LaunchOverlay
 import com.liquidglass.tvlauncher.ui.LearnKeyPrompt
 import com.liquidglass.tvlauncher.ui.MirrorScreen
 import com.liquidglass.tvlauncher.ui.LaunchRequest
+import com.liquidglass.tvlauncher.ui.PowerOffAnimation
 import com.liquidglass.tvlauncher.ui.MenuOption
 import com.liquidglass.tvlauncher.ui.QuickPanel
 import com.liquidglass.tvlauncher.ui.QuickTile
@@ -259,6 +260,7 @@ class MainActivity : ComponentActivity() {
             }
             val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { calendarTick++ }
             var showPower by remember { mutableStateOf(false) }
+            var poweringOff by remember { mutableStateOf(false) }
             var iconPickerApp by remember { mutableStateOf<AppInfo?>(null) }
             var iconsVersion by remember { mutableIntStateOf(0) }
             var iconPacks by remember { mutableStateOf<List<IconPack>>(emptyList()) }
@@ -1345,7 +1347,7 @@ class MainActivity : ComponentActivity() {
                         },
                         MenuOption(stringResource(R.string.power_shutdown)) {
                             confirm = ConfirmRequest(getString(R.string.power_shutdown_ask), getString(R.string.power_shutdown)) {
-                                appScope.launch { reportAdb(SystemTools.shutdown(this@MainActivity)) { getString(R.string.quick_sent) } }
+                                poweringOff = true
                             }
                         },
                         MenuOption(stringResource(R.string.power_off)) {
@@ -1379,6 +1381,20 @@ class MainActivity : ComponentActivity() {
                         iconPickerApp = null
                     },
                     onDismiss = { iconPickerApp = null },
+                )
+            }
+
+            // Drawn last, over everything else, so no dialog or menu is left showing through it.
+            if (poweringOff) {
+                PowerOffAnimation(
+                    onFinished = {
+                        appScope.launch {
+                            // On success the box is on its way down and this never gets to matter;
+                            // on failure the screen needs to come back so the toast makes sense.
+                            reportAdb(SystemTools.shutdown(this@MainActivity)) { getString(R.string.quick_sent) }
+                            poweringOff = false
+                        }
+                    },
                 )
             }
             }
