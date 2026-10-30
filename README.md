@@ -155,13 +155,18 @@ wersja i „Co nowego” są brane z `preview/src/version.txt` i `Changelog.kt`.
 
 ## Spotify
 
-Aplikacja Pilot loguje się do Spotify (przez stronę Spotify, bez hasła w aplikacji) i przekazuje logowanie launcherowi. Launcher ma wtedy
-**widżet „Spotify”** na stronie widżetów i **pełnoekranowy odtwarzacz** z okładką, paskiem postępu, playlistami i utworami
-(OK otwiera odtwarzacz, przytrzymanie OK to pauza lub wznowienie; w odtwarzaczu OK na playliście pokazuje jej utwory, na utworze go
-odtwarza, Wstecz cofa). Telefon w zakładce Spotify też steruje muzyką.
+Jak podłączyć własne konto:
 
-Potrzebne: **Spotify Premium** i aplikacja Spotify na Boxie (Box jest widoczny dla Spotify jako urządzenie tylko, gdy ona działa; launcher
-uruchamia ją sam, gdy trzeba).
+1. Potrzebne: konto **Spotify Premium** i aplikacja **Spotify** na Boxie (musi działać, żeby Box był widoczny dla Spotify jako
+   urządzenie; launcher sam ją uruchomi, gdy trzeba).
+2. W aplikacji **Liquid TV Pilot** na telefonie otwórz zakładkę **Spotify** i wybierz **Połącz ze Spotify**. Zaloguj się na
+   stronie Spotify (bez wpisywania hasła w samej aplikacji) i zatwierdź — aplikacja wróci sama.
+3. Jeśli telefon jest połączony z Boxem (zakładka Box), logowanie od razu trafia do launchera.
+4. Na telewizorze: strzałka w górę z ekranu głównego → karta **Spotify**. **OK** otwiera pełnoekranowy odtwarzacz (okładka, pasek
+   postępu, playlisty i utwory — OK na playliście pokazuje jej utwory, na utworze go odtwarza, Wstecz cofa); **przytrzymanie OK**
+   to pauza lub wznowienie bez otwierania odtwarzacza. Telefon w zakładce Spotify też steruje muzyką.
+5. Logowanie jest jednorazowe: potem telefon możesz odłożyć albo wyłączyć — launcher na Boksie pamięta sesję i sam rozmawia ze
+   Spotify (sam odświeża token), więc muzyka gra i steruje się nią samym pilotem telewizora, bez telefonu w pobliżu.
 
 **Jednorazowa konfiguracja projektu** (właściciel): na [developer.spotify.com](https://developer.spotify.com/dashboard) utwórz aplikację,
 w *Redirect URIs* dodaj dokładnie `liquidtvpilot://spotify-callback`, a **Client ID** wpisz w GitHubie jako sekret Actions
