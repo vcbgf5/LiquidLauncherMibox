@@ -85,15 +85,19 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build release APK
-        run: ./gradlew --no-daemon assembleRelease
+      # The normal APK is built as it is; the lite one goes through R8 ("shrunk"), which makes it far smaller.
+      # SPOTIFY_CLIENT_ID is the public id of the Spotify app (a repository secret), baked into the phone app.
+      - name: Build release APKs
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.CLIENT_ID_SPOTIFY }}
+        run: ./gradlew --no-daemon :app:assembleFullRelease :app:assembleLiteShrunk :pilot:assembleRelease
 
       # Fixed file names, so .../releases/latest/download/LiquidTV.apk (and version.json) always work.
       # LiquidTVLite.apk is the same app for old TVs with about 0.5 GB of RAM; each edition updates from its own file.
       - name: Name the APK and describe its version
         run: |
           cp app/build/outputs/apk/full/release/*.apk LiquidTV.apk
-          cp app/build/outputs/apk/lite/release/*.apk LiquidTVLite.apk
+          cp app/build/outputs/apk/lite/shrunk/*.apk LiquidTVLite.apk
           cp pilot/build/outputs/apk/release/*.apk LiquidTVPilot.apk
           printf '{"versionCode": %s, "versionName": "%s"}\n' "$VERSION_CODE" "$VERSION_NAME" > version.json
           cat version.json

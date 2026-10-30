@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://vcbgf5.github.io/LiquidLauncherMibox/"><img src="docs/visit-button.svg" alt="Odwiedź stronę: pobieranie, poradniki, klikalny podgląd" width="720"></a>
+</p>
+
 # Liquid TV
 
 Launcher na Android TV (Xiaomi Mi Box itp.) inspirowany ekranem głównym Apple TV.

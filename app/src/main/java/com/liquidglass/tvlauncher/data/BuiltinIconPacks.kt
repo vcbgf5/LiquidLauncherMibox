@@ -55,8 +55,9 @@ object BuiltinIconPacks {
 
     fun isBuiltin(packageName: String): Boolean = packageName.startsWith(PREFIX)
 
+    /** The lite edition leaves these packs out (their pictures are replaced by empty ones to keep the APK small). */
     fun packs(context: Context): List<IconPack> =
-        STYLES.map { (id, label) -> IconPack(PREFIX + id, context.getString(label)) }
+        if (Edition.lite) emptyList() else STYLES.map { (id, label) -> IconPack(PREFIX + id, context.getString(label)) }
 
     /** Every icon of the pack, and which of them belongs to which app. */
     fun contents(): IconPacks.Contents = IconPacks.Contents(

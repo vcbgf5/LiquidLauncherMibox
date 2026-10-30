@@ -21,13 +21,11 @@ object Edition {
     /** The release file this edition updates from. */
     val apkName: String = if (lite) "LiquidTVLite.apk" else "LiquidTV.apk"
 
-    /** The picture built into the app (shown before any wallpaper is downloaded); half the size on the lite edition. */
+    /** The picture built into the app (shown before any wallpaper is downloaded); the lite edition keeps it half-size in 565. */
     fun bundledHero(resources: Resources): ImageBitmap {
         if (!lite) return ImageBitmap.imageResource(resources, R.drawable.bg_hero)
-        val options = BitmapFactory.Options().apply {
-            inSampleSize = 2
-            inPreferredConfig = Bitmap.Config.RGB_565
-        }
+        // The lite edition ships its own, already half-size picture (src/lite/res/drawable/bg_hero.jpg).
+        val options = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.RGB_565 }
         val decoded = BitmapFactory.decodeResource(resources, R.drawable.bg_hero, options)
         return (decoded ?: Bitmap.createBitmap(16, 9, Bitmap.Config.RGB_565)).asImageBitmap()
     }

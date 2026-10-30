@@ -13,24 +13,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -45,28 +46,41 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Liquid TV Pilot: a remote for the box (arrows, volume, power, typing, opening a link), sending photos
- * as wallpapers, and sharing the phone's screen to the TV. The box is found through the QR code that
+ * as wallpapers, sharing the phone's screen to the TV, and Spotify (sign-in and control; the launcher gets
+ * the sign-in too and shows its own player). The box is found through the QR code that
  * Settings > Narzędzia > Pilot z telefonu shows on the TV. "Share" in the gallery or a browser also lands here.
  */
 class MainActivity : ComponentActivity() {
     /** Something shared from another app, waiting to be sent once the box is known. */
     var shared by mutableStateOf<Intent?>(null)
 
+    /** The address Spotify's sign-in page sent the browser back to (liquidtvpilot://spotify-callback?code=...). */
+    var spotifyCallback by mutableStateOf<Uri?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         shared = intent.takeIf { it.action == Intent.ACTION_SEND || it.action == Intent.ACTION_SEND_MULTIPLE }
+        spotifyCallback = callbackOf(intent)
         setContent { PilotApp(this) }
     }
 
@@ -74,17 +88,31 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         shared = intent.takeIf { it.action == Intent.ACTION_SEND || it.action == Intent.ACTION_SEND_MULTIPLE }
+        callbackOf(intent)?.let { spotifyCallback = it }
     }
+
+    private fun callbackOf(intent: Intent?): Uri? = intent?.data?.takeIf { it.scheme == "liquidtvpilot" }
 }
 
-private val tabs = listOf("Pilot" to "◉", "Zdjęcia" to "▣", "Ekran" to "▭", "Box" to "⚙")
+private val navItems = listOf(
+    NavItem("Pilot", PilotIcons.Remote),
+    NavItem("Zdjęcia", PilotIcons.Photo),
+    NavItem("Ekran", PilotIcons.Cast),
+    NavItem("Spotify", PilotIcons.Music),
+    NavItem("Box", PilotIcons.Tv),
+)
+
+private const val TAB_SPOTIFY = 3
+private const val TAB_BOX = 4
 
 @Composable
 private fun PilotApp(activity: MainActivity) {
     val context = LocalContext.current
     val store = remember { LinkStore(context) }
+    val spotify = remember { SpotifySession(context) }
+    var spotifyVersion by remember { mutableIntStateOf(0) }
     var link by remember { mutableStateOf(store.load()) }
-    var tab by remember { mutableIntStateOf(if (store.load() == null) 3 else 0) }
+    var tab by remember { mutableIntStateOf(if (store.load() == null) TAB_BOX else 0) }
     var status by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
 
@@ -97,6 +125,14 @@ private fun PilotApp(activity: MainActivity) {
         }
     }
 
+    // The status line fades after a few seconds.
+    LaunchedEffect(status) {
+        if (status.isNotEmpty()) {
+            delay(5_000)
+            status = ""
+        }
+    }
+
     // Photos and links shared from other apps.
     LaunchedEffect(activity.shared, link) {
         val intent = activity.shared
@@ -106,37 +142,50 @@ private fun PilotApp(activity: MainActivity) {
             status = shareToBox(context, current, intent)
         } else if (intent != null) {
             status = "Połącz z Boxem, żeby wysłać to, co udostępniasz"
-            tab = 3
+            tab = TAB_BOX
+        }
+    }
+
+    // Spotify sent the browser back here: trade the code for tokens and give them to the launcher.
+    LaunchedEffect(activity.spotifyCallback) {
+        val uri = activity.spotifyCallback ?: return@LaunchedEffect
+        activity.spotifyCallback = null
+        tab = TAB_SPOTIFY
+        status = "Kończę logowanie do Spotify…"
+        val error = withContext(Dispatchers.IO) { spotify.finish(uri) }
+        if (error != null) {
+            status = error
+        } else {
+            spotifyVersion++
+            status = "Połączono ze Spotify"
+            val current = link
+            val tokens = spotify.tokens()
+            if (current != null && tokens != null) {
+                val answer = Box.action(current, "spotify_login", tokens.toJson(spotify.clientId))
+                status = "Połączono ze Spotify. " + answer.take(80)
+            }
         }
     }
 
     MaterialTheme(colorScheme = darkColorScheme()) {
         Scaffold(
-            containerColor = Color(0xFF0B0C10),
-            bottomBar = {
-                NavigationBar {
-                    tabs.forEachIndexed { index, (label, icon) ->
-                        NavigationBarItem(
-                            selected = tab == index,
-                            onClick = { tab = index },
-                            icon = { Text(icon, fontSize = 20.sp) },
-                            label = { Text(label) },
-                        )
-                    }
-                }
-            },
+            containerColor = Color.Transparent,
+            modifier = Modifier.background(Brush.verticalGradient(listOf(Pal.top, Pal.bottom))),
+            bottomBar = { GlassNav(navItems, tab) { tab = it } },
         ) { padding ->
             Column(
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp),
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Header(link) { tab = TAB_BOX }
+                Box(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
                     when (tab) {
                         0 -> RemoteTab(send)
-                        1 -> PhotosTab(link, send, { status = it })
+                        1 -> PhotosTab(link, send) { status = it }
                         2 -> ScreenTab(link) { status = it }
+                        TAB_SPOTIFY -> SpotifyTab(spotify, spotifyVersion, link, { status = it }, send)
                         else -> LinkTab(
                             link = link,
                             onLink = {
@@ -147,11 +196,43 @@ private fun PilotApp(activity: MainActivity) {
                             onCheck = { send("ping", "") },
                         )
                     }
-                }
-                if (status.isNotEmpty()) {
-                    Text(status, color = Color(0xFF9DBBFF), fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+                    if (status.isNotEmpty()) {
+                        Text(
+                            status,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 6.dp)
+                                .glass(RoundedCornerShape(50), strong = true)
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+/** The top line: the app's mark and name, and whether a box is linked (tapping it opens the connection tab). */
+@Composable
+private fun Header(link: BoxLink?, onBox: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(Pal.brand), contentAlignment = Alignment.Center) {
+            Icon(PilotIcons.Remote, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+        Text("Liquid TV Pilot", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        Row(
+            modifier = Modifier.glass(RoundedCornerShape(50)).clickable(onClick = onBox).padding(horizontal = 12.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(if (link != null) Pal.good else Pal.dim))
+            Text(link?.host ?: "Niepołączony", color = Pal.muted, fontSize = 12.sp, maxLines = 1)
         }
     }
 }
@@ -182,13 +263,40 @@ private suspend fun shareToBox(context: Context, link: BoxLink, intent: Intent):
 // ---- Remote -----------------------------------------------------------------------------------------------
 
 @Composable
-private fun RowScope.Wide(label: String, onClick: () -> Unit) {
-    FilledTonalButton(onClick = onClick, modifier = Modifier.weight(1f)) { Text(label, maxLines = 1, fontSize = 13.sp) }
+private fun BoxScope.PadArrow(at: Alignment, icon: ImageVector, label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.align(at).padding(10.dp).size(64.dp).clip(CircleShape).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(36.dp))
+    }
 }
 
+/** The direction ring with OK in the middle. */
 @Composable
-private fun Pad(label: String, onClick: () -> Unit) {
-    FilledTonalButton(onClick = onClick, modifier = Modifier.width(96.dp).height(64.dp)) { Text(label, fontSize = 20.sp) }
+private fun DPad(send: (String, String) -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    val key: (String) -> Unit = {
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        send("key", it)
+    }
+    Box(
+        modifier = Modifier
+            .size(252.dp)
+            .glass(CircleShape, strong = true),
+        contentAlignment = Alignment.Center,
+    ) {
+        PadArrow(Alignment.TopCenter, PilotIcons.Up, "Góra") { key("UP") }
+        PadArrow(Alignment.BottomCenter, PilotIcons.Down, "Dół") { key("DOWN") }
+        PadArrow(Alignment.CenterStart, PilotIcons.Left, "Lewo") { key("LEFT") }
+        PadArrow(Alignment.CenterEnd, PilotIcons.Right, "Prawo") { key("RIGHT") }
+        Box(
+            modifier = Modifier.size(92.dp).clip(CircleShape).background(Pal.brand).clickable { key("OK") },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("OK", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        }
+    }
 }
 
 @Composable
@@ -196,45 +304,50 @@ private fun RemoteTab(send: (String, String) -> Unit) {
     var text by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.verticalScroll(rememberScrollState()).fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { Pad("▲") { send("key", "UP") } }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-            Pad("◀") { send("key", "LEFT") }
-            Pad("OK") { send("key", "OK") }
-            Pad("▶") { send("key", "RIGHT") }
+        DPad(send)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            RoundAction(PilotIcons.Back, "Wstecz", { send("key", "BACK") })
+            RoundAction(PilotIcons.Home, "Home", { send("key", "HOME") })
+            RoundAction(PilotIcons.Play, "Odtwarzanie", { send("key", "PLAYPAUSE") })
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { Pad("▼") { send("key", "DOWN") } }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Wide("Wstecz") { send("key", "BACK") }
-            Wide("Home") { send("key", "HOME") }
-            Wide("⏯") { send("key", "PLAYPAUSE") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            RoundAction(PilotIcons.VolumeDown, "Ciszej", { send("vol_down", "") })
+            RoundAction(PilotIcons.VolumeOff, "Wycisz", { send("mute", "") })
+            RoundAction(PilotIcons.VolumeUp, "Głośniej", { send("vol_up", "") })
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Wide("Głośność −") { send("vol_down", "") }
-            Wide("Wycisz") { send("mute", "") }
-            Wide("Głośność +") { send("vol_up", "") }
+        GlassCard {
+            Heading(PilotIcons.Power, "Zasilanie")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PilotButton("Uśpij Box", { send("standby", "") }, Modifier.weight(1f))
+                PilotButton("Włącz TV", { send("tv_on", "") }, Modifier.weight(1f))
+                PilotButton("TV wł./wył.", { send("tv_power", "") }, Modifier.weight(1f))
+            }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Wide("Uśpij Box") { send("standby", "") }
-            Wide("Włącz TV") { send("tv_on", "") }
-            Wide("TV wł./wył.") { send("tv_power", "") }
+        GlassCard {
+            Heading(PilotIcons.Keyboard, "Wpisz na TV")
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("Tekst do wpisania") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            PilotButton("Wpisz na TV", { send("text", text) }, Modifier.fillMaxWidth(), icon = PilotIcons.Send, primary = true)
         }
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            label = { Text("Tekst do wpisania na TV") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Button(onClick = { send("text", text) }, modifier = Modifier.fillMaxWidth()) { Text("Wpisz na TV") }
-        OutlinedTextField(
-            value = url,
-            onValueChange = { url = it },
-            label = { Text("Adres do otwarcia na TV") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Button(onClick = { send("open", url) }, modifier = Modifier.fillMaxWidth()) { Text("Otwórz na TV") }
+        GlassCard {
+            Heading(PilotIcons.Link, "Otwórz na TV")
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it },
+                label = { Text("Adres do otwarcia") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            PilotButton("Otwórz na TV", { send("open", url) }, Modifier.fillMaxWidth(), icon = PilotIcons.Send, primary = true)
+        }
+        Spacer(Modifier.height(6.dp))
     }
 }
 
@@ -262,21 +375,23 @@ private fun PhotosTab(link: BoxLink?, send: (String, String) -> Unit, onStatus: 
             }
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Własne tapety", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(
-            "Wybierz zdjęcia z telefonu: trafią do kategorii „Moje zdjęcia” na Boksie i od razu staną się tapetą. " +
-                "Zdjęcia są zmniejszane i obracane do pionu przed wysłaniem. Możesz też użyć „Udostępnij” w galerii.",
-            color = Color(0xFFB0B3C0),
-        )
-        Button(onClick = { picker.launch("image/*") }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-            Text(if (busy) "Wysyłam…" else "Wybierz zdjęcia i wyślij")
-        }
-        OutlinedButton(onClick = { send("clear_photos", "") }, modifier = Modifier.fillMaxWidth()) {
-            Text("Usuń moje zdjęcia z Boksa")
-        }
-        OutlinedButton(onClick = { send("wallpaper", "") }, modifier = Modifier.fillMaxWidth()) {
-            Text("Następna tapeta")
+    Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        GlassCard {
+            Heading(PilotIcons.Photo, "Własne tapety")
+            BodyText(
+                "Wybierz zdjęcia z telefonu: trafią do kategorii „Moje zdjęcia” na Boksie i od razu staną się tapetą. " +
+                    "Zdjęcia są zmniejszane i obracane do pionu przed wysłaniem. Możesz też użyć „Udostępnij” w galerii.",
+            )
+            PilotButton(
+                if (busy) "Wysyłam…" else "Wybierz zdjęcia i wyślij",
+                { picker.launch("image/*") },
+                Modifier.fillMaxWidth(),
+                icon = PilotIcons.Photo,
+                primary = true,
+                enabled = !busy,
+            )
+            PilotButton("Następna tapeta", { send("wallpaper", "") }, Modifier.fillMaxWidth(), icon = PilotIcons.Refresh)
+            PilotButton("Usuń moje zdjęcia z Boksa", { send("clear_photos", "") }, Modifier.fillMaxWidth(), icon = PilotIcons.Trash)
         }
     }
 }
@@ -303,37 +418,42 @@ private fun ScreenTab(link: BoxLink?, onStatus: (String) -> Unit) {
     }
     val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { askProjection() }
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Udostępnianie ekranu", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(
-            "Ekran telefonu pojawi się na telewizorze (obraz, bez dźwięku, kilka klatek na sekundę). " +
-                "Na TV przycisk Wstecz kończy udostępnianie. Telefon i Box muszą być w tej samej sieci Wi-Fi.",
-            color = Color(0xFFB0B3C0),
-        )
-        if (running) {
-            Button(onClick = { ScreenShareService.stop(context) }, modifier = Modifier.fillMaxWidth()) { Text("Zatrzymaj udostępnianie") }
-        } else {
-            Button(
-                onClick = {
-                    if (link == null) {
-                        onStatus("Najpierw połącz z Boxem (zakładka Box)")
-                    } else if (Build.VERSION.SDK_INT >= 33 &&
-                        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                    ) {
-                        notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    } else {
-                        askProjection()
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Pokaż ekran telefonu na TV") }
+    Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        GlassCard {
+            Heading(PilotIcons.Cast, "Udostępnianie ekranu")
+            BodyText(
+                "Ekran telefonu pojawi się na telewizorze (obraz, bez dźwięku, kilka klatek na sekundę). " +
+                    "Na TV przycisk Wstecz kończy udostępnianie. Telefon i Box muszą być w tej samej sieci Wi-Fi.",
+            )
+            if (running) {
+                PilotButton("Zatrzymaj udostępnianie", { ScreenShareService.stop(context) }, Modifier.fillMaxWidth(), icon = PilotIcons.Pause, primary = true)
+            } else {
+                PilotButton(
+                    "Pokaż ekran telefonu na TV",
+                    {
+                        if (link == null) {
+                            onStatus("Najpierw połącz z Boxem (zakładka Box)")
+                        } else if (Build.VERSION.SDK_INT >= 33 &&
+                            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            askProjection()
+                        }
+                    },
+                    Modifier.fillMaxWidth(),
+                    icon = PilotIcons.Cast,
+                    primary = true,
+                )
+            }
+            Text(
+                "Filmy i muzykę z telefonu najlepiej wysyłać wbudowanym Chromecastem Mi Box S (ikona „Prześlij” w aplikacji), " +
+                    "bo ten tryb pokazuje tylko obraz.",
+                color = Pal.dim,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
         }
-        Text(
-            "Filmy i muzykę z telefonu najlepiej wysyłać wbudowanym Chromecastem Mi Box S (ikona „Prześlij” w aplikacji), " +
-                "bo ten tryb pokazuje tylko obraz.",
-            color = Color(0xFF8E8E93),
-            fontSize = 13.sp,
-        )
     }
 }
 
@@ -346,55 +466,60 @@ private fun LinkTab(link: BoxLink?, onLink: (BoxLink) -> Unit, onStatus: (String
     var port by remember { mutableStateOf((link?.port ?: 8765).toString()) }
     var token by remember { mutableStateOf(link?.token.orEmpty()) }
 
-    Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text("Połączenie z Boksem", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(
-            "Na TV wejdź w Ustawienia → Narzędzia (adb) → Pilot z telefonu i zeskanuj pokazany kod. " +
-                "Albo wpisz adres IP i kod ręcznie.",
-            color = Color(0xFFB0B3C0),
-        )
-        Button(
-            onClick = {
-                val scanner = GmsBarcodeScanning.getClient(
-                    context,
-                    GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build(),
-                )
-                scanner.startScan()
-                    .addOnSuccessListener { code ->
-                        val parsed = BoxLink.parse(code.rawValue.orEmpty())
-                        if (parsed != null) {
-                            host = parsed.host
-                            port = parsed.port.toString()
-                            token = parsed.token
-                            onLink(parsed)
-                            onStatus("Zapisano Box ${parsed.host}")
-                        } else {
-                            onStatus("To nie jest kod z Boksa (Pilot z telefonu)")
+    Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        GlassCard {
+            Heading(PilotIcons.Tv, "Połączenie z Boksem")
+            BodyText(
+                "Na TV wejdź w Ustawienia → Narzędzia (adb) → Pilot z telefonu i zeskanuj pokazany kod. " +
+                    "Albo wpisz adres IP i kod ręcznie.",
+            )
+            PilotButton(
+                "Skanuj kod QR z telewizora",
+                {
+                    val scanner = GmsBarcodeScanning.getClient(
+                        context,
+                        GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build(),
+                    )
+                    scanner.startScan()
+                        .addOnSuccessListener { code ->
+                            val parsed = BoxLink.parse(code.rawValue.orEmpty())
+                            if (parsed != null) {
+                                host = parsed.host
+                                port = parsed.port.toString()
+                                token = parsed.token
+                                onLink(parsed)
+                                onStatus("Zapisano Box ${parsed.host}")
+                            } else {
+                                onStatus("To nie jest kod z Boksa (Pilot z telefonu)")
+                            }
                         }
+                        .addOnFailureListener { onStatus("Skaner niedostępny (${it.message}). Wpisz dane ręcznie.") }
+                },
+                Modifier.fillMaxWidth(),
+                icon = PilotIcons.Remote,
+                primary = true,
+            )
+        }
+        GlassCard {
+            OutlinedTextField(host, { host = it.trim() }, label = { Text("Adres IP Boksa") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(port, { port = it.filter(Char::isDigit) }, label = { Text("Port") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(token, { token = it.trim() }, label = { Text("Kod (z adresu, po t=)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            PilotButton(
+                "Zapisz",
+                {
+                    val number = port.toIntOrNull()
+                    if (host.isBlank() || token.isBlank() || number == null) {
+                        onStatus("Podaj adres, port i kod")
+                    } else {
+                        onLink(BoxLink(host, number, token))
+                        onStatus("Zapisano")
                     }
-                    .addOnFailureListener { onStatus("Skaner niedostępny (${it.message}). Wpisz dane ręcznie.") }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Skanuj kod QR z telewizora") }
-        OutlinedTextField(host, { host = it.trim() }, label = { Text("Adres IP Boksa") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(port, { port = it.filter(Char::isDigit) }, label = { Text("Port") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(token, { token = it.trim() }, label = { Text("Kod (z adresu, po t=)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        Button(
-            onClick = {
-                val number = port.toIntOrNull()
-                if (host.isBlank() || token.isBlank() || number == null) {
-                    onStatus("Podaj adres, port i kod")
-                } else {
-                    onLink(BoxLink(host, number, token))
-                    onStatus("Zapisano")
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Zapisz") }
-        OutlinedButton(onClick = onCheck, modifier = Modifier.fillMaxWidth()) { Text("Sprawdź połączenie") }
+                },
+                Modifier.fillMaxWidth(),
+                icon = PilotIcons.Check,
+            )
+            PilotButton("Sprawdź połączenie", onCheck, Modifier.fillMaxWidth(), icon = PilotIcons.Refresh)
+        }
         Spacer(Modifier.height(8.dp))
     }
 }

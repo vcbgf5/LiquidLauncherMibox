@@ -52,6 +52,16 @@ android {
             // can't be updated in place (every machine has its own debug key).
             signingConfig = signingConfigs.getByName(if (releaseKeystore != null) "release" else "debug")
         }
+        // The lite edition is built with this one: the same as release, but R8 removes the code and resources that
+        // are not used, which makes the APK a fraction of the size. The normal edition stays unshrunk.
+        create("shrunk") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName(if (releaseKeystore != null) "release" else "debug")
+        }
     }
 
     compileOptions {

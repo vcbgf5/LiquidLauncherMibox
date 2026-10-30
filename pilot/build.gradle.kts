@@ -14,6 +14,9 @@ android {
         // CI sets these (build number, release tag); local builds keep the defaults.
         versionCode = (System.getenv("VERSION_CODE") ?: "2").toInt()
         versionName = System.getenv("VERSION_NAME") ?: "1.1.0"
+        // The public Client ID of the Spotify app (CI passes it from a secret). It is not a secret, only an id;
+        // sign-in uses PKCE, so the app never needs (and must never contain) the Client Secret.
+        buildConfigField("String", "SPOTIFY_CLIENT_ID", "\"${System.getenv("SPOTIFY_CLIENT_ID").orEmpty().trim()}\"")
     }
 
     // The same key as the launcher: one release, two apps signed alike.
@@ -46,6 +49,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -67,6 +71,9 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
+
+    // The Spotify Web API (shared with the launcher).
+    implementation(project(":spotify"))
 
     // Scans the QR code shown on the TV (Google's scanner: no camera permission needed).
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")

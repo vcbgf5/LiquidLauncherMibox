@@ -40,6 +40,13 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
+            <!-- Spotify's sign-in page sends the browser back here with the code (the Redirect URI set in the Spotify dashboard). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="liquidtvpilot" android:host="spotify-callback" />
+            </intent-filter>
         </activity>
 
         <service
