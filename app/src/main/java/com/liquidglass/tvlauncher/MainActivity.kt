@@ -16,6 +16,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.Window
@@ -44,6 +45,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
+import kotlin.math.abs
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -1478,12 +1481,16 @@ class MainActivity : ComponentActivity() {
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (wakeScreensaver()) return true
+        // A fallback for touchpad remotes whose driver reports swipes as plain touch events
+        // rather than through dispatchGenericMotionEvent.
+        trackTouchpadGesture(ev)
         return super.dispatchTouchEvent(ev)
     }
 
     /** Mice and air-mouse remotes: moving them counts as being there. */
     override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
         if (wakeScreensaver()) return true
+        trackTouchpadGesture(ev)
         return super.dispatchGenericMotionEvent(ev)
     }
 
@@ -1494,6 +1501,97 @@ class MainActivity : ComponentActivity() {
         if (!screensaverShowing) return false
         screensaverShowing = false
         return true
+    }
+
+    // ---- Touchpad remotes --------------------------------------------------------------------
+    // Some TV remotes (including some that pair with Mi Box hardware) have a small touchpad and
+    // report swipes/taps as MotionEvents instead of D-pad KeyEvents. This tracks one gesture at a
+    // time (down -> moves -> up) and, once it ends, replays it as the matching D-pad KeyEvent(s)
+    // through the normal dispatchKeyEvent path below, so it reuses the very same navigation,
+    // focus-movement and OK handling a physical D-pad press already goes through. Purely additive:
+    // it never consumes the original event and is a no-op (and never throws) for any other device.
+
+    private var touchpadDown = false
+    private var touchpadLastX = 0f
+    private var touchpadLastY = 0f
+    private var touchpadDx = 0f
+    private var touchpadDy = 0f
+
+    /** How far a gesture must travel before it counts as a swipe rather than a stray touch. */
+    private val touchpadSwipeMinPx: Float by lazy { 24f * resources.displayMetrics.density }
+
+    /** Roughly one apps-grid tile's width: a horizontal swipe this long moves focus one step further. */
+    private val touchpadTileStepPx: Float by lazy { resources.displayMetrics.widthPixels / 6f }
+
+    private fun isTouchpadSource(source: Int): Boolean =
+        (source and InputDevice.SOURCE_TOUCHPAD) == InputDevice.SOURCE_TOUCHPAD ||
+            (source and InputDevice.SOURCE_TRACKBALL) == InputDevice.SOURCE_TRACKBALL
+
+    /** Feeds [event]'s deltas into the current gesture, if it comes from a touchpad-like source. */
+    private fun trackTouchpadGesture(event: MotionEvent) {
+        try {
+            if (!isTouchpadSource(event.source)) return
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    touchpadDown = true
+                    touchpadLastX = event.x
+                    touchpadLastY = event.y
+                    touchpadDx = 0f
+                    touchpadDy = 0f
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!touchpadDown) {
+                        // Some drivers move straight into ACTION_MOVE without an ACTION_DOWN.
+                        touchpadDown = true
+                        touchpadLastX = event.x
+                        touchpadLastY = event.y
+                        return
+                    }
+                    touchpadDx += event.x - touchpadLastX
+                    touchpadDy += event.y - touchpadLastY
+                    touchpadLastX = event.x
+                    touchpadLastY = event.y
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (touchpadDown) finishTouchpadGesture()
+                    touchpadDown = false
+                }
+                MotionEvent.ACTION_CANCEL -> touchpadDown = false
+            }
+        } catch (_: Exception) {
+            touchpadDown = false
+        }
+    }
+
+    /** The gesture just ended: a short one is a tap (OK), a longer one a swipe (page or focus move). */
+    private fun finishTouchpadGesture() {
+        val dx = touchpadDx
+        val dy = touchpadDy
+        val distance = hypot(dx.toDouble(), dy.toDouble()).toFloat()
+        if (distance < touchpadSwipeMinPx) {
+            sendDpadKey(KeyEvent.KEYCODE_DPAD_CENTER)
+            return
+        }
+        val across = abs(dx)
+        val down = abs(dy)
+        when {
+            // Mostly horizontal: nudge focus left/right, a step per tile-width of swipe distance.
+            across > down * 1.5f -> {
+                val steps = (across / touchpadTileStepPx).roundToInt().coerceIn(1, 2)
+                val code = if (dx > 0) KeyEvent.KEYCODE_DPAD_RIGHT else KeyEvent.KEYCODE_DPAD_LEFT
+                repeat(steps) { sendDpadKey(code) }
+            }
+            // Mostly vertical: the same single step Up/Down already takes between pages.
+            down > across * 1.5f -> sendDpadKey(if (dy > 0) KeyEvent.KEYCODE_DPAD_DOWN else KeyEvent.KEYCODE_DPAD_UP)
+            else -> Unit // too diagonal to call left/right vs up/down; ignore it
+        }
+    }
+
+    /** Feeds a synthetic D-pad press through [dispatchKeyEvent] - the same path a real remote key takes. */
+    private fun sendDpadKey(keyCode: Int) {
+        val now = System.currentTimeMillis()
+        dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0))
+        dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0))
     }
 
     /** Home pressed while the launcher is already on screen: back to the home screen. */

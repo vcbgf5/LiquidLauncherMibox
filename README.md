@@ -70,6 +70,11 @@ pokazuje, które okno Androida jest paskiem głośności. Skrypt `tools/tv_adb.p
 go nie przepuszcza: Ustawienia → System → „Przycisk szybkich ustawień”, naciśnij wybrany przycisk, a launcher go zapamięta.
 Z włączoną usługą dostępności działa on w każdej aplikacji.
 
+**Pilot z gładzikiem.** Część pilotów (w tym niektóre łączone z Mi Boksem) ma mały touchpad i zgłasza przesunięcia
+jako dotyk, nie jako strzałki. Launcher to rozpoznaje: przesunięcie w górę/dół działa jak strzałka góra/dół (zmiana
+ekranu), w lewo/prawo na siatce aplikacji przesuwa fokus o jeden-dwa kafelki, a stuknięcie w gładzik działa jak OK.
+Piloty bez gładzika działają zupełnie tak samo jak dotąd.
+
 **Uprawnienia.** Skrypt `tools/tv_adb.py` ma pozycję „Nadaj launcherowi uprawnienia”: zmiana ustawień systemowych (usługa
 dostępności włącza się wtedy sama z ustawień), sparowane urządzenia Bluetooth, kalendarz, rysowanie nad aplikacjami i praca w tle.
 Czego Android nie pozwala nadać żadnej zwykłej aplikacji, to uprawnień „systemowych” (podpis producenta): fabryczny launcher je
