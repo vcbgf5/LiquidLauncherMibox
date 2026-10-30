@@ -142,6 +142,7 @@ fun HomeScreen(
     parallaxOn: Boolean,
     idle: Boolean,
     minimalTopBar: Boolean,
+    seasonalTheme: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -296,6 +297,8 @@ fun HomeScreen(
                         .graphicsLayer { alpha = if (wallpaper.previous != null) wallpaper.fade.value else 1f },
                 )
             }
+
+            SeasonalOverlay(enabled = seasonalTheme, modifier = Modifier.fillMaxSize())
 
             if (bigClock) {
                 // The big clock instead of the small one: in the middle of the photo, above the dock.

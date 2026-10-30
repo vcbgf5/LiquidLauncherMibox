@@ -221,6 +221,19 @@ i **Ciche aktualizacje**. Bez adb system zapyta o zgodę na „instalowanie niez
 Nie usuwaj ani nie zmieniaj sekretu `KEYSTORE_PASSPHRASE` — bez niego nie da się podpisać następnych wersji
 tym samym kluczem i trzeba zaczynać od nowa (z odinstalowaniem).
 
+### Kanał beta (tylko dla zaproszonych)
+
+Wydanie, którego tag zawiera `beta` (np. `v1.0.18-beta1`), GitHub oznacza jako **prerelease**. Taka wersja:
+
+- **nie** pojawia się na stronie pobierania ani w jej liście wydań,
+- **nie** jest proponowana przez auto-aktualizator w launcherze (sprawdza tylko „latest”, co u GitHuba z definicji
+  pomija prerelease),
+- jest widoczna tylko na stronie **Releases** repozytorium i pod bezpośrednim linkiem do `LiquidTV.apk`/`LiquidTVLite.apk`
+  tego konkretnego wydania.
+
+Czyli dostęp jest czysto ręczny: zbuduj wydanie beta (workflow `Build APK` → `Run workflow`, pole `tag` np. `v1.0.18-beta1`)
+i wyślij link do APK zaufanej osobie sam, dowolnym kanałem. Nie ma żadnego kodu ani logowania sprawdzanego przez aplikację.
+
 ## Połączenie z Boxem przez ADB (skrypt na komputer)
 
 [`tools/tv_adb.py`](tools/tv_adb.py) łączy się z Boxem przez sieć (domyślnie port 5555) i ma menu najczęstszych czynności:

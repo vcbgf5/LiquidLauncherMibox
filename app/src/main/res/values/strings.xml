@@ -30,6 +30,7 @@
     <string name="settings_version_label">Liquid TV · wersja %1$s</string>
     <string name="settings_big_clock">Duży zegar na środku zamiast małego</string>
     <string name="settings_tile_lighting">Efekt światła na ikonach</string>
+    <string name="settings_seasonal_theme">Sezonowe tło (śnieg, liście, kwiaty)</string>
     <string name="settings_custom_volume">Pasek głośności Liquid TV</string>
     <string name="volume_mode_off">Wyłączony</string>
     <string name="volume_mode_beside">Pasek Liquid TV (systemowy zostaje)</string>
@@ -263,6 +264,13 @@
     <string name="glass_violet">Fiolet</string>
     <string name="glass_forest">Zieleń</string>
     <string name="glass_wine">Bordo</string>
+    <string name="settings_theme_preset">Gotowe motywy</string>
+    <string name="preset_default">Domyślny</string>
+    <string name="preset_midnight">Północ</string>
+    <string name="preset_sunset">Zachód słońca</string>
+    <string name="preset_forest">Las</string>
+    <string name="preset_rose">Róż</string>
+    <string name="preset_mono">Mono</string>
     <!-- Foldery, menu aplikacji -->
     <string name="menu_add_to_folder">Dodaj do folderu…</string>
     <string name="menu_remove_from_folder">Usuń z folderu „%1$s”</string>

@@ -119,6 +119,9 @@ jobs:
           tag_name: ${{ inputs.tag || github.ref_name }}
           # If the tag doesn't exist yet it is created at exactly the commit that was built.
           target_commitish: ${{ github.sha }}
+          # A tag with "beta" in it (e.g. v1.0.18-beta1) is a release only for people it is linked to by
+          # hand: GitHub's "latest" (what the in-app updater and the site both read) skips prereleases.
+          prerelease: ${{ contains(inputs.tag || github.ref_name, 'beta') }}
           files: |
             LiquidTV.apk
             LiquidTVLite.apk

@@ -154,6 +154,8 @@ fun SettingsDialog(
     onBigClockChange: (Boolean) -> Unit,
     tileLighting: Boolean,
     onTileLightingChange: (Boolean) -> Unit,
+    seasonalTheme: Boolean,
+    onSeasonalThemeChange: (Boolean) -> Unit,
     clockContent: Int,
     onClockContentChange: (Int) -> Unit,
     clockPosition: Int,
@@ -270,10 +272,23 @@ fun SettingsDialog(
                     },
                 )
                 SettingsCategory.APPEARANCE -> Group {
+                    var presetIndex by remember { mutableStateOf(0) }
+                    ChoiceRow(
+                        label = stringResource(R.string.settings_theme_preset),
+                        value = stringResource(ThemePresets[presetIndex].nameRes),
+                        autoFocus = true,
+                        onStep = { direction ->
+                            presetIndex = (presetIndex + direction).mod(ThemePresets.size)
+                            val preset = ThemePresets[presetIndex]
+                            extras.onAccent(preset.accentIndex)
+                            extras.onGlass(preset.glassIndex)
+                        },
+                    )
+                    Divider()
                     AdjustRow(
                         label = stringResource(R.string.settings_dock_transparency),
                         percent = transparencyPercent,
-                        autoFocus = true,
+                        autoFocus = false,
                         onStep = { direction ->
                             onTransparencyChange((transparencyPercent + direction * STEP).coerceIn(0, 100))
                         },
@@ -320,6 +335,8 @@ fun SettingsDialog(
                     ToggleRow(stringResource(R.string.settings_status_icons), statusIcons, onStatusIconsChange)
                     Divider()
                     ToggleRow(stringResource(R.string.settings_tile_lighting), tileLighting, onTileLightingChange)
+                    Divider()
+                    ToggleRow(stringResource(R.string.settings_seasonal_theme), seasonalTheme, onSeasonalThemeChange)
                     Divider()
                     ChoiceRow(
                         label = stringResource(R.string.settings_accent),

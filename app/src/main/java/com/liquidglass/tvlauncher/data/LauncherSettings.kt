@@ -28,6 +28,13 @@ class LauncherSettings(context: Context) {
             prefs.edit().putBoolean(KEY_TILE_LIGHTING, value).apply()
         }
 
+    /** A faint drift of snow, blossom or leaves on the home screen, picked from today's month. */
+    var seasonalTheme: Boolean
+        get() = prefs.getBoolean(KEY_SEASONAL_THEME, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_SEASONAL_THEME, value).apply()
+        }
+
     /**
      * The launcher's own volume bar (it needs its accessibility service): [VOLUME_OFF];
      * [VOLUME_BESIDE], where the bar shows every change of the volume and Android's own bar is left alone;
@@ -379,6 +386,7 @@ class LauncherSettings(context: Context) {
         private const val KEY_VOLUME_CONSUME_BROKEN = "volume_consume_broken"
         private const val KEY_QUICK_KEY = "quick_key"
         private const val KEY_TILE_LIGHTING = "tile_lighting"
+        private const val KEY_SEASONAL_THEME = "seasonal_theme"
         private const val KEY_SCREENSAVER = "screensaver_minutes"
         const val DEFAULT_DOCK_TRANSPARENCY = 60
         private const val KEY_DOCK_TRANSPARENCY = "dock_transparency"

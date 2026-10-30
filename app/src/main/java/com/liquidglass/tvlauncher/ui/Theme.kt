@@ -28,6 +28,18 @@ val GlassTints = listOf(
     GlassChoice(R.string.glass_wine, Color(0xEB341A22), Color(0xE6482733)),
 )
 
+/** A one-tap bundle of [Accents] and [GlassTints] indices, for Settings → Wygląd → Gotowe motywy. */
+class ThemePreset(val nameRes: Int, val accentIndex: Int, val glassIndex: Int)
+
+val ThemePresets = listOf(
+    ThemePreset(R.string.preset_default, 0, 0),
+    ThemePreset(R.string.preset_midnight, 5, 1),
+    ThemePreset(R.string.preset_sunset, 3, 4),
+    ThemePreset(R.string.preset_forest, 2, 3),
+    ThemePreset(R.string.preset_rose, 4, 2),
+    ThemePreset(R.string.preset_mono, 5, 0),
+)
+
 /** What the user picked in Settings → Appearance, handed down to every screen and dialog. */
 class LauncherTheme(val accent: Color, val glass: GlassChoice) {
     /** A lighter version of the accent: the soft light round a focused tile. */

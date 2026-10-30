@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.layout.ContentScale
@@ -106,6 +107,26 @@ fun rememberSpotifyCover(url: String?, maxSide: Int = 400): ImageBitmap? {
         value = if (url == null) null else withContext(Dispatchers.IO) { SpotifyImages.load(url, maxSide)?.asImageBitmap() }
     }
     return image
+}
+
+private val SpotifyDefaultTint = Color(0xFF1C2447)
+
+/** A muted colour pulled from [cover], for a background that matches the song playing. */
+@Composable
+fun rememberSpotifyTint(cover: ImageBitmap?): androidx.compose.runtime.State<Color> = produceState(SpotifyDefaultTint, cover) {
+    val bitmap = cover?.asAndroidBitmap()
+    value = if (bitmap == null) {
+        SpotifyDefaultTint
+    } else {
+        withContext(Dispatchers.Default) {
+            try {
+                val palette = Palette.from(bitmap).maximumColorCount(8).generate()
+                Color(palette.getDarkMutedColor(palette.getMutedColor(SpotifyDefaultTint.toArgb())))
+            } catch (e: Throwable) {
+                SpotifyDefaultTint
+            }
+        }
+    }
 }
 
 /** The progress of what is playing, moved on between reads so the bar runs smoothly. */
@@ -304,21 +325,7 @@ fun SpotifyScreen(ensureDevice: suspend () -> String?, onDismiss: () -> Unit) {
 
     val playback = hub.playback
     val cover = rememberSpotifyCover(playback?.imageUrl, 500)
-    val tint by produceState(Color(0xFF1C2447), cover) {
-        val bitmap = cover?.asAndroidBitmap()
-        value = if (bitmap == null) {
-            Color(0xFF1C2447)
-        } else {
-            withContext(Dispatchers.Default) {
-                try {
-                    val palette = Palette.from(bitmap).maximumColorCount(8).generate()
-                    Color(palette.getDarkMutedColor(palette.getMutedColor(0xFF1C2447.toInt())))
-                } catch (e: Throwable) {
-                    Color(0xFF1C2447)
-                }
-            }
-        }
-    }
+    val tint by rememberSpotifyTint(cover)
     val progress = rememberProgressMs()
 
     Dialog(

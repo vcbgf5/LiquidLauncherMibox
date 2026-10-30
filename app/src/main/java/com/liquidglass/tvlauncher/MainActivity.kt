@@ -231,6 +231,7 @@ class MainActivity : ComponentActivity() {
             var screensaverMinutes by remember { mutableIntStateOf(settings.screensaverMinutes) }
             var bigClock by remember { mutableStateOf(settings.bigClock) }
             var tileLighting by remember { mutableStateOf(settings.tileLighting) }
+            var seasonalTheme by remember { mutableStateOf(settings.seasonalTheme) }
             var tileTilt by remember { mutableStateOf(settings.tileTilt) }
             var parallax by remember { mutableStateOf(settings.parallax) }
             var accentIndex by remember { mutableIntStateOf(settings.accentIndex) }
@@ -644,6 +645,7 @@ class MainActivity : ComponentActivity() {
                     restoreSignal = restoreSignal,
                     parallaxOn = parallax,
                     minimalTopBar = topBarMinimal,
+                    seasonalTheme = seasonalTheme,
                     idle = dialogOpen || screensaverShowing || !inForeground,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -728,6 +730,11 @@ class MainActivity : ComponentActivity() {
                     onTileLightingChange = {
                         tileLighting = it
                         settings.tileLighting = it
+                    },
+                    seasonalTheme = seasonalTheme,
+                    onSeasonalThemeChange = {
+                        seasonalTheme = it
+                        settings.seasonalTheme = it
                     },
                     clockContent = clockContent,
                     onClockContentChange = {

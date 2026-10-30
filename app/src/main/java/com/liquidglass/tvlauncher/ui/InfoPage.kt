@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
@@ -444,39 +445,48 @@ private fun SpotifyContent() {
         return
     }
     val cover = rememberSpotifyCover(playback.imageUrl, 200)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(78.dp).clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.12f))) {
-            if (cover != null) Image(bitmap = cover, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        }
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(playback.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (playback.artist.isNotEmpty()) {
-                Text(playback.artist, color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    val tint by rememberSpotifyTint(cover)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Brush.verticalGradient(listOf(tint.copy(alpha = 0.55f), tint.copy(alpha = 0.18f))))
+            .padding(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(78.dp).clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.12f))) {
+                if (cover != null) Image(bitmap = cover, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             }
-            Text(
-                text = (playback.device?.name?.let { it + " · " } ?: "") + stringResource(if (playback.playing) R.string.np_playing else R.string.np_paused),
-                color = Color.White.copy(alpha = 0.5f),
-                fontSize = 11.sp,
-                maxLines = 1,
-            )
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(playback.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (playback.artist.isNotEmpty()) {
+                    Text(playback.artist, color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Text(
+                    text = (playback.device?.name?.let { it + " · " } ?: "") + stringResource(if (playback.playing) R.string.np_playing else R.string.np_paused),
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                )
+            }
         }
-    }
-    if (playback.durationMs > 0) {
-        Box(
-            modifier = Modifier
-                .padding(top = 12.dp)
-                .fillMaxWidth()
-                .height(5.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(Color.White.copy(alpha = 0.2f)),
-        ) {
+        if (playback.durationMs > 0) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth((playback.progressMs.toFloat() / playback.durationMs).coerceIn(0f, 1f))
+                    .padding(top = 12.dp)
+                    .fillMaxWidth()
                     .height(5.dp)
-                    .background(Color(0xFF1ED760)),
-            )
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Color.White.copy(alpha = 0.2f)),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth((playback.progressMs.toFloat() / playback.durationMs).coerceIn(0f, 1f))
+                        .height(5.dp)
+                        .background(Color(0xFF1ED760)),
+                )
+            }
         }
     }
     Spacer(Modifier.height(8.dp))
