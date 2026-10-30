@@ -6,6 +6,7 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
+        "Sterowanie głosem w aplikacji Pilot: powiedz „głośniej”, „następny”, „pauza” albo „do góry” zamiast szukać przycisku.",
         "Aplikacja Pilot umie teraz znaleźć Boksy w sieci Wi-Fi same (zakładka Box → „Szukaj w sieci”) i przełączać się między nimi bez skanowania kodu QR za każdym razem.",
         "Animacja wyłączania: ekran zamyka się jak w starych telewizorach (pasek na środku, potem kropka) przed wysłaniem komendy wyłączenia.",
         "Animowana tapeta: wyślij krótki klip z aplikacji Pilot (zakładka Zdjęcia) — zapętla się bez dźwięku w tle ekranu głównego. Niedostępne w wersji Lite i w trybie oszczędnym.",

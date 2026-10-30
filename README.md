@@ -186,7 +186,8 @@ Bez sekretu aplikacja Pilot pozwala wpisać Client ID ręcznie.
 ## Aplikacja na telefon: Liquid TV Pilot
 
 W każdym wydaniu jest drugi plik, `LiquidTVPilot.apk` (aplikacja na telefon z Androidem 8+):
-**pilot** (strzałki, OK, Wstecz, Home, głośność, uśpienie, włączenie telewizora), **wpisywanie tekstu** na TV i
+**pilot** (strzałki, OK, Wstecz, Home, głośność, uśpienie, włączenie telewizora), **sterowanie głosem** (powiedz np.
+„głośniej”, „następny” albo „do góry” zamiast szukać przycisku), **wpisywanie tekstu** na TV i
 **otwieranie adresu** na TV, **wysyłanie zdjęć jako tapet** (zmniejszane i obracane do pionu) oraz **udostępnianie ekranu
 telefonu** na telewizorze (obraz bez dźwięku, kilka klatek na sekundę; na TV przycisk Wstecz kończy). Pozycja „Udostępnij”
 w galerii i przeglądarce też tu trafia: zdjęcie staje się tapetą, link otwiera się na TV, a inny tekst jest wpisywany w
