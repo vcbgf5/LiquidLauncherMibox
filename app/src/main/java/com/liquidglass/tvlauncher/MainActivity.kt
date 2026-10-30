@@ -1651,6 +1651,8 @@ class MainActivity : ComponentActivity() {
 
     private val keyCodes = mapOf(
         "UP" to 19, "DOWN" to 20, "LEFT" to 21, "RIGHT" to 22, "OK" to 23, "BACK" to 4, "HOME" to 3, "PLAYPAUSE" to 85,
+        // Added for the Pilot's voice control (next track, menu); same "key" action, no new when-branch needed.
+        "NEXT" to 87, "MENU" to 82,
     )
 
     /** One frame of the phone's screen (a JPEG). Runs on a server thread; "stop" tells the phone to quit sharing. */

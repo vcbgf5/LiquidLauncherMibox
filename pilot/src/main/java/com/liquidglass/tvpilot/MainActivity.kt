@@ -319,6 +319,7 @@ private fun RemoteTab(send: (String, String) -> Unit) {
             RoundAction(PilotIcons.VolumeOff, "Wycisz", { send("mute", "") })
             RoundAction(PilotIcons.VolumeUp, "Głośniej", { send("vol_up", "") })
         }
+        VoiceCard(send)
         GlassCard {
             Heading(PilotIcons.Power, "Zasilanie")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
