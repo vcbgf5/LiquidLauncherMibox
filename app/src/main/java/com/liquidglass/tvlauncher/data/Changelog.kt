@@ -6,6 +6,7 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
+        "Piloty z gładzikiem: przesunięcie działa jak strzałki (zmiana ekranu, przesuwanie fokusu), stuknięcie jak OK.",
         "Tekst piosenki w pełnoekranowym odtwarzaczu Spotify: przycisk „Tekst” obok playlist, podświetla aktualną linijkę (z lrclib.net).",
         "Sterowanie głosem w aplikacji Pilot: powiedz „głośniej”, „następny”, „pauza” albo „do góry” zamiast szukać przycisku.",
         "Aplikacja Pilot umie teraz znaleźć Boksy w sieci Wi-Fi same (zakładka Box → „Szukaj w sieci”) i przełączać się między nimi bez skanowania kodu QR za każdym razem.",
