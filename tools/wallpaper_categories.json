@@ -1,4 +1,9 @@
 [
+  {"id": "wodospady", "name": "Wodospady", "query": "waterfall nature"},
+  {"id": "architektura", "name": "Architektura", "query": "modern architecture building"},
+  {"id": "tropiki", "name": "Tropiki", "query": "tropical palm paradise"},
+  {"id": "neon", "name": "Neon i miasto nocą", "query": "neon city night lights"},
+  {"id": "laki", "name": "Łąki i pola", "query": "meadow field landscape"},
   {"id": "zwierzeta", "name": "Zwierzęta", "query": "wildlife animals"},
   {"id": "gory", "name": "Góry", "query": "mountains landscape"},
   {"id": "miasto", "name": "Miasto", "query": "city skyline"},
@@ -12,10 +17,5 @@
   {"id": "jezioro", "name": "Jeziora i rzeki", "query": "lake river reflection"},
   {"id": "pustynia", "name": "Pustynia", "query": "desert dunes"},
   {"id": "jesien", "name": "Jesień", "query": "autumn forest leaves"},
-  {"id": "kwiaty", "name": "Kwiaty", "query": "flowers macro nature"},
-  {"id": "wodospady", "name": "Wodospady", "query": "waterfall nature"},
-  {"id": "architektura", "name": "Architektura", "query": "modern architecture building"},
-  {"id": "tropiki", "name": "Tropiki", "query": "tropical palm paradise"},
-  {"id": "neon", "name": "Neon i miasto nocą", "query": "neon city night lights"},
-  {"id": "laki", "name": "Łąki i pola", "query": "meadow field landscape"}
+  {"id": "kwiaty", "name": "Kwiaty", "query": "flowers macro nature"}
 ]
