@@ -500,6 +500,20 @@ python tv_adb.py 192.168.0.170 --screenshot</pre></div>
       <div class="note"><b>Dla właściciela projektu (jednorazowo):</b> na <code>developer.spotify.com</code> utwórz aplikację, w <b>Redirect URIs</b> dodaj dokładnie <code>liquidtvpilot://spotify-callback</code>, a <b>Client ID</b> wpisz w GitHubie jako sekret <code>CLIENT_ID_SPOTIFY</code> (Settings → Secrets and variables → Actions). <b>Client Secret nie jest potrzebny</b> i nie wolno go wkładać do aplikacji. Konto, które się loguje, musi być właścicielem aplikacji albo dodane w „User Management”.</div>
       <div class="warn">Spotify w trybie deweloperskim ogranicza aplikację do kilku użytkowników i wymaga Premium właściciela. Utwory pokazuje tylko dla Twoich własnych playlist; cudze da się odtworzyć w całości.</div>
     </div></details>
+
+    <details><summary><span class="n">⚖</span><span class="t">Pełna czy Lite: czym się różnią<small>Ta sama aplikacja i klucz, inne ustawienia startowe</small></span></summary><div class="body">
+      <p>Obie wersje to dokładnie ten sam launcher (ten sam pakiet i klucz podpisu), więc jedna zastępuje drugą bez odinstalowywania. Lite startuje od razu w trybie oszczędnym — wszystko poniżej da się później ręcznie przełączyć w Ustawieniach, to są tylko ustawienia <i>domyślne</i> przy pierwszym uruchomieniu.</p>
+      <table>
+        <tr><th>Cecha</th><th>Pełna</th><th>Lite</th></tr>
+        <tr><td>Dla jakiego telewizora</td><td>dowolny, zalecana przy ≥ 1 GB RAM</td><td>stare, ok. 0,5 GB RAM</td></tr>
+        <tr><td>Styl okien i menu</td><td>Liquid Glass (szkło z połyskiem)</td><td>ciemne, proste szkło</td></tr>
+        <tr><td>Tryb wydajności na start</td><td>automatyczny</td><td>zawsze oszczędny</td></tr>
+        <tr><td>Obrazy (tapeta, kafelki)</td><td>pełna jakość</td><td>mniejsze, mniej pamięci</td></tr>
+        <tr><td>Wbudowane paczki ikon</td><td>tak</td><td>nie (własne ikony nadal działają)</td></tr>
+        <tr><td>Spotify, widżety, Pilot, adb</td><td>tak</td><td>tak — to te same funkcje</td></tr>
+        <tr><td>Aktualizuje się z pliku</td><td><code>LiquidTV.apk</code></td><td><code>LiquidTVLite.apk</code></td></tr>
+      </table>
+    </div></details>
     <details><summary><span class="n">3</span><span class="t">Własne tapety<small>Zdjęcia z telefonu</small></span></summary><div class="body">
       <ol>
         <li>Wyślij zdjęcia ze strony z kodem QR (sekcja „Własne tapety”) albo z aplikacji Pilot.</li>
