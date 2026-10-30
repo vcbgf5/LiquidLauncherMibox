@@ -173,6 +173,8 @@ Jak podłączyć własne konto:
 4. Na telewizorze: strzałka w górę z ekranu głównego → karta **Spotify**. **OK** to pauza lub wznowienie bez otwierania
    odtwarzacza; **przytrzymanie OK** otwiera pełnoekranowy odtwarzacz (okładka, pasek postępu, playlisty i utwory — OK na
    playliście pokazuje jej utwory, na utworze go odtwarza, Wstecz cofa). Telefon w zakładce Spotify też steruje muzyką.
+   Przyciskiem **Tekst** przełączysz prawą stronę na tekst piosenki (z lrclib.net) — podświetla aktualną linijkę, gdy
+   jest dostępny zsynchronizowany tekst, albo pokazuje go jako zwykły, przewijany blok.
 5. Logowanie jest jednorazowe: potem telefon możesz odłożyć albo wyłączyć — launcher na Boksie pamięta sesję i sam rozmawia ze
    Spotify (sam odświeża token), więc muzyka gra i steruje się nią samym pilotem telewizora, bez telefonu w pobliżu.
 
