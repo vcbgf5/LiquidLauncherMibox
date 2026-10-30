@@ -121,6 +121,7 @@ import com.liquidglass.tvlauncher.ui.LearnKeyPrompt
 import com.liquidglass.tvlauncher.ui.MirrorScreen
 import com.liquidglass.tvlauncher.ui.LaunchRequest
 import com.liquidglass.tvlauncher.ui.PowerOffAnimation
+import com.liquidglass.tvlauncher.ui.WallpaperCategoryPicker
 import com.liquidglass.tvlauncher.ui.MenuOption
 import com.liquidglass.tvlauncher.ui.QuickPanel
 import com.liquidglass.tvlauncher.ui.QuickTile
@@ -278,6 +279,7 @@ class MainActivity : ComponentActivity() {
             val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { calendarTick++ }
             var showPower by remember { mutableStateOf(false) }
             var poweringOff by remember { mutableStateOf(false) }
+            var showWallpaperCategoryPicker by remember { mutableStateOf(false) }
             var iconPickerApp by remember { mutableStateOf<AppInfo?>(null) }
             var iconsVersion by remember { mutableIntStateOf(0) }
             var iconPacks by remember { mutableStateOf<List<IconPack>>(emptyList()) }
@@ -811,10 +813,7 @@ class MainActivity : ComponentActivity() {
                     },
                     categoryOptions = options,
                     categoryId = wallpaperCategory,
-                    onCategoryChange = {
-                        wallpaperCategory = it
-                        settings.wallpaperCategory = it
-                    },
+                    onPickCategories = { showWallpaperCategoryPicker = true },
                     intervalMinutes = wallpaperInterval,
                     onIntervalChange = {
                         wallpaperInterval = it
@@ -1419,6 +1418,24 @@ class MainActivity : ComponentActivity() {
                         iconPickerApp = null
                     },
                     onDismiss = { iconPickerApp = null },
+                )
+            }
+
+            if (showWallpaperCategoryPicker) {
+                val allIds = remember(catalog) { catalog.categories.map { it.id } }
+                val selected = remember(wallpaperCategory, allIds) { WallpaperCatalog.selectedIds(wallpaperCategory, allIds) }
+                fun applyCategories(next: Set<String>) {
+                    val value = if (next.isEmpty()) WallpaperCatalog.OFF else next.joinToString(",")
+                    wallpaperCategory = value
+                    settings.wallpaperCategory = value
+                }
+                WallpaperCategoryPicker(
+                    categories = catalog.categories,
+                    selected = selected,
+                    onToggle = { id, on -> applyCategories(if (on) selected + id else selected - id) },
+                    onSelectAll = { applyCategories(allIds.toSet()) },
+                    onSelectNone = { applyCategories(emptySet()) },
+                    onDismiss = { showWallpaperCategoryPicker = false },
                 )
             }
 

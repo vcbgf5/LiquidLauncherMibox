@@ -166,6 +166,8 @@
     <string name="wallpaper_off">Wyłączona (wbudowana)</string>
     <string name="wallpaper_all">Wszystkie kategorie</string>
     <string name="wallpaper_none">Brak tapet w repozytorium</string>
+    <string name="wallpaper_n_selected">Wybranych: %d</string>
+    <string name="settings_wallpaper_categories">Kategorie tapet</string>
     <string name="minutes_short">%1$d min</string>
     <string name="hour_short">1 godz.</string>
     <string name="settings_update_check">Sprawdź aktualizacje</string>

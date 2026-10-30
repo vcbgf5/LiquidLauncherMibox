@@ -178,7 +178,8 @@ class LauncherSettings(context: Context) {
             prefs.edit().putInt(KEY_SCREENSAVER, value).apply()
         }
 
-    /** A category id from the wallpaper catalog, or [WallpaperCatalog.OFF] / [WallpaperCatalog.ALL]. */
+    /** Which wallpaper categories rotate: a comma-separated list of ids picked in the multi-select
+     * list (Ustawienia → Wygląd → Tapety), or [WallpaperCatalog.OFF] / [WallpaperCatalog.ALL]. */
     var wallpaperCategory: String
         get() = prefs.getString(KEY_WALLPAPER_CATEGORY, WallpaperCatalog.ALL) ?: WallpaperCatalog.ALL
         set(value) {

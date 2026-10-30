@@ -61,6 +61,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.liquidglass.tvlauncher.R
 import com.liquidglass.tvlauncher.data.LauncherSettings
+import com.liquidglass.tvlauncher.data.WallpaperCatalog
 import com.liquidglass.tvlauncher.data.WidgetType
 import kotlinx.coroutines.delay
 
@@ -146,7 +147,8 @@ private val Orange = Color(0xFFFF9F0A)
  *    and the Android system settings.
  *
  * Up/Down moves between rows, Left/Right changes a value, OK presses an action or flips a
- * switch. [categoryOptions] is (id, display name) pairs in the order they are cycled through.
+ * switch. [categoryOptions] is (id, display name) pairs; [onPickCategories] opens the multi-select
+ * list that picks which of them the wallpaper rotates through.
  */
 @Composable
 fun SettingsDialog(
@@ -172,7 +174,7 @@ fun SettingsDialog(
     onStatusIconsChange: (Boolean) -> Unit,
     categoryOptions: List<Pair<String, String>>,
     categoryId: String,
-    onCategoryChange: (String) -> Unit,
+    onPickCategories: () -> Unit,
     intervalMinutes: Int,
     onIntervalChange: (Int) -> Unit,
     photoCredit: String?,
@@ -225,8 +227,16 @@ fun SettingsDialog(
         SideEffect { window?.setDimAmount(0.2f) }
 
         val noneLabel = stringResource(R.string.wallpaper_none)
-        val categoryIndex = categoryOptions.indexOfFirst { it.first == categoryId }
-        val categoryLabel = categoryOptions.getOrNull(categoryIndex)?.second ?: noneLabel
+        val allLabel = stringResource(R.string.wallpaper_all)
+        val selectedCategories = remember(categoryId, categoryOptions) {
+            WallpaperCatalog.selectedIds(categoryId, categoryOptions.map { it.first })
+        }
+        val categoryLabel = when {
+            categoryOptions.isEmpty() -> noneLabel
+            selectedCategories.isEmpty() -> noneLabel
+            selectedCategories.size == categoryOptions.size -> "$allLabel (${categoryOptions.size})"
+            else -> stringResource(R.string.wallpaper_n_selected, selectedCategories.size)
+        }
 
         Column(
             modifier = Modifier
@@ -449,17 +459,11 @@ fun SettingsDialog(
                     }
                 }
                 SettingsCategory.WALLPAPERS -> Group {
-                    ChoiceRow(
-                        label = stringResource(R.string.settings_wallpaper),
-                        value = categoryLabel,
+                    ActionRow(
+                        label = stringResource(R.string.settings_wallpaper_categories) + ": " + categoryLabel,
+                        arrow = categoryOptions.isNotEmpty(),
                         autoFocus = true,
-                        onStep = { direction ->
-                            if (categoryOptions.isNotEmpty()) {
-                                val from = if (categoryIndex < 0) 0 else categoryIndex
-                                val next = (from + direction).mod(categoryOptions.size)
-                                onCategoryChange(categoryOptions[next].first)
-                            }
-                        },
+                        onClick = { if (categoryOptions.isNotEmpty()) onPickCategories() },
                     )
                     Divider()
                     ChoiceRow(

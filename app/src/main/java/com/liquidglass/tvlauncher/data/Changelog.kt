@@ -6,6 +6,7 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
+        "Kategorie tapet: zamiast przełączać strzałkami, otwiera się teraz lista i zaznaczasz kilka naraz (Ustawienia → Wygląd → Tapety). Plus 100 nowych tapet w pięciu nowych kategoriach.",
         "Last.fm: scrobbluje to, co gra przez Spotify. Połącz się w aplikacji Pilot (zakładka Spotify); włącznik i rozłączenie w Ustawieniach → Widżety.",
         "Kursor na TV żyroskopem telefonu: w aplikacji Pilot (zakładka Pilot → Otwórz touchpad) przechyl telefon, żeby ruszać kropką po ekranie, dotknij ekranu, żeby kliknąć. Wymaga skonfigurowanego adb.",
         "Piloty z gładzikiem: przesunięcie działa jak strzałki (zmiana ekranu, przesuwanie fokusu), stuknięcie jak OK.",

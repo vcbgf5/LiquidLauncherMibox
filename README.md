@@ -123,9 +123,11 @@ zawsze oszczędnie / pełne efekty): w oszczędnym nie ma oddychającej tapety, 
 tapeta jest mniejsza, a cienie lżejsze; automatyczny włącza go sam, gdy urządzenie jest słabe albo gdy zmierzone klatki
 launchera stale się spóźniają. Po powrocie z aplikacji fokus wraca na kafelek, z którego ją uruchomiono.
 
-**Tapety z Unsplash.** Launcher zmienia tapetę co kilka minut (z płynnym przenikaniem), losując z wybranej kategorii:
-zwierzęta, góry, miasto, las, ocean, kosmos, zima, niebo, abstrakcja, minimalizm (lub ze wszystkich).
-Kategorię i częstotliwość wybierasz w ustawieniach launchera (zębatka), tam też jest „Następna tapeta” i imię autora zdjęcia.
+**Tapety z Unsplash.** Launcher zmienia tapetę co kilka minut (z płynnym przenikaniem), losując z wybranych kategorii:
+zwierzęta, góry, miasto, las, ocean, kosmos, zima, niebo, abstrakcja, minimalizm, jeziora, pustynia, jesień, kwiaty,
+wodospady, architektura, tropiki, neon i miasto nocą, łąki i pola. Kategorie wybierasz w ustawieniach launchera
+(zębatka → Wygląd → Tapety): otwiera się lista z zaznaczaniem, można wybrać kilka naraz, albo „Wszystkie”/„Żadna”.
+Częstotliwość, „Następna tapeta” i imię autora zdjęcia są tam samo.
 Zdjęcia leżą w folderze [`wallpapers/`](wallpapers/) tego repozytorium i są stamtąd pobierane — jak je tam wgrać
 (klucz Unsplash, jedno kliknięcie w Actions), opisuje [`wallpapers/README.md`](wallpapers/README.md).
 Dopóki zdjęć nie ma, działa wbudowana tapeta.
