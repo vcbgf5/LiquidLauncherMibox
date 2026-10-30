@@ -2,6 +2,10 @@
   <a href="https://vcbgf5.github.io/LiquidLauncherMibox/"><img src="docs/visit-button.svg" alt="Odwiedź stronę: pobieranie, poradniki, klikalny podgląd" width="720"></a>
 </p>
 
+<p align="center">
+  <img src="docs/logo.svg" width="128" alt="Logo Liquid TV">
+</p>
+
 # Liquid TV
 
 Launcher na Android TV (Xiaomi Mi Box itp.) inspirowany ekranem głównym Apple TV.
@@ -148,6 +152,23 @@ makieta: dane (pogoda, wydarzenia, sparowane urządzenia) są przykładowe, a pr
 Źródło podglądu: [`preview/src/`](preview/src/) (strona `preview.html`, obrazy w `assets/`). Gotowy plik
 (`preview/preview.html`, ten sam trafia do paczki webOS) powstaje poleceniem `python3 tools/build_preview.py`;
 wersja i „Co nowego” są brane z `preview/src/version.txt` i `Changelog.kt`.
+
+## Spotify
+
+Aplikacja Pilot loguje się do Spotify (przez stronę Spotify, bez hasła w aplikacji) i przekazuje logowanie launcherowi. Launcher ma wtedy
+**widżet „Spotify”** na stronie widżetów i **pełnoekranowy odtwarzacz** z okładką, paskiem postępu, playlistami i utworami
+(OK otwiera odtwarzacz, przytrzymanie OK to pauza lub wznowienie; w odtwarzaczu OK na playliście pokazuje jej utwory, na utworze go
+odtwarza, Wstecz cofa). Telefon w zakładce Spotify też steruje muzyką.
+
+Potrzebne: **Spotify Premium** i aplikacja Spotify na Boxie (Box jest widoczny dla Spotify jako urządzenie tylko, gdy ona działa; launcher
+uruchamia ją sam, gdy trzeba).
+
+**Jednorazowa konfiguracja projektu** (właściciel): na [developer.spotify.com](https://developer.spotify.com/dashboard) utwórz aplikację,
+w *Redirect URIs* dodaj dokładnie `liquidtvpilot://spotify-callback`, a **Client ID** wpisz w GitHubie jako sekret Actions
+`CLIENT_ID_SPOTIFY` (Settings → Secrets and variables → Actions). Buildy wkładają go do aplikacji na telefon. **Client Secret nie jest
+potrzebny** (logowanie PKCE) i nie wolno go wkładać do aplikacji ani repozytorium. Aplikacja Spotify w trybie deweloperskim działa dla
+właściciela (Premium) i kilku użytkowników dodanych w *User Management*; utwory pokazuje tylko dla własnych playlist (cudze odtworzysz w całości).
+Bez sekretu aplikacja Pilot pozwala wpisać Client ID ręcznie.
 
 ## Aplikacja na telefon: Liquid TV Pilot
 

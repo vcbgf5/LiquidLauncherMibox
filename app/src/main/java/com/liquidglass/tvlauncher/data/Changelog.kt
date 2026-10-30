@@ -6,7 +6,8 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
-        "Nowy styl okien „Liquid Glass”: ustawienia, szybkie ustawienia i menu jako szkło z rozmytą tapetą, załamaniem światła przy brzegu i jasną krawędzią (Ustawienia → Wygląd → Styl okien i paneli; można wrócić do ciemnego szkła).",
-        "Wersja Lite dla starych telewizorów z ok. 0,5 GB RAM: plik LiquidTVLite.apk w wydaniu (mniejsze obrazy w pamięci, tryb oszczędny od początku, proste okna).",
+        "Spotify na telewizorze: widżet „Spotify” i pełnoekranowy odtwarzacz z okładkami, playlistami i utworami. Zaloguj się raz w aplikacji Pilot (zakładka Spotify); potrzebny Spotify Premium.",
+        "Nowe logo launchera i baner na ekran telewizora; aplikacja Pilot na telefon ma nowe ikony i szklany wygląd.",
+        "Wersja Lite (LiquidTVLite.apk, dla telewizorów z ok. 0,5 GB RAM) jest znacznie mniejsza i oszczędniejsza.",
     )
 }

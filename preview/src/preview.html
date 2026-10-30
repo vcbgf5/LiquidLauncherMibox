@@ -209,6 +209,25 @@ button{font:inherit;color:inherit}
 #tdrop{position:relative}
 .cardx{position:relative}
 
+/* Spotify player (a demo with made-up playlists) */
+.ov.sp{background:linear-gradient(#1f2a5a,#0a0b10 70%);align-items:stretch;justify-content:stretch}
+.spwrap{display:flex;gap:38px;padding:28px 44px;width:100%;height:100%}
+.spl{width:290px;flex:none;display:flex;flex-direction:column;gap:5px}
+.spc{width:290px;height:290px;border-radius:20px;display:grid;place-items:center;font-size:84px;color:rgba(255,255,255,.55);box-shadow:0 22px 50px rgba(0,0,0,.55);margin-bottom:8px}
+.spl h3{margin:0;font-size:21px;line-height:1.2}.spl p{margin:0;color:rgba(255,255,255,.75);font-size:14.5px}.spl small{color:rgba(255,255,255,.5);font-size:12px}
+.spctl{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.sbtn{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;cursor:pointer;transition:transform .15s}
+.sbtn.big{width:64px;height:64px}.sbtn.f{background:#fff;transform:scale(1.12)}.sbtn svg{width:48%;height:48%;fill:#fff}.sbtn.f svg{fill:#101010}.sbtn.on svg{fill:#1ed760}
+.spr{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}.spr h4{margin:0;font-size:21px}
+.spgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;overflow:hidden}
+.sptile{border-radius:16px;padding:8px;cursor:pointer;transition:transform .2s,background .2s}.sptile.f{background:rgba(255,255,255,.16);transform:scale(1.05);box-shadow:0 0 0 2px rgba(255,255,255,.9)}
+.sptile .cv{aspect-ratio:1;border-radius:10px;display:grid;place-items:center;font-size:30px;color:rgba(255,255,255,.55)}.sptile b{display:block;font-size:13px;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sptile span{font-size:11px;color:rgba(255,255,255,.55)}
+.sptracks{overflow-y:auto;scrollbar-width:none;max-height:380px}.sptracks::-webkit-scrollbar{display:none}
+.sprow{display:flex;align-items:center;gap:12px;padding:7px 12px;border-radius:12px;cursor:pointer;font-size:14.5px}.sprow.f{background:rgba(255,255,255,.92);color:#111}.sprow.now b{color:#1ed760}.sprow.f.now b{color:#111}.sprow i{font-style:normal;width:22px;font-size:12.5px;opacity:.6}.sprow .t{flex:1;min-width:0}.sprow .t em{display:block;font-style:normal;font-size:12px;opacity:.65}
+.sppill{align-self:flex-start;padding:10px 20px;border-radius:99px;background:rgba(255,255,255,.16);font-weight:700;font-size:14px;cursor:pointer}.sppill.f{background:#fff;color:#111}
+.w-sp{width:330px}.w-sp .mini{display:flex;gap:12px;align-items:center}.w-sp .cv{width:78px;height:78px;border-radius:10px;display:grid;place-items:center;font-size:30px;color:rgba(255,255,255,.55);flex:none}
+.bar.green i{background:#1ed760}
+
 /* modes */
 #stage.lite #wallzoom{animation:none}
 #stage.lite #shade,#stage.lite .dock,#stage.lite .art.folder{-webkit-backdrop-filter:none;backdrop-filter:none}
@@ -311,7 +330,7 @@ addEventListener('resize',fit); fit();
 
 /* ---------- state (kept in localStorage so choices survive a reload) ---------- */
 const DEF={glass:1,dockT:60,dockSize:100,accent:0,tint:0,topbar:'min',bigclock:true,clockContent:1,clockPos:0,parallax:true,tilt:true,light:true,perf:0,
-  wall:'zima',wallInt:2,saver:0,auto:true,silent:true,updInt:0,widgets:{calendar:1,weather:1,np:1,agenda:0,network:0,bt:0,system:0},
+  wall:'zima',wallInt:2,saver:0,auto:true,silent:true,updInt:0,widgets:{calendar:1,weather:1,np:1,spotify:1,agenda:0,network:0,bt:0,system:0},
   anim:0,volMode:2,volume:40,muted:false,wifi:true,bt:true,remoteAlways:false,favs:['youtube','netflix','spotify','disney','ytmusic'],folder:['buggy','crossy','digpig','fox','shark','orbia','pinata','redball']};
 let ST=JSON.parse(JSON.stringify(DEF));
 try{const s=JSON.parse(localStorage.getItem('liquidtv-preview-v2')||'null'); if(s&&typeof s==='object') ST=Object.assign(ST,s,{widgets:Object.assign({},DEF.widgets,s.widgets||{})});}catch(e){}
@@ -426,6 +445,8 @@ function renderInfo(){
     card('w-wx','Pogoda · Białystok','<div class="wx-now">'+wxIcon('cloud')+'<div><div class="big">9°</div><div style="font-size:13px">Pochmurno</div></div></div><div class="wx-sub">Odczuwalna 7° · wiatr 7 km/h · wilgotność 88%</div><div class="wx-days">'+days.map((x,k)=>'<div>'+x+wxIcon(ic[k])+tp[k]+'</div>').join('')+'</div>',()=>toast('Pogoda z Open-Meteo; miasto ustawisz w Ustawienia → Widżety')); }
   if(W.np){ const c=card('w-np','Teraz gra','<div class="np-cover">♪</div><div class="np-t">Przykładowy utwór</div><div class="np-a">Artysta · <span id="npst"></span></div><div class="bar"><i id="npbar"></i></div><div class="np-h">OK: odtwórz lub pauza · przytrzymaj: następny utwór</div>',()=>{np.on=!np.on; npDraw();});
     c._hold=()=>{np.pos=0; npDraw(); toast('Następny utwór');}; npDraw(); }
+  if(W.spotify){ const c=card('w-sp','Spotify','<div class="mini"><div class="cv" style="'+spCover(sp.list)+'">♪</div><div style="min-width:0"><div class="np-t">'+SP_TRACKS[sp.track][0]+'</div><div class="np-a">'+SP_TRACKS[sp.track][1]+'</div><div class="np-a" style="font-size:11px;opacity:.6">Mi Box S · <span id="spst"></span></div></div></div><div class="bar green"><i id="spbar"></i></div><div class="np-h">OK: otwórz odtwarzacz · przytrzymaj: pauza lub wznów</div>',()=>openSpotify());
+    c._hold=()=>{sp.playing=!sp.playing; renderInfo(); toast(sp.playing?'Spotify: wznawiam':'Spotify: pauza');}; spDraw(); }
   if(W.agenda){ card('w-ag','Najbliższe wydarzenia','<div class="ev"><b>DZIŚ 18:30</b>Trening</div><div class="ev"><b>JUTRO 09:00</b>Spotkanie zespołu</div><div class="ev"><b>PT 20:00</b>Kino: seans filmowy</div>',()=>toast('Wydarzenia z Kalendarza Google (tajny adres iCal ustawiasz przez adb lub stronę pilota)')); }
   if(W.network){ card('w-net','Sieć',ST.wifi?'<div class="kv">Połączenie<span>Wi-Fi</span></div><div class="kv">Sygnał<span>Dobry (-52 dBm)</span></div><div class="kv">Łącze<span>433 Mb/s</span></div><div class="kv">Adres IP<span>192.168.0.170</span></div>':'<div class="note" style="margin:0">Brak połączenia z internetem. OK otwiera ustawienia sieci.</div>',()=>toast('Otwieram: ustawienia sieci Androida')); }
   if(W.bt){ card('w-bt','Bluetooth',ST.bt?'<div class="kv">Stan<span>Włączony</span></div><div class="np-h" style="margin:8px 0 2px;letter-spacing:1px">SPAROWANE</div><div class="kv">Głośnik JBL<span>✓</span></div><div class="kv">Pilot Mi Box<span>✓</span></div>':'<div class="kv">Stan<span>Wyłączony</span></div><div class="note" style="margin:8px 0 0">OK otwiera ustawienia Bluetooth.</div>',()=>toast('Otwieram: ustawienia Bluetooth Androida')); }
@@ -433,6 +454,14 @@ function renderInfo(){
   if(!row.children.length){ const c=el('div','wcard w-ag','<h5>Widżety</h5><div class="note" style="margin:0">Włącz widżety w Ustawienia → Widżety.</div>'); c.style.setProperty('--i',0); c._ok=()=>openSettings('widgets'); row.appendChild(c); }
 }
 const np={on:true,pos:.32};
+/* Spotify demo: made-up playlists and tracks, so the player can be tried with the keys */
+const SP_LISTS=[['Codzienny miks','#1db954','#0b3d2e'],['Chill i fokus','#4f6df5','#14224f'],['Rock klasyki','#e0453a','#4a1512'],['Polskie hity','#f2a33a','#4a2f0c'],['Wieczorny jazz','#9b5de5','#2a1650'],['Treningowe','#ff4f9a','#4d1033'],['Podróż','#26c6da','#0b3a42'],['Odkrycia tygodnia','#9ccc65','#2d4a12'],['Ulubione','#7c9cff','#1b2a5e']];
+const SP_TRACKS=[['Wschód słońca','Mglisty Las','3:42'],['Szklane miasto','Neon Park','4:05'],['Dalekie światła','Nocny Pociąg','3:18'],['Błękitna godzina','Lato w Mieście','2:57'],['Powrót do domu','Stare Radio','3:51'],['Fale','Morska Sól','4:26'],['Cichy poranek','Miodowe Dni','3:09'],['Na ostatnim piętrze','Wieżowce','3:33']];
+const sp={playing:true,list:0,track:0,pos:.2,shuffle:false};
+const spCover=(i)=>'background:linear-gradient(135deg,'+SP_LISTS[i][1]+','+SP_LISTS[i][2]+')';
+function spDraw(){ const b=$('#spbar'); if(b) b.style.width=(sp.pos*100)+'%'; const t=$('#spst'); if(t) t.textContent=sp.playing?'gra':'pauza'; $$('.spp').forEach(e=>{e.style.width=(sp.pos*100)+'%'}); }
+setInterval(()=>{ if(sp.playing){ sp.pos+=.012; if(sp.pos>=1){ sp.pos=0; sp.track=(sp.track+1)%SP_TRACKS.length; refreshSp(); } spDraw(); } },1000);
+function refreshSp(){ renderInfo(); const o=ovs.find(x=>x.id==='spotify'); if(o&&o.draw) o.draw(o.idx); }
 function npDraw(){ const s=$('#npst'), b=$('#npbar'); if(s) s.textContent=np.on?'gra':'pauza'; if(b) b.style.width=(np.pos*100)+'%'; }
 setInterval(()=>{ if(np.on){ np.pos=(np.pos+.012)%1; npDraw(); } },1000);
 
@@ -526,6 +555,7 @@ function setItems(o,list,keep){ o.items=list; o.items.forEach((e,i)=>{ e.addEven
 function focusOv(o,i){ if(!o.items.length) return; o.idx=clamp(i,0,o.items.length-1); o.items.forEach((e,k)=>e.classList.toggle('f',k===o.idx)); const e=o.items[o.idx]; if(e) reveal(e.closest('.list'),e,'y'); }
 function ovKey(o,k){
   if(k==='back'||(k==='menu'&&!o.keepMenu)){ o.back?o.back():closeOv(o); return; }
+  if(o.onKey&&o.onKey(k)) return;
   if(k==='home'){ closeAll(); return; }
   const n=o.items.length; if(!n){ if(k==='ok') closeOv(o); return; }
   let i=o.idx; const e=o.items[i];
@@ -617,6 +647,49 @@ function confirmDlg(text,label,fn){ dialog({title:'Potwierdź',html:'<p>'+text+'
 function openReport(title,lines){ dialog({title,html:'<div class="rep">'+lines.map(([k,t])=>'<div><span class="'+k+'">'+(k==='ok'?'✓':'✗')+'</span> '+t+'</div>').join('')+'</div>',buttons:[['Zamknij']]}); }
 function openChangelog(){ dialog({title:'Co nowego · wersja '+VERSION,html:'<ul>'+CHANGELOG.map(x=>'<li>'+x+'</li>').join('')+'</ul>',buttons:[['Super']]}); }
 
+/* Spotify player */
+const SPI={shuffle:'<svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>',prev:'<svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>',next:'<svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>',play:'<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',pause:'<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>'};
+function openSpotify(){
+  const ov=openOv({id:'spotify',cls:'sp'}); let view=null;
+  ov.back=()=>{ if(view!==null){ view=null; ov.draw(4+ov.lastList); } else closeOv(ov); };
+  ov.lastList=0;
+  ov.draw=(focus)=>{
+    const T=SP_TRACKS[sp.track];
+    const ctl=[['shuffle',SPI.shuffle,sp.shuffle,()=>{sp.shuffle=!sp.shuffle}],['prev',SPI.prev,false,()=>{sp.track=(sp.track+SP_TRACKS.length-1)%SP_TRACKS.length;sp.pos=0}],['play',sp.playing?SPI.pause:SPI.play,false,()=>{sp.playing=!sp.playing}],['next',SPI.next,false,()=>{sp.track=(sp.track+1)%SP_TRACKS.length;sp.pos=0}]];
+    let right='';
+    if(view===null) right='<h4>Twoje playlisty</h4><div class="spgrid">'+SP_LISTS.map((l,i)=>'<div class="sptile fxs" data-i="'+i+'"><div class="cv" style="'+spCover(i)+'">♪</div><b>'+l[0]+'</b><span>'+(8+i*3)+' utworów</span></div>').join('')+'</div>';
+    else right='<h4 style="display:flex;justify-content:space-between;gap:12px"><span>'+SP_LISTS[view][0]+'</span></h4><div class="sppill fxs" data-play="1">Odtwórz playlistę</div><div class="sptracks list">'+SP_TRACKS.map((t,j)=>'<div class="sprow fxs'+(sp.list===view&&sp.track===j?' now':'')+'" data-j="'+j+'"><i>'+(sp.list===view&&sp.track===j?'♪':j+1)+'</i><div class="t"><b>'+t[0]+'</b><em>'+t[1]+'</em></div><span>'+t[2]+'</span></div>').join('')+'</div>';
+    ov.el.innerHTML='<div class="spwrap"><div class="spl"><div class="spc" style="'+spCover(sp.list)+'">♪</div><h3>'+T[0]+'</h3><p>'+T[1]+'</p><div class="bar"><i class="spp" style="width:'+(sp.pos*100)+'%;background:#fff"></i></div><div class="spctl">'+ctl.map((c,i)=>'<div class="sbtn fxs'+(i===2?' big':'')+(c[2]?' on':'')+'" data-c="'+i+'">'+c[1]+'</div>').join('')+'</div><small>na: Mi Box S</small></div><div class="spr">'+right+'</div></div>';
+    const els=$$('.fxs',ov.el); els.forEach((e,idx)=>{
+      e._ok=()=>{
+        if(e.dataset.c!==undefined){ ctl[+e.dataset.c][3](); refreshSp(); toast(['Losowo','Poprzedni utwór','','Następny utwór'][+e.dataset.c]||(sp.playing?'Wznawiam':'Pauza')); }
+        else if(e.dataset.i!==undefined){ ov.lastList=+e.dataset.i; view=+e.dataset.i; ov.draw(4); }
+        else if(e.dataset.play){ sp.list=view; sp.track=0; sp.pos=0; sp.playing=true; refreshSp(); }
+        else if(e.dataset.j!==undefined){ sp.list=view; sp.track=+e.dataset.j; sp.pos=0; sp.playing=true; refreshSp(); }
+      };
+      e.addEventListener('click',()=>{ focusOv(ov,idx); e._ok(); });
+    });
+    setItems(ov,els,focus);
+  };
+  ov.onKey=(k)=>{
+    if(!['left','right','up','down'].includes(k)) return false;
+    const i=ov.idx, n=ov.items.length;
+    if(i<4){ if(k==='right') focusOv(ov,i===3?4:i+1); else if(k==='left') focusOv(ov,Math.max(0,i-1)); return true; }
+    const j=i-4;
+    if(view===null){
+      const col=j%3;
+      if(k==='left') focusOv(ov,col===0?2:i-1);
+      else if(k==='right'){ if(col<2&&i+1<n) focusOv(ov,i+1); }
+      else if(k==='up'){ if(j>=3) focusOv(ov,i-3); }
+      else if(k==='down'){ if(i+3<n) focusOv(ov,i+3); else if(Math.floor(j/3)<Math.floor((n-5)/3)) focusOv(ov,n-1); }
+    } else {
+      if(k==='left') focusOv(ov,2); else if(k==='up') focusOv(ov,Math.max(4,i-1)); else if(k==='down') focusOv(ov,Math.min(n-1,i+1));
+    }
+    return true;
+  };
+  ov.draw(2);
+}
+
 /* phone remote (QR) */
 function qrCanvas(text){
   const N=33, c=document.createElement('canvas'); c.width=c.height=N*8+16; const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.fillStyle='#111';
@@ -689,7 +762,7 @@ function SET_CATS(){
      {type:'note',text:ST.perf===0?'Pełne efekty. Jeśli launcher zacznie się przycinać, sam przełączy się na oszczędny tryb.':ST.perf===1?'Oszczędny tryb zawsze: najmniej rysowania, najwięcej płynności.':'Wszystkie efekty zawsze, także na słabym sprzęcie.'},
    ]},
    {id:'widgets',name:'Widżety',icon:'grid',color:'#ff9f0a',state:()=>Object.values(W).filter(Boolean).length+' włączone',rows:()=>[
-     t('Kalendarz (miesiąc)',()=>!!W.calendar,wset('calendar')),t('Pogoda',()=>!!W.weather,wset('weather')),t('Teraz gra',()=>!!W.np,wset('np')),
+     t('Kalendarz (miesiąc)',()=>!!W.calendar,wset('calendar')),t('Pogoda',()=>!!W.weather,wset('weather')),t('Teraz gra',()=>!!W.np,wset('np')),t('Spotify (okładki, playlisty, sterowanie)',()=>!!W.spotify,wset('spotify')),
      t('Wydarzenia z Kalendarza Google',()=>!!W.agenda,wset('agenda')),t('Sieć (Wi-Fi, sygnał, adres IP)',()=>!!W.network,wset('network')),
      t('Bluetooth i sparowane urządzenia',()=>!!W.bt,wset('bt')),t('Pamięć i system',()=>!!W.system,wset('system')),
      {type:'note',text:'Widżety są na stronie nad ekranem głównym (strzałka w górę).'},
@@ -823,6 +896,7 @@ function start(){
   else if(s==='folder') openFolder();
   else if(s==='news') openChangelog();
   else if(s==='qr') openRemote();
+  else if(s==='spotify') openSpotify();
   if(qs.has('lite')){ST.perf=1;applyAll();}
   if(s) hideHint();
 }

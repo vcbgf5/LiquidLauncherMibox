@@ -7,8 +7,10 @@
 <meta name="description" content="Liquid TV: launcher w stylu Apple TV dla Xiaomi Mi Box i innych Android TV. Pobierz launcher i aplikację na telefon, zobacz poradniki: instalacja, adb, głośność, pilot z telefonu.">
 <meta property="og:title" content="Liquid TV">
 <meta property="og:description" content="Launcher w stylu Apple TV dla Android TV, z ciszą aktualizacją przez adb, pilotem z telefonu i widżetami.">
-<meta property="og:image" content="img/preview-home.jpg">
-<meta name="theme-color" content="#050608">
+<meta property="og:image" content="img/preview-social.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<meta name="theme-color" content="#070914">
 <style>
 :root{color-scheme:dark;--bg:#050608;--fg:#f5f6fa;--mut:rgba(245,246,250,.66);--dim:rgba(245,246,250,.42);--glass:rgba(255,255,255,.065);--glass2:rgba(255,255,255,.1);--line:rgba(255,255,255,.14);--accent:#9dbbff;--accent2:#c6a8ff;--ok:#7be0a5;--warn:#ffd9a0;--r:22px}
 *{box-sizing:border-box}
@@ -22,34 +24,93 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 img{max-width:100%;height:auto;display:block}
 .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
 
-/* top bar */
-nav.top{position:sticky;top:0;z-index:20;background:rgba(5,6,8,.62);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);border-bottom:1px solid var(--line)}
+/* scroll progress and the slim bar that appears once the first screen is behind you */
+#bar{position:fixed;left:0;top:0;height:3px;width:100%;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,#1F5BFF,#7A4DF0,#E24BA8);z-index:40}
+nav.top{position:fixed;left:0;right:0;top:0;z-index:30;background:rgba(7,9,20,.66);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border-bottom:1px solid var(--line);transform:translateY(-110%);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+body.scrolled nav.top{transform:none}
 nav.top .wrap{display:flex;align-items:center;gap:22px;height:60px;overflow-x:auto;scrollbar-width:none}
 nav.top .wrap::-webkit-scrollbar{display:none}
-.logo{font-weight:750;letter-spacing:-.01em;color:#fff;white-space:nowrap;display:flex;align-items:center;gap:10px}
-.logo i{display:inline-block;width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,#7c9cff,#b36bff)}
+.logo{font-weight:800;letter-spacing:-.01em;color:#fff;white-space:nowrap;display:flex;align-items:center;gap:10px}
+.logo img{width:30px;height:30px;border-radius:9px}
 nav.top a.l{color:var(--mut);font-size:15px;white-space:nowrap}nav.top a.l:hover{color:#fff;text-decoration:none}
 nav.top .sp{flex:1}
 .pill{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:99px;background:#fff;color:#111;font-weight:650;font-size:14.5px;white-space:nowrap}
 .pill:hover{text-decoration:none;transform:translateY(-1px)}
 
-/* hero */
-.hero{padding:70px 0 40px}
-.hero .wrap{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center}
-h1{font-size:clamp(40px,6.6vw,72px);line-height:1.02;letter-spacing:-.035em;margin:0 0 16px}
+/* hero: one button, and a screen that turns towards the pointer */
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;--hue:215}
+.aurora{position:absolute;inset:-12% -10% 0;pointer-events:none;z-index:0}
+.aurora i{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;transition:background 1.2s}
+.aurora i:nth-child(1){left:-4%;top:8%;width:46vw;height:46vw;background:hsl(var(--hue) 90% 58%);transform:translate3d(calc(var(--mx,0)*-40px),calc(var(--sy,0)*.14px),0)}
+.aurora i:nth-child(2){right:-10%;top:-6%;width:48vw;height:48vw;background:hsl(calc(var(--hue) + 70) 85% 60%);transform:translate3d(calc(var(--mx,0)*34px),calc(var(--sy,0)*.24px),0)}
+.aurora i:nth-child(3){left:28%;bottom:-20%;width:42vw;height:42vw;background:hsl(calc(var(--hue) + 140) 80% 58%);opacity:.32;transform:translate3d(calc(var(--mx,0)*-20px),calc(var(--sy,0)*.08px),0)}
+.hero>.wrap{width:100%}
+.brand{position:relative;z-index:2;display:flex;align-items:center;gap:12px;font-weight:800;font-size:21px;letter-spacing:-.01em;color:#fff;padding:24px 0 0}
+.brand img{width:44px;height:44px;border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.45);animation:bob 5s ease-in-out infinite}
+.brand:hover{text-decoration:none}
+@keyframes bob{50%{transform:translateY(-3px) rotate(-3deg)}}
+.hero-in{position:relative;z-index:1;flex:1;display:grid;grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);gap:44px;align-items:center;padding:30px 0 90px}
+.hero-in>*{min-width:0}
+.hero .kicker{animation:rise .8s .05s both}
+.hero h1{animation:rise .9s .12s both}
+.hero .lead{animation:rise .9s .22s both}
+.hero .mega-wrap{animation:rise .9s .34s both}
+@keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+h1{font-size:clamp(38px,5.3vw,66px);line-height:1.02;letter-spacing:-.035em;margin:0 0 16px}
 h1 span{background:linear-gradient(120deg,#fff 10%,var(--accent) 55%,var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
-.lead{font-size:20px;color:var(--mut);margin:0 0 28px;max-width:34em}
-.btns{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px}
-.btn{display:inline-flex;align-items:center;gap:12px;padding:17px 28px;border-radius:20px;font-weight:650;font-size:18px;color:#111;background:#fff;box-shadow:0 14px 40px rgba(0,0,0,.45);transition:transform .2s cubic-bezier(.2,.9,.25,1.2),box-shadow .2s}
-.btn.alt{background:var(--glass2);color:#fff;border:1px solid var(--line);box-shadow:none;backdrop-filter:blur(14px)}
-.btn:hover,.btn:focus-visible{text-decoration:none;transform:translateY(-3px) scale(1.03);outline:none;box-shadow:0 20px 50px rgba(0,0,0,.55),0 0 0 3px rgba(255,255,255,.85),0 0 36px 6px rgba(157,187,255,.45)}
-.btn small{display:block;font-weight:500;font-size:13px;opacity:.65;margin-top:1px}
-.chip{display:inline-flex;gap:8px;align-items:center;color:var(--mut);font-size:15px;min-height:1.6em}
+.lead{font-size:20px;color:var(--mut);margin:0 0 30px;max-width:30em}
+.mega{position:relative;display:inline-flex;align-items:center;gap:16px;padding:22px 40px 22px 30px;border:0;border-radius:26px;cursor:pointer;font:inherit;font-weight:800;font-size:30px;letter-spacing:-.01em;color:#111;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 0 rgba(255,255,255,.5);transition:transform .25s cubic-bezier(.2,.9,.25,1.2),box-shadow .25s;animation:ring 2.8s 1.6s infinite}
+.mega:hover,.mega:focus-visible{transform:translateY(-4px) scale(1.04);outline:none;box-shadow:0 26px 70px rgba(0,0,0,.55),0 0 0 4px rgba(255,255,255,.85),0 0 46px 8px rgba(157,187,255,.5)}
+.mega:active{transform:scale(.97)}
+.mega .arr{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#1F5BFF,#7A4DF0 55%,#E24BA8);color:#fff;font-size:26px;line-height:1;animation:drop 1.6s ease-in-out infinite}
+@keyframes drop{0%,100%{transform:translateY(-2px)}50%{transform:translateY(5px)}}
+@keyframes ring{0%{box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 0 rgba(255,255,255,.45)}70%,100%{box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 26px rgba(255,255,255,0)}}
+.mega-note{display:block;margin:14px 0 0;color:var(--dim);font-size:14.5px}
+.chip{display:inline-flex;gap:8px;align-items:center;color:var(--mut);font-size:15px;min-height:1.6em;margin-top:6px}
 .chip b{color:#fff;font-weight:650}
 .dl-note{color:var(--dim);font-size:14.5px;margin:6px 0 0}
-.tv{position:relative;border-radius:26px;padding:10px;background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.05));box-shadow:0 40px 90px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.12)}
-.tv img{border-radius:18px;aspect-ratio:16/9;object-fit:cover;width:100%}
-.tv::after{content:"";position:absolute;left:12%;right:12%;bottom:-26px;height:14px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.6),transparent)}
+.stage{position:relative;perspective:1500px;animation:rise 1s .3s both}
+.tv3d{position:relative;transform-style:preserve-3d;transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));will-change:transform;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent}
+.tv3d.pop{animation:pop .55s cubic-bezier(.2,.9,.25,1.3)}
+@keyframes pop{40%{transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) scale(1.035)}}
+.bezel{position:relative;transform-style:preserve-3d;border-radius:30px;padding:13px;background:linear-gradient(145deg,rgba(255,255,255,.36),rgba(255,255,255,.06));box-shadow:0 60px 120px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.16),inset 0 1px 0 rgba(255,255,255,.45)}
+.tv3d:focus-visible .bezel{box-shadow:0 60px 120px rgba(0,0,0,.65),0 0 0 3px #fff}
+.screen{position:relative;border-radius:19px;overflow:hidden;aspect-ratio:16/9;background:#000;transform:translateZ(20px)}
+.screen img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.08) translate(calc(var(--nx,0)*-9px),calc(var(--ny,0)*-6px));transition:opacity .7s ease}
+.screen img.on{opacity:1}
+.glare{position:absolute;inset:0;pointer-events:none;background:radial-gradient(60% 70% at var(--gx,30%) var(--gy,20%),rgba(255,255,255,.3),transparent 62%);mix-blend-mode:soft-light}
+.ripple{position:absolute;border-radius:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border:3px solid rgba(255,255,255,.9);pointer-events:none;animation:rip .8s ease-out forwards}
+@keyframes rip{to{transform:scale(14);opacity:0}}
+.float{position:absolute;z-index:3;border-radius:16px;padding:10px 15px;color:#fff;font-weight:750;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);backdrop-filter:blur(16px) saturate(1.6);-webkit-backdrop-filter:blur(16px) saturate(1.6);box-shadow:0 22px 50px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.4);pointer-events:none;transform:translate3d(calc(var(--nx,0)*var(--d)*1px),calc(var(--ny,0)*var(--d)*.7px),calc(var(--d)*2.4px))}
+.float.a{left:-5%;top:10%;--d:34;font-size:22px;letter-spacing:-.5px}
+.float.b{right:-4%;bottom:12%;--d:58;display:flex;gap:7px;padding:11px 13px}
+.float.b i{width:30px;height:18px;border-radius:6px}
+.float.c{right:5%;top:-5%;--d:22;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:hsl(var(--hue) 100% 82%)}
+.hint{position:absolute;left:50%;bottom:-40px;transform:translateX(-50%) translateZ(40px);padding:7px 14px;border-radius:99px;background:rgba(7,9,20,.7);border:1px solid var(--line);font-size:13.5px;color:var(--mut);white-space:nowrap;transition:opacity .5s;pointer-events:none}
+.hint.off{opacity:0}
+.cap{margin:56px auto 0;max-width:520px;text-align:center;min-height:110px}
+.cap h3{margin:0 0 6px;font-size:22px;letter-spacing:-.015em}
+.cap p{margin:0;color:var(--mut);font-size:16px}
+.cap.swap h3,.cap.swap p{animation:capIn .55s both}
+.cap.swap p{animation-delay:.07s}
+@keyframes capIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.dots{display:flex;gap:8px;justify-content:center;margin-top:14px}
+.dots button{width:9px;height:9px;padding:0;border:0;border-radius:99px;background:rgba(255,255,255,.28);cursor:pointer;transition:width .3s,background .3s}
+.dots button.on{width:26px;background:#fff}
+.scrollhint{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:2;color:var(--dim);font-size:13px;letter-spacing:.14em;text-transform:uppercase;text-align:center}
+.scrollhint:hover{text-decoration:none;color:#fff}
+
+/* appearing on scroll, and the downloads that fly in when you press the button */
+.reveal{opacity:0;transform:translateY(36px) scale(.985);transition:opacity .9s cubic-bezier(.2,.8,.2,1),transform .9s cubic-bezier(.2,.8,.2,1);transition-delay:calc(var(--i,0)*70ms)}
+.reveal.in{opacity:1;transform:none}
+#pobierz .dl{perspective:1200px}
+#pobierz .dl .card{opacity:0;transform:translateY(70px) rotateX(26deg) scale(.93);transform-origin:50% 100%;transition:opacity .8s cubic-bezier(.2,.8,.2,1),transform .9s cubic-bezier(.2,.9,.25,1.1);transition-delay:calc(var(--i,0)*130ms)}
+#pobierz.play .dl .card{opacity:1;transform:none}
+#pobierz.play .dl .card:first-child{animation:glowCard 1.8s 1s 2}
+@keyframes glowCard{50%{box-shadow:0 0 0 2px rgba(255,255,255,.7),0 0 60px 8px rgba(157,187,255,.5)}}
+#pobierz .dl .card .go{position:relative;overflow:hidden}
+#pobierz.play .dl .card .go::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.75) 50%,transparent 70%);transform:translateX(-120%);animation:sweep 1.2s calc(.7s + var(--i,0)*.13s) 1}
+@keyframes sweep{to{transform:translateX(120%)}}
 
 /* sections */
 section.s{padding:64px 0 8px}
@@ -61,12 +122,6 @@ h2{font-size:clamp(28px,4vw,40px);letter-spacing:-.025em;margin:0 0 8px}
 .card h3{margin:0 0 6px;font-size:18.5px;letter-spacing:-.01em}
 .card p{margin:0;color:var(--mut);font-size:15.5px}
 .ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:21px;margin-bottom:12px;background:linear-gradient(135deg,rgba(124,156,255,.35),rgba(179,107,255,.3));border:1px solid var(--line)}
-
-/* gallery */
-.gal{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px 24px 22px;margin:0 -24px;scrollbar-width:thin}
-.gal figure{flex:0 0 min(560px,86vw);margin:0;scroll-snap-align:center}
-.gal img{border-radius:18px;border:1px solid var(--line);box-shadow:0 18px 50px rgba(0,0,0,.5);aspect-ratio:16/9;object-fit:cover;width:100%}
-.gal figcaption{color:var(--mut);font-size:15px;margin-top:10px;text-align:center}
 
 /* tutorials */
 .steps{display:grid;gap:14px}
@@ -119,21 +174,29 @@ td:first-child{white-space:nowrap}
 footer{padding:50px 0 70px;color:var(--dim);font-size:14.5px;text-align:center}
 footer .wrap{border-top:1px solid var(--line);padding-top:26px}
 
+@media(max-width:900px){
+  .hero{min-height:auto}
+  .hero-in{grid-template-columns:minmax(0,1fr);gap:34px;padding:18px 0 80px;text-align:center}
+  .mega{font-size:26px;padding:18px 28px 18px 24px}
+  .lead{margin-left:auto;margin-right:auto}
+  .float.a,.float.b,.float.c{display:none}
+  .scrollhint{display:none}
+}
 @media(max-width:860px){
-  .hero .wrap{grid-template-columns:1fr;gap:36px}
   .body{padding:2px 18px 20px}
   .twocol{grid-template-columns:1fr}
   #rel .row{grid-template-columns:1fr;gap:4px}
   #rel .files a{margin:0 14px 0 0}
   summary{padding:16px 16px}
 }
-@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}.reveal,#pobierz .dl .card{opacity:1!important;transform:none!important}}
 </style>
 </head>
 <body>
 
+<div id="bar"></div>
 <nav class="top"><div class="wrap">
-  <a class="logo" href="#top"><i></i>Liquid TV</a>
+  <a class="logo" href="#top"><img src="logo.svg" alt="" width="30" height="30">Liquid TV</a>
   <a class="l" href="#pobierz">Pobierz</a>
   <a class="l" href="#funkcje">Funkcje</a>
   <a class="l" href="#instalacja">Instalacja</a>
@@ -142,35 +205,45 @@ footer .wrap{border-top:1px solid var(--line);padding-top:26px}
   <a class="l" href="#pilot">Pilot z telefonu</a>
   <a class="l" href="#pomoc">Pomoc</a>
   <span class="sp"></span>
-  <a class="pill" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk">⬇ Pobierz</a>
+  <a class="pill" href="#pobierz" data-go>⬇ Pobierz</a>
 </div></nav>
 
-<header class="hero" id="top"><div class="wrap">
-  <div>
-    <p class="kicker">Android TV · Xiaomi Mi Box</p>
-    <h1>Ekran główny jak z <span>Apple TV</span>.</h1>
-    <p class="lead">Szklany dok, wielkie kafelki, widżety, własne tapety i wygaszacz. Aktualizuje się sam, a z telefonu możesz sterować Boxem, wysyłać zdjęcia i pokazać swój ekran na telewizorze.</p>
-    <div class="btns">
-      <a id="dl" class="btn" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTV.apk" autofocus>⬇ <span>Pobierz launcher<small>LiquidTV.apk · na Boxa</small></span></a>
-      <a id="dlp" class="btn alt" href="https://github.com/vcbgf5/LiquidLauncherMibox/releases/latest/download/LiquidTVPilot.apk">📱 <span>Pilot na telefon<small>LiquidTVPilot.apk · Android 8+</small></span></a>
+<header class="hero" id="top">
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="wrap" style="position:relative;z-index:2"><a class="brand" href="#top"><img src="logo.svg" alt="" width="44" height="44">Liquid TV</a></div>
+  <div class="wrap hero-in">
+    <div class="hero-copy">
+      <p class="kicker">Android TV · Xiaomi Mi Box</p>
+      <h1>Ekran główny jak z <span>Apple TV</span>.</h1>
+      <p class="lead">Szklany dok, wielkie kafelki, widżety, Spotify i własne tapety. Aktualizuje się sam, a z telefonu sterujesz Boxem.</p>
+      <div class="mega-wrap">
+        <button class="mega" id="go" type="button" data-go><span>Pobierz</span><span class="arr" aria-hidden="true">↓</span></button>
+        <span class="mega-note">Jeden klik: zjedziesz do plików. Launcher, aplikacja na telefon, wersja Lite.</span>
+        <div class="chip" id="ver">Sprawdzam najnowszą wersję…</div>
+      </div>
     </div>
-    <div class="chip" id="ver">Sprawdzam najnowszą wersję…</div>
-    <p class="dl-note">Na Boxie wpisz w aplikacji <b>Downloader</b> adres <b style="color:var(--accent)">vcbgf5.github.io/LiquidLauncherMibox/apk</b>. Zawsze pobiera najnowszą wersję. Stary telewizor z ok. 0,5 GB RAM? Wpisz <b style="color:var(--accent)">vcbgf5.github.io/LiquidLauncherMibox/apk/lite</b> (wersja Lite).</p>
+    <div class="stage" id="stage">
+      <div class="tv3d" id="tv" role="button" tabindex="0" aria-label="Zmień zdjęcie ekranu: kliknij, żeby zobaczyć następny ekran">
+        <div class="bezel">
+          <div class="screen" id="screen">
+            <img id="im0" alt="" width="1920" height="1080"><img id="im1" alt="" width="1920" height="1080">
+            <div class="glare"></div>
+          </div>
+          <div class="float a" id="fclock">21:08</div>
+          <div class="float b"><i style="background:#2F6BFF"></i><i style="background:#7A4DF0"></i><i style="background:#E24BA8"></i></div>
+          <div class="float c" id="ftag">Ekran główny</div>
+        </div>
+        <div class="hint" id="hint">Kliknij ekran · rusz myszką</div>
+      </div>
+      <div class="cap swap" id="cap">
+        <h3 id="capT"></h3>
+        <p id="capP"></p>
+        <div class="dots" id="dots"></div>
+      </div>
+    </div>
   </div>
-  <div class="tv"><img src="img/preview-home.jpg" alt="Ekran główny Liquid TV: zegar, dok z aplikacjami i minimalny pasek u góry" width="1920" height="1080"></div>
-</div></header>
-
-<section class="s" id="galeria"><div class="wrap">
-  <div class="gal">
-    <figure><img loading="lazy" src="img/preview-home.jpg" alt="Ekran główny"><figcaption>Ekran główny: duży zegar, szklany dok, minimalny pasek (☰)</figcaption></figure>
-    <figure><img loading="lazy" src="img/preview-info.jpg" alt="Widżety"><figcaption>Strona widżetów: kalendarz, pogoda, „Teraz gra”, sieć</figcaption></figure>
-    <figure><img loading="lazy" src="img/preview-apps.jpg" alt="Wszystkie aplikacje"><figcaption>Wszystkie aplikacje jako duże kafelki, z folderami</figcaption></figure>
-    <figure><img loading="lazy" src="img/preview-settings.jpg" alt="Ustawienia"><figcaption>Ustawienia w kategoriach, w tym Narzędzia (adb)</figcaption></figure>
-    <figure><img loading="lazy" src="img/preview-screensaver.jpg" alt="Wygaszacz"><figcaption>Wygaszacz ze „szklanym” zegarem</figcaption></figure>
-  </div>
-  <p style="text-align:center;color:var(--mut);margin:4px 0 0">To prawdziwe zrzuty ekranu z Mi Box S. <a href="preview.html">Klikalny podgląd w przeglądarce →</a> (ustawienia, szybkie ustawienia, widżety, foldery, wygaszacz: strzałki, Enter i Esc działają jak pilot)</p>
-</div></section>
-
+  <a class="scrollhint" href="#pobierz" data-go>przewiń ↓</a>
+</header>
 <section class="s" id="pobierz"><div class="wrap">
   <p class="kicker">Pobieranie</p>
   <h2>Co pobrać</h2>
@@ -214,6 +287,7 @@ footer .wrap{border-top:1px solid var(--line);padding-top:26px}
     <div class="card"><div class="ic">🧩</div><h3>Widżety</h3><p>Kalendarz Google (link iCal), pogoda, „Teraz gra” ze sterowaniem, sieć, Bluetooth, pamięć.</p></div>
     <div class="card"><div class="ic">🖼️</div><h3>Tapety i wygaszacz</h3><p>Kategorie z Unsplash, własne zdjęcia z telefonu, wygaszacz z zegarem, automatyczne przyciemnianie jasnych tapet.</p></div>
     <div class="card"><div class="ic">🗂️</div><h3>Foldery, ikony, szybkie ustawienia</h3><p>Foldery aplikacji, zmiana ikony jednej aplikacji, panel szybkich ustawień pod przyciskiem Menu.</p></div>
+    <div class="card"><div class="ic">🎧</div><h3>Spotify na telewizorze</h3><p>Widżet i pełnoekranowy odtwarzacz z okładkami, playlistami i utworami. Logujesz się raz w aplikacji Pilot na telefonie (Spotify Premium).</p></div>
     <div class="card"><div class="ic">🔮</div><h3>Liquid Glass w oknach</h3><p>Ustawienia, szybkie ustawienia i menu jako prawdziwe szkło: rozmyta tapeta, załamanie światła przy brzegu, jasna krawędź z poświatą. W Ustawieniach → Wygląd wrócisz do prostego, ciemnego szkła.</p></div>
     <div class="card"><div class="ic">⚡</div><h3>Tryb wydajności i wersja Lite</h3><p>Sam wykrywa przycinanie i wyłącza efekty, a launcher rysuje tylko to, co się zmienia. Na starych telewizorach z ok. 0,5 GB RAM jest osobna wersja Lite.</p></div>
   </div>
@@ -399,12 +473,13 @@ python tv_adb.py 192.168.0.170 --screenshot</pre></div>
       <div class="note">W adresie jest sekretny kod, więc strona jest zabezpieczona. <b>Nowy link</b> w tym samym oknie unieważnia stary. Strona działa tylko przy otwartym oknie, chyba że włączysz „działa cały czas”. Telefon i Box muszą być w tej samej sieci.</div>
     </div></details>
 
-    <details><summary><span class="n">2</span><span class="t">Co potrafi aplikacja Pilot<small>Cztery zakładki</small></span></summary><div class="body">
+    <details><summary><span class="n">2</span><span class="t">Co potrafi aplikacja Pilot<small>Pięć zakładek</small></span></summary><div class="body">
       <table>
         <tr><th>Zakładka</th><th>Funkcje</th></tr>
         <tr><td>Pilot</td><td>Strzałki, OK, Wstecz, Home, odtwórz/pauza, głośność, wyciszenie, uśpienie, włączenie TV, wpisywanie tekstu, otwieranie adresu na TV.</td></tr>
         <tr><td>Zdjęcia</td><td>Wybierasz zdjęcia z telefonu: są zmniejszane i obracane do pionu, trafiają do kategorii „Moje zdjęcia” i od razu stają się tapetą. Przycisk „Usuń moje zdjęcia z Boksa”.</td></tr>
         <tr><td>Ekran</td><td>Pokazuje ekran telefonu na telewizorze (obraz bez dźwięku, kilka klatek na sekundę). Na TV przycisk Wstecz kończy udostępnianie.</td></tr>
+        <tr><td>Spotify</td><td>Logowanie do Spotify, przyciski odtwarzania, głośność urządzenia, wybór urządzenia, playlisty, przekazanie logowania launcherowi na TV.</td></tr>
         <tr><td>Box</td><td>Skanowanie kodu QR, adres i kod ręcznie, sprawdzenie połączenia.</td></tr>
       </table>
       <p><b>„Udostępnij” z innych aplikacji:</b> w galerii wybierz zdjęcia → <i>Udostępnij</i> → <b>Liquid TV Pilot</b>: zostaną tapetami. W przeglądarce lub YouTube udostępnij link: otworzy się na TV. Zwykły tekst jest wpisywany w zaznaczone na TV pole.</p>
@@ -412,6 +487,18 @@ python tv_adb.py 192.168.0.170 --screenshot</pre></div>
       <div class="note">Pilot poza launcherem i wpisywanie tekstu działają przez adb na Boxie, więc wymagają skonfigurowanego adb. Android zna przy wpisywaniu tylko znaki ASCII (bez polskich liter).</div>
     </div></details>
 
+    <details><summary><span class="n">♫</span><span class="t">Spotify: odtwarzacz w launcherze<small>Logowanie w aplikacji Pilot, okładki i playlisty na telewizorze</small></span></summary><div class="body">
+      <p>Aplikacja Pilot loguje się do Spotify (bez wpisywania hasła w aplikacji: otwiera stronę Spotify w przeglądarce) i przekazuje logowanie launcherowi. Potem launcher ma <b>widżet „Spotify”</b> i pełnoekranowy <b>odtwarzacz</b> z okładką, paskiem postępu, playlistami i utworami.</p>
+      <ol>
+        <li>Potrzebne: konto <b>Spotify Premium</b> i aplikacja <b>Spotify</b> na Boxie (musi działać, żeby Box był widoczny dla Spotify jako urządzenie; launcher sam ją uruchomi, gdy trzeba).</li>
+        <li>W aplikacji Pilot otwórz zakładkę <b>Spotify</b> i wybierz <b>Połącz ze Spotify</b>. Zaloguj się na stronie Spotify i zatwierdź. Aplikacja wróci sama.</li>
+        <li>Jeśli telefon jest połączony z Boxem (zakładka Box), logowanie od razu trafia do launchera. Możesz też użyć <b>Wyślij do TV</b>.</li>
+        <li>Na telewizorze: <b>strzałka w górę</b> z ekranu głównego, na stronie widżetów wybierz kartę <b>Spotify</b>. <b>OK</b> otwiera odtwarzacz, a <b>przytrzymanie OK</b> to pauza lub wznowienie. W odtwarzaczu <b>OK</b> na playliście pokazuje jej utwory, a na utworze go odtwarza. <b>Wstecz</b> cofa.</li>
+        <li>Telefon w zakładce Spotify też steruje muzyką: przyciski, głośność urządzenia, wybór urządzenia i playlisty.</li>
+      </ol>
+      <div class="note"><b>Dla właściciela projektu (jednorazowo):</b> na <code>developer.spotify.com</code> utwórz aplikację, w <b>Redirect URIs</b> dodaj dokładnie <code>liquidtvpilot://spotify-callback</code>, a <b>Client ID</b> wpisz w GitHubie jako sekret <code>CLIENT_ID_SPOTIFY</code> (Settings → Secrets and variables → Actions). <b>Client Secret nie jest potrzebny</b> i nie wolno go wkładać do aplikacji. Konto, które się loguje, musi być właścicielem aplikacji albo dodane w „User Management”.</div>
+      <div class="warn">Spotify w trybie deweloperskim ogranicza aplikację do kilku użytkowników i wymaga Premium właściciela. Utwory pokazuje tylko dla Twoich własnych playlist; cudze da się odtworzyć w całości.</div>
+    </div></details>
     <details><summary><span class="n">3</span><span class="t">Własne tapety<small>Zdjęcia z telefonu</small></span></summary><div class="body">
       <ol>
         <li>Wyślij zdjęcia ze strony z kodem QR (sekcja „Własne tapety”) albo z aplikacji Pilot.</li>
@@ -535,6 +622,111 @@ python tv_adb.py 192.168.0.170 --screenshot</pre></div>
   // A link to a section opens the tutorial inside it.
   function openTarget(){var t=document.querySelector(location.hash||"#none"); if(t){var d=t.closest("details")||t.querySelector("details"); if(d) d.open=true;}}
   addEventListener("hashchange",openTarget); openTarget();
+})();
+</script>
+<script>
+// The first screen: a TV that turns towards the pointer, a click that shows the next screen (and changes the text and
+// the colours), one button that scrolls down and plays the download cards in, and things that appear while you scroll.
+(function(){
+  var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var $=function(q){return document.querySelector(q)};
+  var clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};
+  var hero=$("#top"),stage=$("#stage"),tv=$("#tv"),cap=$("#cap"),hint=$("#hint");
+  var SLIDES=[
+    {img:"img/preview-home.jpg",hue:215,tag:"Ekran główny",t:"Szklany dok i wielki zegar",p:"Natywny launcher w stylu Apple TV: duży szklany zegar, dok z ulubionymi i minimalny pasek ☰ na górze."},
+    {img:"img/preview-info.jpg",hue:150,tag:"Widżety",t:"Kalendarz, pogoda, Teraz gra i Spotify",p:"Strzałka w górę i masz stronę widżetów: wydarzenia z Kalendarza Google, pogodę, sieć, Bluetooth i odtwarzacz."},
+    {img:"img/preview-apps.jpg",hue:30,tag:"Aplikacje",t:"Wszystkie aplikacje jako duże kafelki",p:"Kafelki 5:3 z połyskiem i delikatnym pochylaniem, foldery i zmiana ikony jednej aplikacji."},
+    {img:"img/preview-liquid.jpg",hue:275,tag:"Liquid Glass",t:"Okna jak prawdziwe szkło",p:"Szybkie ustawienia, menu i okna z rozmytą tapetą, załamaniem światła i jasną krawędzią. Możesz wrócić do prostego, ciemnego szkła."},
+    {img:"img/preview-settings.jpg",hue:190,tag:"Ustawienia i adb",t:"Ustawienia w kategoriach i narzędzia adb",p:"Wygląd, widżety, tapety, aktualizacje co 5 s bez okna Androida i narzędzia przez adb na samym Boxie."},
+    {img:"img/preview-screensaver.jpg",hue:330,tag:"Wygaszacz",t:"Szklany zegar na dryfującej tapecie",p:"Wygaszacz z zegarem w stylu Liquid Glass; dowolny przycisk go zamyka."}
+  ];
+  var im=[$("#im0"),$("#im1")],which=0,cur=0,dots=$("#dots");
+  SLIDES.forEach(function(sl,i){var b=document.createElement("button");b.type="button";b.setAttribute("aria-label","Ekran "+(i+1)+": "+sl.tag);b.onclick=function(){show(i)};dots.appendChild(b)});
+  function show(i,first){
+    cur=(i+SLIDES.length)%SLIDES.length;var sl=SLIDES[cur];
+    var next=first?im[0]:im[1-which],old=im[which];
+    next.src=sl.img;next.classList.add("on");if(!first)old.classList.remove("on");which=first?0:1-which;
+    hero.style.setProperty("--hue",sl.hue);
+    $("#ftag").textContent=sl.tag;$("#capT").textContent=sl.t;$("#capP").textContent=sl.p;
+    Array.prototype.forEach.call(dots.children,function(d,k){d.classList.toggle("on",k===cur)});
+    cap.classList.remove("swap");void cap.offsetWidth;cap.classList.add("swap");
+  }
+  show(0,true);
+  window.addEventListener("load",function(){SLIDES.forEach(function(sl){var i=new Image();i.src=sl.img})});
+
+  function next(by,ev){
+    if(ev&&ev.clientX!=null){var r=$("#screen").getBoundingClientRect(),d=document.createElement("span");d.className="ripple";d.style.left=(ev.clientX-r.left)+"px";d.style.top=(ev.clientY-r.top)+"px";$("#screen").appendChild(d);setTimeout(function(){d.remove()},850)}
+    show(cur+by);hint.classList.add("off");tv.classList.remove("pop");void tv.offsetWidth;tv.classList.add("pop");
+  }
+  tv.addEventListener("click",function(e){next(1,e)});
+  tv.addEventListener("keydown",function(e){
+    if(e.key==="Enter"||e.key===" "||e.key==="ArrowRight"){e.preventDefault();next(1)}
+    else if(e.key==="ArrowLeft"){e.preventDefault();next(-1)}
+  });
+
+  // the tilt: eased towards the pointer, drifting by itself when nothing moves (also on a phone)
+  var tx=0,ty=0,x=0,y=0,lastMove=-1e9,visible=true,looping=false;
+  hero.addEventListener("pointermove",function(e){
+    var r=stage.getBoundingClientRect();
+    tx=clamp((e.clientX-(r.left+r.width/2))/(innerWidth/2),-1,1);ty=clamp((e.clientY-(r.top+r.height/2))/(innerHeight/2),-1,1);
+    lastMove=performance.now();
+  });
+  hero.addEventListener("pointerleave",function(){lastMove=-1e9});
+  function loop(t){
+    looping=false;if(!visible)return;
+    if(t-lastMove>2200){tx=Math.sin(t/2600)*.42;ty=Math.cos(t/3300)*.26}
+    x+=(tx-x)*.085;y+=(ty-y)*.085;
+    stage.style.setProperty("--nx",x.toFixed(3));stage.style.setProperty("--ny",y.toFixed(3));
+    stage.style.setProperty("--gx",(50+x*46).toFixed(1)+"%");stage.style.setProperty("--gy",(50+y*46).toFixed(1)+"%");
+    tv.style.setProperty("--ry",(x*15).toFixed(2)+"deg");tv.style.setProperty("--rx",(-y*10).toFixed(2)+"deg");
+    hero.style.setProperty("--mx",x.toFixed(3));
+    looping=true;requestAnimationFrame(loop);
+  }
+  function start(){if(!looping&&!reduce){looping=true;requestAnimationFrame(loop)}}
+  if(reduce){tv.style.setProperty("--ry","-6deg");tv.style.setProperty("--rx","3deg")}
+  if("IntersectionObserver" in window){new IntersectionObserver(function(en){visible=en[0].isIntersecting;if(visible)start()},{threshold:0}).observe(hero)}
+  start();
+
+  // clock on the floating badge
+  function clock(){var d=new Date();$("#fclock").textContent=("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)}
+  clock();setInterval(clock,10000);
+
+  // scroll: progress bar, slim menu after the first screen, aurora drifting
+  var bar=$("#bar"),ticking=false;
+  function onScroll(){
+    if(ticking)return;ticking=true;
+    requestAnimationFrame(function(){
+      ticking=false;var y0=window.scrollY,max=document.documentElement.scrollHeight-innerHeight;
+      bar.style.transform="scaleX("+(max>0?clamp(y0/max,0,1):0)+")";
+      document.body.classList.toggle("scrolled",y0>innerHeight*.55);
+      if(y0<innerHeight*1.5)hero.style.setProperty("--sy",y0);
+    });
+  }
+  addEventListener("scroll",onScroll,{passive:true});onScroll();
+
+  // the one button: down to the downloads, where the cards fly in
+  var dl=$("#pobierz");
+  Array.prototype.forEach.call(dl.querySelectorAll(".dl .card"),function(c,i){c.style.setProperty("--i",i)});
+  function play(){dl.classList.add("play")}
+  Array.prototype.forEach.call(document.querySelectorAll("[data-go]"),function(el){
+    el.addEventListener("click",function(e){
+      e.preventDefault();
+      dl.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"});
+      setTimeout(play,reduce?0:380);
+      if(history.replaceState)history.replaceState(null,"","#pobierz");
+    });
+  });
+  if("IntersectionObserver" in window){
+    new IntersectionObserver(function(en,ob){if(en[0].isIntersecting){play();ob.disconnect()}},{threshold:.3}).observe(dl.querySelector(".dl"));
+    // everything else appears as it comes into view
+    var io=new IntersectionObserver(function(en){en.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}})},{rootMargin:"0px 0px -8% 0px"});
+    var seen=new Map();
+    Array.prototype.forEach.call(document.querySelectorAll("section.s :is(.kicker,h2,.sub,.card,details,.note,.tip,.warn)"),function(el){
+      if(el.closest(".dl")||el.closest(".body")||el.closest("details[open]")&&el.tagName!=="DETAILS")return;
+      var n=(seen.get(el.parentNode)||0);seen.set(el.parentNode,n+1);
+      el.style.setProperty("--i",Math.min(n,6));el.classList.add("reveal");io.observe(el);
+    });
+  } else {play()}
 })();
 </script>
 </body>
