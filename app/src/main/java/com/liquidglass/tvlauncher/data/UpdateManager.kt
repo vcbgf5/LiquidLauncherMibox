@@ -109,8 +109,9 @@ class UpdateManager(context: Context, private val settings: LauncherSettings) {
                 else -> problem = explain(result)
             }
             status = UpdateStatus.SILENT_FAILED
-            if (automatic) return
-            // Pressed by hand: still get the update, through the normal installer.
+            // Falls through to the normal installer either way: a silent install that keeps failing
+            // (adb's authorization lost after a reboot is the usual reason) must not leave the
+            // automatic loop just giving up forever with nothing on screen to show for it.
         }
         status = when (Updater.install(app, file, askPermission = !automatic)) {
             Updater.InstallStart.STARTED -> UpdateStatus.INSTALLING

@@ -6,6 +6,7 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
+        "Poprawka: automatyczna aktualizacja już nie \"cichnie\" na zawsze, gdy cicha instalacja przez adb akurat zawiedzie — pokaże zwykłe okno instalacji zamiast nic nie robić.",
         "Gotowe motywy kolorystyczne, sezonowe tło (śnieg/liście/kwiaty) i widżet Spotify w kolorze okładki (Ustawienia → Wygląd).",
         "Poprawka: widżet Spotify (OK = pauza/wznów, przytrzymanie OK = pełny odtwarzacz) nie blokuje już reszty strony widżetów.",
         "Spotify na telewizorze: widżet „Spotify” i pełnoekranowy odtwarzacz z okładkami, playlistami i utworami. Zaloguj się raz w aplikacji Pilot (zakładka Spotify); potrzebny Spotify Premium.",
