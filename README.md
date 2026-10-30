@@ -162,9 +162,9 @@ Jak podłączyć własne konto:
 2. W aplikacji **Liquid TV Pilot** na telefonie otwórz zakładkę **Spotify** i wybierz **Połącz ze Spotify**. Zaloguj się na
    stronie Spotify (bez wpisywania hasła w samej aplikacji) i zatwierdź — aplikacja wróci sama.
 3. Jeśli telefon jest połączony z Boxem (zakładka Box), logowanie od razu trafia do launchera.
-4. Na telewizorze: strzałka w górę z ekranu głównego → karta **Spotify**. **OK** otwiera pełnoekranowy odtwarzacz (okładka, pasek
-   postępu, playlisty i utwory — OK na playliście pokazuje jej utwory, na utworze go odtwarza, Wstecz cofa); **przytrzymanie OK**
-   to pauza lub wznowienie bez otwierania odtwarzacza. Telefon w zakładce Spotify też steruje muzyką.
+4. Na telewizorze: strzałka w górę z ekranu głównego → karta **Spotify**. **OK** to pauza lub wznowienie bez otwierania
+   odtwarzacza; **przytrzymanie OK** otwiera pełnoekranowy odtwarzacz (okładka, pasek postępu, playlisty i utwory — OK na
+   playliście pokazuje jej utwory, na utworze go odtwarza, Wstecz cofa). Telefon w zakładce Spotify też steruje muzyką.
 5. Logowanie jest jednorazowe: potem telefon możesz odłożyć albo wyłączyć — launcher na Boksie pamięta sesję i sam rozmawia ze
    Spotify (sam odświeża token), więc muzyka gra i steruje się nią samym pilotem telewizora, bez telefonu w pobliżu.
 

@@ -6,6 +6,7 @@ package com.liquidglass.tvlauncher.data
  */
 object Changelog {
     val NEWEST: List<String> = listOf(
+        "Poprawka: widżet Spotify (OK = pauza/wznów, przytrzymanie OK = pełny odtwarzacz) nie blokuje już reszty strony widżetów.",
         "Spotify na telewizorze: widżet „Spotify” i pełnoekranowy odtwarzacz z okładkami, playlistami i utworami. Zaloguj się raz w aplikacji Pilot (zakładka Spotify); potrzebny Spotify Premium.",
         "Nowe logo launchera i baner na ekran telewizora; aplikacja Pilot na telefon ma nowe ikony i szklany wygląd.",
         "Wersja Lite (LiquidTVLite.apk, dla telewizorów z ok. 0,5 GB RAM) jest znacznie mniejsza i oszczędniejsza.",

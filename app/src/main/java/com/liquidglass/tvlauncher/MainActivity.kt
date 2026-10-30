@@ -595,13 +595,13 @@ class MainActivity : ComponentActivity() {
                                     grantNotificationAccess()
                                 }
                             }
-                            WidgetType.SPOTIFY -> if (SpotifyHub.connected) showSpotify = true else toast(getString(R.string.spotify_connect_hint))
+                            WidgetType.SPOTIFY -> if (SpotifyHub.connected) spotifyPlayPause()
                             WidgetType.CALENDAR -> Unit
                         }
                     },
                     onWidgetLong = { type ->
                         if (type == WidgetType.NOW_PLAYING) nowPlaying.item?.next()
-                        if (type == WidgetType.SPOTIFY) spotifyPlayPause()
+                        if (type == WidgetType.SPOTIFY && SpotifyHub.connected) showSpotify = true
                     },
                     page = page,
                     onPage = { page = it },
@@ -1525,7 +1525,7 @@ class MainActivity : ComponentActivity() {
 
     // ---- adb tools: results and messages -----------------------------------------------------------
 
-    /** Play or pause Spotify (hold OK on its widget). */
+    /** Play or pause Spotify (OK on its widget). */
     private fun spotifyPlayPause() {
         appScope.launch {
             val playing = SpotifyHub.playback?.playing == true
