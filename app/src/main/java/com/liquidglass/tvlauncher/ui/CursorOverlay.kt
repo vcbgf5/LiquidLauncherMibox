@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 
 /**
  * The dot that follows the phone's gyroscope (see RemoteServer's /cursor and MainActivity's
@@ -16,8 +15,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 @Composable
 fun CursorOverlay(position: Offset) {
     Canvas(modifier = Modifier.fillMaxSize()) {
-        drawCircle(color = Color.Black.copy(alpha = 0.35f), radius = 15f, center = position)
-        drawCircle(color = Color.White, radius = 13f, center = position, style = Stroke(width = 3f))
-        drawCircle(color = Color(0xFF0A84FF), radius = 5f, center = position)
+        // Opaque black border + white fill, sized in real dp (not raw pixels, which on a dense TV
+        // panel used to draw a dot too small and too translucent to actually see from the couch).
+        val r = 20f * density
+        drawCircle(color = Color.Black, radius = r, center = position)
+        drawCircle(color = Color.White, radius = r - 3.5f * density, center = position)
     }
 }

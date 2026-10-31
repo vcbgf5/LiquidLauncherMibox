@@ -446,7 +446,7 @@ private class CursorDotOverlay(private val context: Context) {
     private val density = context.resources.displayMetrics.density
     private val view = CursorDotView(context)
     private var attached = false
-    private val size = (26 * density).toInt()
+    private val size = (40 * density).toInt()
     private val params = WindowManager.LayoutParams(
         size,
         size,
@@ -483,23 +483,18 @@ private class CursorDotOverlay(private val context: Context) {
     fun release() = hide()
 }
 
-/** The dot itself: a small white ring with a soft dark halo, readable on a bright background or a dark one. */
+/** The dot itself: a solid white disc with an opaque black border, so it reads clearly from couch
+ * distance against any background (a translucent dot was tried first and was nearly invisible on TV). */
 private class CursorDotView(context: Context) : View(context) {
     private val d = context.resources.displayMetrics.density
-    private val halo = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x55000000 }
-    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        style = Paint.Style.STROKE
-        strokeWidth = 2.4f * d
-    }
-    private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+    private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; style = Paint.Style.FILL }
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; style = Paint.Style.FILL }
 
     override fun onDraw(canvas: Canvas) {
         val cx = width / 2f
         val cy = height / 2f
-        canvas.drawCircle(cx, cy, cx - d, halo)
-        canvas.drawCircle(cx, cy, cx - 3f * d, ring)
-        canvas.drawCircle(cx, cy, 2f * d, dot)
+        canvas.drawCircle(cx, cy, cx, border)
+        canvas.drawCircle(cx, cy, cx - 3.5f * d, fill)
     }
 }
 
