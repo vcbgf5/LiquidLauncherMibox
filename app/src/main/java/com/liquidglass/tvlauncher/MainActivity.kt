@@ -188,10 +188,18 @@ class MainActivity : ComponentActivity() {
     /** After Back on a shared screen the frames are refused for a while (and the phone is told to stop). */
     private var mirrorRefusedUntil = 0L
 
-    /** The on-screen position of the phone's gyroscope cursor (null when the feature isn't in use), and
-     * when it last moved: only Compose moves it, adb is only called for the tap itself (see receiveCursor). */
+    /** The cursor's real screen position, tracked regardless of which dot is actually drawing it
+     * (the system overlay or the in-window fallback); this is what new deltas are added onto, so the
+     * dot doesn't keep snapping back to center on every update once the overlay takes over. */
+    private var cursorScreenPos: Offset? = null
+
+    /** The fallback, in-window dot's position (null while [SystemService] is drawing its own instead,
+     * or the feature isn't in use); only Compose moves it, adb is only called for the tap itself (see
+     * receiveCursor). [cursorTick] fires on every update, whichever dot is the one actually showing,
+     * so the watchdog below can time either of them out the same way. */
     private var cursorPos by mutableStateOf<Offset?>(null)
     private var cursorAt = 0L
+    private var cursorTick by mutableIntStateOf(0)
 
     /** The quick settings (hold OK on the gear, or the Menu key). */
     private var showQuick by mutableStateOf(false)
@@ -581,11 +589,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // The gyroscope cursor dot goes away a few seconds after the last update from the phone.
-            LaunchedEffect(cursorPos != null) {
-                while (cursorPos != null) {
-                    delay(1_000)
-                    if (System.currentTimeMillis() - cursorAt > 3_000L) cursorPos = null
+            // The gyroscope cursor dot goes away a few seconds after the last update from the phone,
+            // wherever it's actually being drawn; restarts (and so cancels the previous timer) on every
+            // new update via the cursorTick key.
+            LaunchedEffect(cursorTick) {
+                delay(3_100)
+                if (System.currentTimeMillis() - cursorAt >= 3_000L) {
+                    cursorPos = null
+                    cursorScreenPos = null
+                    SystemService.hideCursor()
                 }
             }
 
@@ -1833,26 +1845,28 @@ class MainActivity : ComponentActivity() {
      * position that Compose alone moves — adb is only invoked at the moment of a tap, with that
      * position as the coordinates, which is what keeps the dot smooth despite adb's own latency.
      * Runs on a server thread, much more often than [handleRemote].
+     *
+     * The point of a remote mouse is pointing at whatever app is already in front (Netflix, a game…),
+     * so this never switches to the launcher itself: the dot is drawn by [SystemService], the same
+     * accessibility-service overlay the volume bar uses, which sits above every app without taking
+     * focus. Only without that service configured does it fall back to the launcher's own, in-window
+     * dot ([CursorOverlay]), which can only show while the launcher itself is the one on screen.
      */
     private fun receiveCursor(dx: Float, dy: Float, tap: Boolean): String {
         val now = System.currentTimeMillis()
         val metrics = resources.displayMetrics
         val maxX = (metrics.widthPixels - 1).toFloat()
         val maxY = (metrics.heightPixels - 1).toFloat()
-        val base = cursorPos ?: Offset(maxX / 2f, maxY / 2f)
+        val base = cursorScreenPos ?: Offset(maxX / 2f, maxY / 2f)
         val next = Offset((base.x + dx).coerceIn(0f, maxX), (base.y + dy).coerceIn(0f, maxY))
-        val first = cursorPos == null
+        cursorScreenPos = next
+        val shownByService = SystemService.showCursor(next.x.roundToInt(), next.y.roundToInt())
         runOnUiThread {
-            cursorPos = next
+            // Only used as the fallback dot (see above) once the service is drawing its own.
+            cursorPos = if (shownByService) null else next
             cursorAt = now
+            cursorTick++
             screensaverShowing = false
-            if (first && !inForeground) {
-                // The touchpad was opened while another app is in front: bring the launcher up to show the dot.
-                try {
-                    startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
-                } catch (_: Exception) {
-                }
-            }
         }
         if (tap) {
             // adb reaches whatever app is in front, same as the D-pad keys; only the tap itself pays that latency.

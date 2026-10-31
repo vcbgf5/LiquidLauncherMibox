@@ -50,6 +50,7 @@ import kotlin.math.abs
 class SystemService : AccessibilityService() {
 
     private var overlay: VolumeOverlay? = null
+    private var cursor: CursorDotOverlay? = null
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var settings: LauncherSettings
     private lateinit var audio: AudioManager
@@ -104,6 +105,7 @@ class SystemService : AccessibilityService() {
         settings = LauncherSettings(this)
         audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         overlay = VolumeOverlay(this)
+        cursor = CursorDotOverlay(this)
         lastLevel = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
         lastMuted = audio.isStreamMute(AudioManager.STREAM_MUSIC)
         levelReal = settings.volumeLevelReal
@@ -359,6 +361,8 @@ class SystemService : AccessibilityService() {
         runCatching { contentResolver.unregisterContentObserver(settingsObserver) }
         overlay?.release()
         overlay = null
+        cursor?.release()
+        cursor = null
         handler.removeCallbacksAndMessages(null)
         volumeWorker.execute {
             runCatching { adbLine?.close() }
@@ -418,6 +422,84 @@ class SystemService : AccessibilityService() {
             service.overlay?.show(percent, muted)
             return true
         }
+
+        /** The gyroscope cursor's dot, at the box's own screen coordinates, above whatever app is in
+         * front (Netflix included) — the whole point of a remote mouse. False without the service, in
+         * which case the caller falls back to drawing the dot only inside the launcher's own window. */
+        fun showCursor(x: Int, y: Int): Boolean {
+            val service = instance ?: return false
+            service.cursor?.move(x, y)
+            return true
+        }
+
+        /** Hides the dot (the touchpad screen on the phone was closed, or went quiet for a while). */
+        fun hideCursor() {
+            instance?.cursor?.hide()
+        }
+    }
+}
+
+/** A small dot drawn above every app, moved to wherever the phone's gyroscope points it. Unlike the
+ * volume bar it never auto-hides on a timer: [SystemService.hideCursor] is the only thing that does. */
+private class CursorDotOverlay(private val context: Context) {
+    private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    private val density = context.resources.displayMetrics.density
+    private val view = CursorDotView(context)
+    private var attached = false
+    private val size = (26 * density).toInt()
+    private val params = WindowManager.LayoutParams(
+        size,
+        size,
+        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        PixelFormat.TRANSLUCENT,
+    ).apply { gravity = Gravity.TOP or Gravity.START }
+
+    /** [x]/[y] is where the dot's centre should be, in the screen's own pixels. */
+    fun move(x: Int, y: Int) {
+        params.x = x - size / 2
+        params.y = y - size / 2
+        if (!attached) {
+            try {
+                windowManager.addView(view, params)
+                attached = true
+            } catch (_: Exception) {
+                return
+            }
+        } else {
+            runCatching { windowManager.updateViewLayout(view, params) }
+        }
+    }
+
+    fun hide() {
+        if (attached) {
+            runCatching { windowManager.removeView(view) }
+            attached = false
+        }
+    }
+
+    fun release() = hide()
+}
+
+/** The dot itself: a small white ring with a soft dark halo, readable on a bright background or a dark one. */
+private class CursorDotView(context: Context) : View(context) {
+    private val d = context.resources.displayMetrics.density
+    private val halo = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x55000000 }
+    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = 2.4f * d
+    }
+    private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+
+    override fun onDraw(canvas: Canvas) {
+        val cx = width / 2f
+        val cy = height / 2f
+        canvas.drawCircle(cx, cy, cx - d, halo)
+        canvas.drawCircle(cx, cy, cx - 3f * d, ring)
+        canvas.drawCircle(cx, cy, 2f * d, dot)
     }
 }
 
